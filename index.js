@@ -1,3 +1,4 @@
+// TewfikSoft Cloud Bot v4.1 - /info /me commands active
 import https from 'https';
 import fs from 'fs';
 import path from 'path';

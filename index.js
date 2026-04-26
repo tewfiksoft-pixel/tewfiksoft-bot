@@ -87,45 +87,57 @@ const saveRequest = (data) => {
 
 // -- Google Drive Sync -------------------------------------
 const syncFromDrive = async () => {
-  if (!DB_FILE_ID) return;
-      try {
-                ensureDataDir();
-                const auth = new google.auth.GoogleAuth({
-                              keyFile: GOOGLE_KEY_PATH,
-                              scopes: ['https://www.googleapis.com/auth/drive.readonly']
-                });
-                const drive = google.drive({ version: 'v3', auth });
-                const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
-                
-                let rawData = res.data;
-                if (typeof rawData !== 'string') {
-                    rawData = JSON.stringify(rawData);
-                }
-                
-                // Remove BOM if present
-                if (rawData.charCodeAt(0) === 0xFEFF) {
-                    rawData = rawData.slice(1);
-                }
+    let report = 'Sync Start...\n';
+    if (!DB_FILE_ID) return report + 'Sync error: DB_FILE_ID is not configured';
+    try {
+        ensureDataDir();
+        const auth = new google.auth.GoogleAuth({
+            keyFile: GOOGLE_KEY_PATH,
+            scopes: ['https://www.googleapis.com/auth/drive.readonly']
+        });
+        const drive = google.drive({ version: 'v3', auth });
+        const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
+        
+        let rawData = res.data;
+        if (typeof rawData !== 'string') {
+            rawData = JSON.stringify(rawData);
+        }
+        report += `Downloaded: ${rawData.length} bytes.\n`;
+        
+        // Remove BOM if present
+        if (rawData.charCodeAt(0) === 0xFEFF) {
+            rawData = rawData.slice(1);
+        }
 
-                // First, try if it's plain JSON (unencrypted)
-                try {
-                    const parsed = JSON.parse(rawData);
-                    if (parsed && (parsed.hr_employees || parsed.employees)) {
-                        fs.writeFileSync(DB_LOCAL_PATH, rawData);
-                        log('Sync success: DB updated (Plain JSON)');
-                        return;
-                    }
-                } catch (e) {}
-                
-                // If not plain JSON, try decrypting
-                const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
-                if (decrypted) {
-                              fs.writeFileSync(DB_LOCAL_PATH, decrypted);
-                              log('Sync success: DB decrypted and updated');
-                } else {
-                              log('Sync error: Data is not valid JSON and Decryption failed');
-                }
-      } catch (e) { log('Sync error: ' + e.message); }
+        // First, try if it's plain JSON (unencrypted)
+        let parsedData = null;
+        try {
+            const parsed = JSON.parse(rawData);
+            if (parsed && (parsed.hr_employees || parsed.employees)) {
+                fs.writeFileSync(DB_LOCAL_PATH, rawData);
+                report += 'Sync success: DB updated (Plain JSON)\n';
+                log('Sync success: DB updated (Plain JSON)');
+                parsedData = parsed;
+            }
+        } catch (e) { report += `Plain JSON Parse Failed: ${e.message}\n`; }
+        
+        if (!parsedData) {
+            const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
+            if (decrypted) {
+                fs.writeFileSync(DB_LOCAL_PATH, decrypted);
+                report += 'Sync success: DB decrypted and updated\n';
+                log('Sync success: DB decrypted and updated');
+                parsedData = true;
+            } else {
+                report += 'Sync error: Data is not valid JSON and Decryption failed (returned null)\n';
+                log('Sync error: Data is not valid JSON and Decryption failed');
+            }
+        }
+    } catch (e) { 
+        report += 'Sync error: ' + e.message + '\n';
+        log('Sync error: ' + e.message); 
+    }
+    return report;
 };
 
 const loadDatabase = () => {
@@ -394,39 +406,8 @@ const handle = async (update, config) => {
                         return send(chatId, `DB Employees: ${len}\nRole: ${user.role}`);
                     }
                     if (txt === '/sync') {
-                        let resTxt = '';
-                        try {
-                            const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
-                            let rawData = res.data;
-                            if (typeof rawData !== 'string') rawData = JSON.stringify(rawData);
-                            resTxt += `Downloaded: ${rawData.length} bytes.\n`;
-                            
-                            // Remove BOM if present
-                            if (rawData.charCodeAt(0) === 0xFEFF) rawData = rawData.slice(1);
-                            
-                            let parsedData = null;
-                            try {
-                                const parsed = JSON.parse(rawData);
-                                if (parsed && (parsed.hr_employees || parsed.employees)) {
-                                    fs.writeFileSync(DB_LOCAL_PATH, rawData);
-                                    resTxt += 'Plain JSON success.\n';
-                                    parsedData = parsed;
-                                }
-                            } catch (e) { resTxt += `Plain JSON parse failed: ${e.message}\n`; }
-                            
-                            if (!parsedData) {
-                                const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
-                                if (decrypted) {
-                                    fs.writeFileSync(DB_LOCAL_PATH, decrypted);
-                                    resTxt += 'Decryption success.\n';
-                                } else {
-                                    resTxt += 'Decryption failed (returned null).\n';
-                                }
-                            }
-                        } catch (err) {
-                            resTxt += `Drive Error: ${err.message}`;
-                        }
-                        return send(chatId, `Sync Process:\n${resTxt}`);
+                        const report = await syncFromDrive();
+                        return send(chatId, `Sync Process Report:\n${report}`);
                     }
                     if (txt === '/info') return handleInfo(chatId, user, lang);
 };

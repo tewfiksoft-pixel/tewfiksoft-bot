@@ -96,12 +96,34 @@ const syncFromDrive = async () => {
                 });
                 const drive = google.drive({ version: 'v3', auth });
                 const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
-                const decrypted = decryptDatabase(res.data, ENCRYPTION_KEY);
+                
+                let rawData = res.data;
+                if (typeof rawData !== 'string') {
+                    rawData = JSON.stringify(rawData);
+                }
+                
+                // Remove BOM if present
+                if (rawData.charCodeAt(0) === 0xFEFF) {
+                    rawData = rawData.slice(1);
+                }
+
+                // First, try if it's plain JSON (unencrypted)
+                try {
+                    const parsed = JSON.parse(rawData);
+                    if (parsed && (parsed.hr_employees || parsed.employees)) {
+                        fs.writeFileSync(DB_LOCAL_PATH, rawData);
+                        log('Sync success: DB updated (Plain JSON)');
+                        return;
+                    }
+                } catch (e) {}
+                
+                // If not plain JSON, try decrypting
+                const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
                 if (decrypted) {
                               fs.writeFileSync(DB_LOCAL_PATH, decrypted);
                               log('Sync success: DB decrypted and updated');
                 } else {
-                              log('Sync error: Decryption failed');
+                              log('Sync error: Data is not valid JSON and Decryption failed');
                 }
       } catch (e) { log('Sync error: ' + e.message); }
 };

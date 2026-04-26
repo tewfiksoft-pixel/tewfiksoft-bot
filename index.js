@@ -41,6 +41,19 @@ const FAUTES = [
   {id:7,ar:'أخرى',fr:'Autre'}
 ];
 
+const ADMIN_MOTIFS = [
+  "Assurance Automobile",
+  "Ouverture Compte Bancaire",
+  "Ouverture Compte CCP",
+  "Dossier Bourse",
+  "Dossier Visa",
+  "Dossier Passeport",
+  "Achat par facilité",
+  "Dossier soutien de Famille",
+  "Dossier Logement",
+  "Crédit Bancaire"
+];
+
 const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
 const T = (s) => { try { return String(s||'').trim() || '—'; } catch { return '—'; } };
 
@@ -201,8 +214,33 @@ async function handle(u) {
     if (d.startsWith('doc:')) {
       const [,empId,docId] = d.split(':');
       const doc = DOCS.find(x=>x.id===+docId);
+      
+      // If doc is Attestation (1) or Relevés (2), show predefined motifs
+      if (+docId === 1 || +docId === 2) {
+        states.set(chatId, {step:'doc_predefined_motif', empId, doc: ar?doc.ar:doc.fr});
+        const kbd = {inline_keyboard: []};
+        for (let i = 0; i < ADMIN_MOTIFS.length; i += 2) {
+            const row = [];
+            row.push({text: ADMIN_MOTIFS[i], callback_data: 'dmotif:' + i});
+            if (ADMIN_MOTIFS[i+1]) row.push({text: ADMIN_MOTIFS[i+1], callback_data: 'dmotif:' + (i+1)});
+            kbd.inline_keyboard.push(row);
+        }
+        return send(chatId, ar?'❓ الرجاء اختيار سبب الطلب:':'❓ Veuillez choisir le motif :', kbd);
+      }
+      
       states.set(chatId,{step:'doc_motif',empId,doc:ar?doc.ar:doc.fr});
       return send(chatId, ar?'❓ ما هو الغرض من الطلب؟':'❓ Motif de la demande ?');
+    }
+    
+    if (d.startsWith('dmotif:')) {
+      const motifId = +d.slice(7);
+      const st = states.get(chatId);
+      if (st && st.step === 'doc_predefined_motif') {
+        const motifText = ADMIN_MOTIFS[motifId] || 'Autre';
+        saveReq({type:'document',doc:st.doc,motif:motifText,fromId,empId:st.empId});
+        states.delete(chatId);
+        return send(chatId, ar?'✅ تم استلام طلبك بنجاح.':'✅ Demande reçue avec succès.');
+      }
     }
     if (d.startsWith('abs:')) { states.set(chatId,{step:'abs_type',empId:d.slice(4)}); return showAbsType(chatId,ar); }
     if (d.startsWith('atype:')) {

@@ -1,0 +1,63 @@
+{
+    "is_enabled": true,
+    "authorized_users": [
+          {
+                  "id": "7035116029",
+                  "name": "REFFAS Farida",
+                  "role": "supervisor",
+                  "scope": "custom_employees",
+                  "allowed_departments": null,
+                  "allowed_company": null,
+                  "allowed_employees": []
+          },
+          {
+                  "id": "6480391203",
+                  "name": "Utilisateur",
+                  "role": "supervisor",
+                  "scope": null,
+                  "allowed_departments": null,
+                  "allowed_company": null,
+                  "allowed_employees": null
+          },
+          {
+                  "id": "965443735",
+                  "name": "Test User",
+                  "role": "supervisor",
+                  "scope": "custom_employees",
+                  "allowed_departments": [],
+                  "allowed_company": "all",
+                  "allowed_employees": ["70041"]
+          },
+          {
+                  "id": "8626592284",
+                  "name": "zogir",
+                  "role": "general_manager",
+                  "scope": "custom_employees",
+                  "allowed_departments": [],
+                  "allowed_company": "all",
+                  "allowed_employees": []
+          }
+    ],
+    "display_settings": {
+          "show_bank_account": false,
+          "show_contract_type": true,
+          "show_department": true,
+          "show_contract_end": true,
+          "show_photo": true,
+          "show_social_number": false,
+          "show_phone": true,
+          "show_hiring_date": true,
+          "show_probation_end": true,
+          "show_address": false,
+          "show_job_title": true
+    },
+    "allowed_documents": {
+          "doc_0": true,
+          "doc_1": true,
+          "doc_2": true,
+          "doc_3": true,
+          "doc_4": true,
+          "doc_5": true,
+          "doc_6": true
+    }
+}

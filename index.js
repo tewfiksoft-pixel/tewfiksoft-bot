@@ -23,6 +23,7 @@ const DB_LOCAL_PATH = path.join(__dirname, 'data', 'database.json');
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const DB_FILE_ID = process.env.DB_FILE_ID || '';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'nouar2026';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
 
 const DB_SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
 const PBKDF2_ITERATIONS = 100000;
@@ -88,50 +89,69 @@ const saveRequest = (data) => {
 // -- Google Drive Sync -------------------------------------
 const syncFromDrive = async () => {
     let report = 'Sync Start...\n';
-    if (!DB_FILE_ID) return report + 'Sync error: DB_FILE_ID is not configured';
     try {
         ensureDataDir();
-        const auth = new google.auth.GoogleAuth({
-            keyFile: GOOGLE_KEY_PATH,
-            scopes: ['https://www.googleapis.com/auth/drive.readonly']
-        });
-        const drive = google.drive({ version: 'v3', auth });
-        const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
-        
-        let rawData = res.data;
-        if (typeof rawData !== 'string') {
-            rawData = JSON.stringify(rawData);
-        }
-        report += `Downloaded: ${rawData.length} bytes.\n`;
-        
-        // Remove BOM if present
-        if (rawData.charCodeAt(0) === 0xFEFF) {
-            rawData = rawData.slice(1);
+        let rawData = null;
+
+        // Try Script URL first (Easiest, no config needed)
+        try {
+            report += 'Attempting Script URL sync...\n';
+            const response = await fetch(SCRIPT_URL);
+            if (response.ok) {
+                rawData = await response.text();
+                report += `Script URL Downloaded: ${rawData.length} bytes.\n`;
+            } else {
+                report += `Script URL failed: ${response.status}\n`;
+            }
+        } catch (e) { report += `Script URL Error: ${e.message}\n`; }
+
+        // Fallback to Google Drive API if Script URL failed and DB_FILE_ID exists
+        if (!rawData && DB_FILE_ID) {
+            try {
+                report += 'Attempting Google Drive API sync...\n';
+                const auth = new google.auth.GoogleAuth({
+                    keyFile: GOOGLE_KEY_PATH,
+                    scopes: ['https://www.googleapis.com/auth/drive.readonly']
+                });
+                const drive = google.drive({ version: 'v3', auth });
+                const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
+                if (res.data) {
+                    rawData = res.data;
+                    if (typeof rawData !== 'string') rawData = JSON.stringify(rawData);
+                    report += `Drive API Downloaded: ${rawData.length} bytes.\n`;
+                }
+            } catch (e) { report += `Drive API Error: ${e.message}\n`; }
         }
 
-        // First, try if it's plain JSON (unencrypted)
-        let parsedData = null;
-        try {
-            const parsed = JSON.parse(rawData);
-            if (parsed && (parsed.hr_employees || parsed.employees)) {
-                fs.writeFileSync(DB_LOCAL_PATH, rawData);
-                report += 'Sync success: DB updated (Plain JSON)\n';
-                log('Sync success: DB updated (Plain JSON)');
-                parsedData = parsed;
+        if (rawData) {
+            // Remove BOM if present
+            if (rawData.charCodeAt(0) === 0xFEFF) rawData = rawData.slice(1);
+
+            let parsedData = null;
+            try {
+                const parsed = JSON.parse(rawData);
+                if (parsed && (parsed.hr_employees || parsed.employees)) {
+                    fs.writeFileSync(DB_LOCAL_PATH, rawData);
+                    report += 'Sync success: DB updated (Plain JSON)\n';
+                    log('Sync success: DB updated (Plain JSON)');
+                    parsedData = parsed;
+                }
+            } catch (e) { report += `Plain JSON Parse Failed: ${e.message}\n`; }
+            
+            if (!parsedData) {
+                const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
+                if (decrypted) {
+                    fs.writeFileSync(DB_LOCAL_PATH, decrypted);
+                    report += 'Sync success: DB decrypted and updated\n';
+                    log('Sync success: DB decrypted and updated');
+                    parsedData = true;
+                } else {
+                    report += 'Sync error: Data is not valid JSON and Decryption failed (returned null)\n';
+                    log('Sync error: Data is not valid JSON and Decryption failed');
+                }
             }
-        } catch (e) { report += `Plain JSON Parse Failed: ${e.message}\n`; }
-        
-        if (!parsedData) {
-            const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
-            if (decrypted) {
-                fs.writeFileSync(DB_LOCAL_PATH, decrypted);
-                report += 'Sync success: DB decrypted and updated\n';
-                log('Sync success: DB decrypted and updated');
-                parsedData = true;
-            } else {
-                report += 'Sync error: Data is not valid JSON and Decryption failed (returned null)\n';
-                log('Sync error: Data is not valid JSON and Decryption failed');
-            }
+        } else {
+            report += 'Sync error: No data retrieved from any source.\n';
         }
     } catch (e) { 
         report += 'Sync error: ' + e.message + '\n';

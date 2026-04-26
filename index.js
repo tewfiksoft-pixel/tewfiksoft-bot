@@ -42,16 +42,16 @@ const FAUTES = [
 ];
 
 const ADMIN_MOTIFS = [
-  "Assurance Automobile",
-  "Ouverture Compte Bancaire",
-  "Ouverture Compte CCP",
-  "Dossier Bourse",
-  "Dossier Visa",
-  "Dossier Passeport",
-  "Achat par facilité",
-  "Dossier soutien de Famille",
-  "Dossier Logement",
-  "Crédit Bancaire"
+  {id:0, ar:"تأمين السيارات", fr:"Assurance Automobile"},
+  {id:1, ar:"فتح حساب بنكي", fr:"Ouverture Compte Bancaire"},
+  {id:2, ar:"فتح حساب بريدي CCP", fr:"Ouverture Compte CCP"},
+  {id:3, ar:"ملف منحة دراسية", fr:"Dossier Bourse"},
+  {id:4, ar:"ملف تأشيرة Visa", fr:"Dossier Visa"},
+  {id:5, ar:"ملف جواز السفر", fr:"Dossier Passeport"},
+  {id:6, ar:"شراء بالتقسيط", fr:"Achat par facilité"},
+  {id:7, ar:"ملف كفالة عائلية", fr:"Dossier soutien de Famille"},
+  {id:8, ar:"ملف سكن", fr:"Dossier Logement"},
+  {id:9, ar:"قرض بنكي", fr:"Crédit Bancaire"}
 ];
 
 const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
@@ -221,8 +221,8 @@ async function handle(u) {
         const kbd = {inline_keyboard: []};
         for (let i = 0; i < ADMIN_MOTIFS.length; i += 2) {
             const row = [];
-            row.push({text: ADMIN_MOTIFS[i], callback_data: 'dmotif:' + i});
-            if (ADMIN_MOTIFS[i+1]) row.push({text: ADMIN_MOTIFS[i+1], callback_data: 'dmotif:' + (i+1)});
+            row.push({text: ar ? ADMIN_MOTIFS[i].ar : ADMIN_MOTIFS[i].fr, callback_data: 'dmotif:' + i});
+            if (ADMIN_MOTIFS[i+1]) row.push({text: ar ? ADMIN_MOTIFS[i+1].ar : ADMIN_MOTIFS[i+1].fr, callback_data: 'dmotif:' + (i+1)});
             kbd.inline_keyboard.push(row);
         }
         return send(chatId, ar?'❓ الرجاء اختيار سبب الطلب:':'❓ Veuillez choisir le motif :', kbd);
@@ -236,10 +236,12 @@ async function handle(u) {
       const motifId = +d.slice(7);
       const st = states.get(chatId);
       if (st && st.step === 'doc_predefined_motif') {
-        const motifText = ADMIN_MOTIFS[motifId] || 'Autre';
+        const motifObj = ADMIN_MOTIFS[motifId];
+        const motifText = motifObj ? (ar ? motifObj.ar : motifObj.fr) : 'Autre';
         saveReq({type:'document',doc:st.doc,motif:motifText,fromId,empId:st.empId});
         states.delete(chatId);
-        return send(chatId, ar?'✅ تم استلام طلبك بنجاح.':'✅ Demande reçue avec succès.');
+        send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.':'✅ Demande reçue avec succès.');
+        return sendInfoWelcome(chatId, loadConfig().authorized_users?.find(x=>String(x.id)===fromId));
       }
     }
     if (d.startsWith('abs:')) { states.set(chatId,{step:'abs_type',empId:d.slice(4)}); return showAbsType(chatId,ar); }
@@ -297,17 +299,20 @@ async function handle(u) {
     if (st.step==='doc_motif') {
       saveReq({type:'document',doc:st.doc,motif:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      return send(chatId, ar?'✅ تم استلام طلبك بنجاح.':'✅ Demande reçue avec succès.');
+      send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.':'✅ Demande reçue avec succès.');
+      return sendInfoWelcome(chatId, user);
     }
     if (st.step==='abs_date') {
       saveReq({type:'absence',absType:st.absType,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      return send(chatId, ar?'✅ تم تسجيل الغياب.':'✅ Absence enregistrée.');
+      send(chatId, ar?'✅ تم تسجيل الغياب.':'✅ Absence enregistrée.');
+      return sendInfoWelcome(chatId, user);
     }
     if (st.step==='survey_date') {
       saveReq({type:'survey',faute:st.faute,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      return send(chatId, ar?'✅ تم تسجيل الاستبيان.':'✅ Questionnaire enregistré.');
+      send(chatId, ar?'✅ تم تسجيل الاستبيان.':'✅ Questionnaire enregistré.');
+      return sendInfoWelcome(chatId, user);
     }
   }
 
@@ -420,6 +425,31 @@ function saveReq(data) {
   try { reqs = JSON.parse(fs.readFileSync(p,'utf8')); } catch {}
   reqs.unshift({...data, id:Date.now().toString(), createdAt:new Date().toISOString(), status:'pending'});
   fs.writeFileSync(p, JSON.stringify(reqs.slice(0,500)));
+
+  // Send Notification to Admins and RH
+  try {
+    const cfg = loadConfig();
+    const db = loadDB();
+    const emp = db.hr_employees?.find(e=>String(e.id)===String(data.empId)) || {};
+    const empName = `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}`;
+    const empNum = emp.clockingId || '—';
+    
+    let notifMsg = `🔔 <b>إشعار بطلب جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b> (ID: ${empNum})`;
+    if (data.type === 'document') {
+      notifMsg += `\n📄 نوع الطلب: طلب وثيقة\n📁 الوثيقة: <b>${data.doc}</b>\n❓ السبب: ${data.motif}`;
+    } else if (data.type === 'absence') {
+      notifMsg += `\n🚨 إعلام غياب\nالنوع: ${data.absType === 'auth' ? 'مبرر' : 'غير مبرر'}\nالتاريخ: ${data.date}`;
+    } else if (data.type === 'survey') {
+      notifMsg += `\n📊 استبيان مخالفة\nالمخالفة: ${data.faute}\nالتاريخ: ${data.date}`;
+    }
+
+    const notifiers = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'gestionnaire_rh');
+    if (notifiers && notifiers.length) {
+      notifiers.forEach(admin => {
+        send(admin.id, notifMsg).catch(()=>{});
+      });
+    }
+  } catch(e) { log('Notif error: ' + e.message); }
 }
 
 // HTTP server for Render health check and remote config updates

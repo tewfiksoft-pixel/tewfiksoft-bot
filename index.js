@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { google } from 'googleapis';
-import CryptoJS from 'crypto-js';
+import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -22,7 +22,31 @@ const DB_LOCAL_PATH = path.join(__dirname, 'data', 'database.json');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const DB_FILE_ID = process.env.DB_FILE_ID || '';
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'tewfiksoft2026';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'nouar2026';
+
+const DB_SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
+const PBKDF2_ITERATIONS = 100000;
+
+function deriveKey(password) {
+      return crypto.pbkdf2Sync(password, DB_SALT, PBKDF2_ITERATIONS, 32, 'sha256');
+}
+
+function decryptDatabase(encryptedBase64, password) {
+      try {
+                const data = Buffer.from(encryptedBase64, 'base64');
+                if (data.length < 12) return null;
+                const nonce = data.slice(0, 12);
+                const ciphertext = data.slice(12);
+                const key = deriveKey(password);
+                const authTag = ciphertext.slice(ciphertext.length - 16);
+                const encrypted = ciphertext.slice(0, ciphertext.length - 16);
+                const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
+                decipher.setAuthTag(authTag);
+                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+                return decrypted.toString('utf8');
+      } catch (e) { return null; }
+}
+
 
 // -- Helpers -----------------------------------------------
 const log = (msg) => console.log("[" + new Date().toISOString() + "] " + msg);
@@ -63,26 +87,23 @@ const saveRequest = (data) => {
 
 // -- Google Drive Sync -------------------------------------
 const syncFromDrive = async () => {
-                    if (!DB_FILE_ID) return;
-                    try {
-                                                    ensureDataDir();
-                                                    const auth = new google.auth.GoogleAuth({
-                                                                                                  keyFile: GOOGLE_KEY_PATH,
-                                                                                                  scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-                                                    });
-                                                    const drive = google.drive({ version: 'v3', auth });
-                                                    log("Downloading database from Drive...");
-                                                    const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' }, { responseType: 'text' });
-
-                      let data = res.data;
-                                                    if (typeof data === 'string' && data.startsWith('U2FsdGVkX1')) {
-                                                                                                  const bytes = CryptoJS.AES.decrypt(data, ENCRYPTION_KEY);
-                                                                                                  data = bytes.toString(CryptoJS.enc.Utf8);
-                                                    }
-
-                      fs.writeFileSync(DB_LOCAL_PATH, data);
-                                                    log("Database synced.");
-                    } catch (err) { log("Sync error: " + err.message); }
+  if (!DB_FILE_ID) return;
+      try {
+                ensureDataDir();
+                const auth = new google.auth.GoogleAuth({
+                              keyFile: GOOGLE_KEY_PATH,
+                              scopes: ['https://www.googleapis.com/auth/drive.readonly']
+                });
+                const drive = google.drive({ version: 'v3', auth });
+                const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
+                const decrypted = decryptDatabase(res.data, ENCRYPTION_KEY);
+                if (decrypted) {
+                              fs.writeFileSync(DB_LOCAL_PATH, decrypted);
+                              log('Sync success: DB decrypted and updated');
+                } else {
+                              log('Sync error: Decryption failed');
+                }
+      } catch (e) { log('Sync error: ' + e.message); }
 };
 
 const loadDatabase = () => {

@@ -1,0 +1,20 @@
+{
+    "name": "tewfiksoft-telegram-cloud-bot",
+    "version": "1.0.0",
+    "description": "TewfikSoft HR Telegram Bot - Cloud Edition (Render/Railway)",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+          "start": "node index.js",
+          "dev": "node --watch index.js"
+    },
+    "engines": {
+          "node": ">=18.0.0"
+    },
+    "dependencies": {
+          "express": "^4.18.2"
+    },
+    "keywords": ["telegram", "bot", "hr", "polling"],
+    "author": "TewfikSoft",
+    "license": "MIT"
+}

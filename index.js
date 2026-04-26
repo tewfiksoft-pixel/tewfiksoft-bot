@@ -1,14 +1,10 @@
-// ============================================================
-// TewfikSoft HR Telegram Bot - Premium Cloud Edition
-// ============================================================
-
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { google } from 'googleapis';
-import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -20,7 +16,7 @@ const OFFSET_PATH = path.join(__dirname, 'data', 'offset.json');
 const GOOGLE_KEY_PATH = path.join(__dirname, 'google_drive_key.json');
 const DB_LOCAL_PATH = path.join(__dirname, 'data', 'database.json');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const BOT_TOKEN = process.env.BOT_TOKEN || '7434503714:AAFm0o7rNisG9tKOfYp37C1V9pC-m7q3vPk';
 const DB_FILE_ID = process.env.DB_FILE_ID || '';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'nouar2026';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
@@ -28,72 +24,112 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe
 const DB_SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
 const PBKDF2_ITERATIONS = 100000;
 
-function deriveKey(password) {
-      return crypto.pbkdf2Sync(password, DB_SALT, PBKDF2_ITERATIONS, 32, 'sha256');
-}
+// -- Constants ---------------------------------------------
+const DOCS = [
+  {id: 0, ar: '🌴 سند عطلة', fr: '🌴 Titre de congés', val: 'Titre de congés'},
+  {id: 1, ar: '💼 شهادة عمل', fr: '💼 Attestation de travail', val: 'Attestation de travail'},
+  {id: 2, ar: '💰 كشف الراتب', fr: '💰 Relevé des émoluments', val: 'Relevé des émoluments'},
+  {id: 3, ar: '📄 قسيمة الراتب', fr: '📄 Fiche de paie', val: 'Fiche de paie'},
+  {id: 4, ar: '💳 تفعيل بطاقة الشفاء', fr: '💳 Activation carte Chifa', val: 'Activation carte Chifa'},
+  {id: 5, ar: '📊 تسوية الراتب', fr: '📊 Régularisation de paie', val: 'Régularisation de paie'},
+  {id: 6, ar: '📝 تقييم فترة تجريبية', fr: '📝 Évaluation Période d\'Essai', val: 'Évaluation Période Essai'}
+];
 
-function decryptDatabase(encryptedBase64, password) {
-      try {
-                const data = Buffer.from(encryptedBase64, 'base64');
-                if (data.length < 12) return null;
-                const nonce = data.slice(0, 12);
-                const ciphertext = data.slice(12);
-                const key = deriveKey(password);
-                const authTag = ciphertext.slice(ciphertext.length - 16);
-                const encrypted = ciphertext.slice(0, ciphertext.length - 16);
-                const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
-                decipher.setAuthTag(authTag);
-                const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-                return decrypted.toString('utf8');
-      } catch (e) { return null; }
-}
+const FAUTES = [
+  {id: 0, ar: 'تخلي عن المنصب', fr: 'Abandon de poste', val: 'Abandon de poste'},
+  {id: 1, ar: 'تأخر متكرر', fr: 'Retard répété', val: 'Retard répété'},
+  {id: 2, ar: 'عصيان / تمرد', fr: 'Insubordination', val: 'Insubordination'},
+  {id: 3, ar: 'إهمال', fr: 'Négligence', val: 'Négligence'},
+  {id: 4, ar: 'غياب غير مبرر', fr: 'Absence injustifiée', val: 'Absence injustifiée'},
+  {id: 5, ar: 'مخالفة النظام', fr: 'Violation règlement', val: 'Violation règlement'},
+  {id: 6, ar: 'سلوك غير لائق', fr: 'Comportement incorrect', val: 'Comportement incorrect'},
+  {id: 7, ar: 'أخرى', fr: 'Autre', val: 'Autre'}
+];
 
+const MOTIFS = [
+    { ar: '🚗 تأمين السيارة', fr: 'Assurance Automobile' },
+    { ar: '🏦 فتح حساب بنكي', fr: 'Ouverture Compte Bancaire' },
+    { ar: '📮 فتح حساب CCP', fr: 'Ouverture Compte CCP' },
+    { ar: '🎓 ملف المنحة', fr: 'Dossier Bourse' },
+    { ar: '🌍 ملف الفيزا', fr: 'Dossier Visa' },
+    { ar: '🛂 ملف جواز السفر', fr: 'Dossier Passeport' },
+    { ar: '🛒 شراء بالتقسيط', fr: 'Achat par facilité' },
+    { ar: '👨‍👩‍👧‍👦 ملف كفالة عائلية', fr: 'Dossier soutien de Famille' },
+    { ar: '🏠 ملف سكن', fr: 'Dossier Logement' },
+    { ar: '💰 قرض بنكي', fr: 'Crédit Bancaire' }
+];
 
 // -- Helpers -----------------------------------------------
 const log = (msg) => console.log("[" + new Date().toISOString() + "] " + msg);
 
 const ensureDataDir = () => {
-                    const dir = path.join(__dirname, 'data');
-                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const dir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
-const loadConfig = () => {
-                    try {
-                                                    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-                    } catch {
-                                                    return { is_enabled: true, authorized_users: [], display_settings: {}, allowed_documents: {} };
-                    }
+const E = (s) => String(s||'').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;');
+
+const clean = (s) => {
+    let str = String(s||'').trim();
+    if (!str.includes('Ã')) return str;
+    try {
+        let res = str;
+        for (let i = 0; i < 5; i++) {
+            let b = Buffer.from(res, 'binary');
+            let s2 = b.toString('utf8');
+            if (s2 === res || !s2.includes('Ã')) { res = s2; break; }
+            res = s2;
+        }
+        return res;
+    } catch { return str; }
 };
 
-const loadOffset = () => {
-                    try {
-                                                    return JSON.parse(fs.readFileSync(OFFSET_PATH, 'utf8')).offset || 0;
-                    } catch {
-                                                    return 0;
-                    }
+const T = (s, fallback='', len=100) => {
+    let str = clean(s);
+    if (!str || str.includes('Ã') || str.includes('\uFFFD') || str.length > 500) {
+        return fallback ? T(fallback, '', len) : '—';
+    }
+    if (str.length > len) return str.substring(0, len) + '...';
+    return str || '—';
 };
 
-const saveOffset = (n) => {
-                    ensureDataDir();
-                    fs.writeFileSync(OFFSET_PATH, JSON.stringify({ offset: n }));
-};
+function deriveKey(password) {
+    return crypto.pbkdf2Sync(password, DB_SALT, PBKDF2_ITERATIONS, 32, 'sha256');
+}
+
+function decryptDatabase(encryptedBase64, password) {
+    try {
+        const data = Buffer.from(encryptedBase64, 'base64');
+        if (data.length < 12) return null;
+        const nonce = data.slice(0, 12);
+        const ciphertext = data.slice(12);
+        const key = deriveKey(password);
+        const authTag = ciphertext.slice(ciphertext.length - 16);
+        const encrypted = ciphertext.slice(0, ciphertext.length - 16);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+        return decrypted.toString('utf8');
+    } catch (e) {
+        log("Decryption Error: " + e.message);
+        return null;
+    }
+}
 
 const saveRequest = (data) => {
-                    ensureDataDir();
-                    let reqs = [];
-                    try { reqs = JSON.parse(fs.readFileSync(REQUESTS_PATH, 'utf8')); } catch {}
-                    reqs.unshift({ ...data, id: Date.now().toString(), createdAt: new Date().toISOString(), status: 'pending' });
-                    fs.writeFileSync(REQUESTS_PATH, JSON.stringify(reqs.slice(0, 500)));
+    ensureDataDir();
+    let reqs = [];
+    try { reqs = JSON.parse(fs.readFileSync(REQUESTS_PATH, 'utf8')); } catch {}
+    reqs.unshift({ ...data, id: Date.now().toString(), createdAt: new Date().toISOString(), status: 'pending' });
+    fs.writeFileSync(REQUESTS_PATH, JSON.stringify(reqs.slice(0, 500)));
 };
 
-// -- Google Drive Sync -------------------------------------
 const syncFromDrive = async () => {
     let report = 'Sync Start...\n';
     try {
         ensureDataDir();
         let rawData = null;
 
-        // Try Script URL first (Easiest, no config needed)
         try {
             report += 'Attempting Script URL sync...\n';
             const response = await fetch(SCRIPT_URL);
@@ -105,7 +141,6 @@ const syncFromDrive = async () => {
             }
         } catch (e) { report += `Script URL Error: ${e.message}\n`; }
 
-        // Fallback to Google Drive API if Script URL failed and DB_FILE_ID exists
         if (!rawData && DB_FILE_ID) {
             try {
                 report += 'Attempting Google Drive API sync...\n';
@@ -124,16 +159,13 @@ const syncFromDrive = async () => {
         }
 
         if (rawData) {
-            // Remove BOM if present
             if (rawData.charCodeAt(0) === 0xFEFF) rawData = rawData.slice(1);
-
             let parsedData = null;
             try {
                 const parsed = JSON.parse(rawData);
                 if (parsed && (parsed.hr_employees || parsed.employees)) {
                     fs.writeFileSync(DB_LOCAL_PATH, rawData);
                     report += 'Sync success: DB updated (Plain JSON)\n';
-                    log('Sync success: DB updated (Plain JSON)');
                     parsedData = parsed;
                 }
             } catch (e) { report += `Plain JSON Parse Failed: ${e.message}\n`; }
@@ -143,79 +175,45 @@ const syncFromDrive = async () => {
                 if (decrypted) {
                     fs.writeFileSync(DB_LOCAL_PATH, decrypted);
                     report += 'Sync success: DB decrypted and updated\n';
-                    log('Sync success: DB decrypted and updated');
                     parsedData = true;
                 } else {
-                    report += 'Sync error: Data is not valid JSON and Decryption failed (returned null)\n';
-                    log('Sync error: Data is not valid JSON and Decryption failed');
+                    report += 'Sync error: Decryption failed\n';
                 }
             }
         } else {
-            report += 'Sync error: No data retrieved from any source.\n';
+            report += 'Sync error: No data retrieved.\n';
         }
-    } catch (e) { 
-        report += 'Sync error: ' + e.message + '\n';
-        log('Sync error: ' + e.message); 
-    }
+    } catch (e) { report += 'Sync error: ' + e.message + '\n'; }
     return report;
 };
 
 const loadDatabase = () => {
-                    try { return JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8')); } catch { return { hr_employees: [] }; }
+    try { return JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8')); } catch { return { hr_employees: [] }; }
+};
+
+const loadConfig = () => {
+    try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch { return { authorized_users: [] }; }
 };
 
 // -- Telegram API ------------------------------------------
 const tgCall = (method, body = {}) => new Promise((resolve) => {
-                    const payload = JSON.stringify(body);
-                    const req = https.request({
-                                                    hostname: 'api.telegram.org',
-                                                    path: "/bot" + BOT_TOKEN + "/" + method,
-                                                    method: 'POST',
-                                                    rejectUnauthorized: false,
-                                                    headers: {
-                                                                                                  'Content-Type': 'application/json',
-                                                                                                  'Content-Length': Buffer.byteLength(payload)
-                                                    }
-                    }, (res) => {
-                                                    let d = '';
-                                                    res.on('data', c => d += c);
-                                                    res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
-                    });
-                    req.on('error', (e) => { log("[API Error] [" + method + "]: " + e.message); resolve(null); });
-                    req.write(payload);
-                    req.end();
+    const payload = JSON.stringify(body);
+    const req = https.request({
+        hostname: 'api.telegram.org',
+        path: "/bot" + BOT_TOKEN + "/" + method,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+    }, (res) => {
+        let d = '';
+        res.on('data', (chunk) => d += chunk);
+        res.on('end', () => resolve(JSON.parse(d)));
+    });
+    req.on('error', (e) => resolve({ ok: false, error: e.message }));
+    req.write(payload);
+    req.end();
 });
 
-const send = (chatId, text, kbd = null) => {
-                    const body = { chat_id: chatId, text, parse_mode: 'HTML' };
-                    if (kbd) body.reply_markup = kbd;
-                    log("-> " + chatId + ": " + text.substring(0, 60).replace(/\n/g,' ') + "...");
-                    return tgCall('sendMessage', body);
-};
-
-// -- Data --------------------------------------------------
-const DOCS = [
-          { id: 0, ar: '\u0633\u0646\u062F \u0639\u0637\u0644\u0629', fr: 'Titre de conges' },
-          { id: 1, ar: '\u0634\u0647\u0627\u062F\u0629 \u0639\u0645\u0644', fr: 'Attestation de travail' },
-          { id: 2, ar: '\u0643\u0634\u0641 \u0631\u0627\u062A\u0628', fr: 'Releve des emoluments' },
-          { id: 3, ar: '\u0641\u064A\u0634 \u062F\u064A \u0628\u064A', fr: 'Fiche de paie' },
-          { id: 4, ar: '\u0628\u0637\u0627\u0642\u0629 \u0634\u0641\u0627\u0621', fr: 'Activation carte Chifa' },
-          { id: 5, ar: '\u062A\u0633\u0648\u064A\u0629 \u0631\u0627\u062A\u0628', fr: 'Regularisation de paie' },
-          { id: 6, ar: '\u062A\u0642\u064A\u064A\u0645 \u0641\u062A\u0631\u0629 \u0627\u0644\u062A\u062C\u0631\u0628\u0629', fr: 'Evaluation Periode Essai' }
-                  ];
-
-const MOTIFS = [
-          { ar: '\u062A\u0623\u0645\u064A\u0646 \u0633\u064A\u0627\u0631\u0629', fr: 'Assurance Automobile' },
-          { ar: '\u0641\u062A\u062D \u062D\u0633\u0627\u0628 \u0628\u0646\u0643\u064A', fr: 'Ouverture Compte Bancaire' },
-          { ar: '\u0641\u062A\u062D \u062D\u0633\u0627\u0628 \u0628\u0631\u064A\u062F\u064A', fr: 'Ouverture Compte CCP' },
-          { ar: '\u0645\u0644\u0641 \u0645\u0646\u062D\u0629', fr: 'Dossier Bourse' },
-          { ar: '\u0645\u0644\u0641 \u0641\u064A\u0632\u0627', fr: 'Dossier Visa' },
-          { ar: '\u0645\u0644\u0641 \u062C\u0648\u0627\u0632 \u0633\u0641\u0631', fr: 'Dossier Passeport' },
-          { ar: '\u0634\u0631\u0627\u0621 \u0628\u0627\u0644\u062A\u0642\u0633\u064A\u0637', fr: 'Achat par facilite' },
-          { ar: '\u0643\u0641\u0627\u0644\u0629 \u0639\u0627\u0626\u0644\u064A\u0629', fr: 'Dossier soutien de Famille' },
-          { ar: '\u0645\u0644\u0641 \u0633\u0643\u0646', fr: 'Dossier Logement' },
-          { ar: '\u0642\u0631\u0636 \u0628\u0646\u0643\u064A', fr: 'Credit Bancaire' }
-                  ];
+const send = (chatId, text, kbd = null) => tgCall('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: kbd });
 
 // -- Logic -------------------------------------------------
 const canViewStats = (role) => ['admin', 'general_manager'].includes(role);
@@ -224,225 +222,173 @@ const canViewEmployees = (role) => ['admin', 'general_manager', 'gestionnaire_rh
 const langs = new Map();
 const states = new Map();
 
-const getLang = (chatId) => langs.get(String(chatId)) || 'ar';
-const setLang = (chatId, l) => langs.set(String(chatId), l);
-
 const handleStart = async (chatId, user, lang) => {
-                    const ar = lang === 'ar';
-
-                    const roleLabel = { 
-                                                    admin:'\u0645\u062F\u064A\u0631 \u0627\u0644\u0646\u0638\u0627\u0645 \uD83D\uDEE1\uFE0F', 
-                                                    general_manager:'\u0645\u062F\u064A\u0631 \u0639\u0627\u0645 \uD83D\uDC51', 
-                                                    gestionnaire_rh:'\u0645\u0633\u064A\u0631 \u0645\u0648\u0627\u0631\u062F \u0628\u0634\u0631\u064A\u0629 \uD83D\uDCCB', 
-                                                    manager:'\u0645\u062F\u064A\u0631 \uD83D\uDC68\u200D\uD83D\uDCBC', 
-                                                    supervisor:'\u0645\u0634\u0631\u0641 \uD83D\uDD0D', 
-                                                    employee:'\u0645\u0648\u0638\u0641 \uD83D\uDC64' 
-                    };
-                    const roleLabelFr = { 
-                                                    admin:'Admin \uD83D\uDEE1\uFE0F', 
-                                                    general_manager:'Manager General \uD83D\uDC51', 
-                                                    gestionnaire_rh:'RH \uD83D\uDCCB', 
-                                                    manager:'Manager \uD83D\uDC68\u200D\uD83D\uDCBC', 
-                                                    supervisor:'Supervisor \uD83D\uDD0D', 
-                                                    employee:'Employee \uD83D\uDC64' 
-                    };
-
-                    const msg = ar ? 
-                                                    `\uD83D\uDC4B \u0623\u0647\u0644\u0627\u0641 \u0628\u0643 <b>${user.name || ''}</b> \u0641\u064A \u0646\u0638\u0627\u0645 TewfikSoft HR!\n` +
-                                                    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n` +
-                                                    `\uD83C\uDD94 <b>\u0631\u0642\u0645\u0643:</b> <code>${user.id}</code>\n` +
-                                                    `\uD83D\uDCCB <b>\u0627\u0644\u0631\u062A\u0628\u0629:</b> ${roleLabel[user.role] || user.role}\n\n` +
-                                                    `\uD83D\uDCA1 <b>\u0627\u0644\u0623\u0648\u0627\u0645\u0631 \u0627\u0644\u0645\u062A\u0627\u062D\u0629:</b>\n` +
-                                                    `\uD83D\uDC64 /me - \u0639\u0631\u0636 \u0628\u0637\u0627\u0642\u062A\u0643\n` +
-                                                    `\uD83D\uDD0D /info - \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u0645\u0648\u0638\u0641\n` +
-                                                    `\uD83D\uDCCB /menu - \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0631\u0623\u064A\u0633\u064A\u0629` :
-                                                    `\uD83D\uDC4B Bienvenue <b>${user.name || ''}</b> sur TewfikSoft HR!\n` +
-                                                    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n` +
-                                                    `\uD83C\uDD94 <b>Votre ID:</b> <code>${user.id}</code>\n` +
-                                                    `\uD83D\uDCCB <b>R\u00F4le:</b> ${roleLabelFr[user.role] || user.role}\n\n` +
-                                                    `\uD83D\uDCA1 <b>Commandes:</b>\n` +
-                                                    `\uD83D\uDC64 /me - Votre card\n` +
-                                                    `\uD83D\uDD0D /info - Chercher un employ\u00E9\n` +
-                                                    `\uD83D\uDCCB /menu - Menu Principal`;
-
-                    await send(chatId, msg);
+    const ar = lang === 'ar';
+    const msg = ar ? `🌟 <b>مرحباً بك، ${user.name}</b>\nرتبتك: <b>${user.role}</b>\n\nيرجى اختيار لغة العرض:` 
+                   : `🌟 <b>Bienvenue, ${user.name}</b>\nRôle: <b>${user.role}</b>\n\nVeuillez choisir la langue :`;
+    const kbd = { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] };
+    return send(chatId, msg, kbd);
 };
 
-const handleMe = async (chatId, user, lang) => {
-                    const ar = lang === 'ar';
-                    const roleLabel = { 
-                                                    admin:'\u0645\u062F\u064A\u0631 \u0627\u0644\u0646\u0638\u0627\u0645 \uD83D\uDEE1\uFE0F', 
-                                                    general_manager:'\u0645\u062F\u064A\u0631 \u0639\u0627\u0645 \uD83D\uDC51', 
-                                                    gestionnaire_rh:'\u0645\u0633\u064A\u0631 \u0645\u0648\u0627\u0631\u062F \u0628\u0634\u0631\u064A\u0629 \uD83D\uDCCB', 
-                                                    manager:'\u0645\u062F\u064A\u0631 \uD83D\uDC68\u200D\uD83D\uDCBC', 
-                                                    supervisor:'\u0645\u0634\u0631\u0641 \uD83D\uDD0D', 
-                                                    employee:'\u0645\u0648\u0638\u0641 \uD83D\uDC64' 
-                    };
-                    const roleLabelFr = { 
-                                                    admin:'Admin \uD83D\uDEE1\uFE0F', 
-                                                    general_manager:'Manager General \uD83D\uDC51', 
-                                                    gestionnaire_rh:'RH \uD83D\uDCCB', 
-                                                    manager:'Manager \uD83D\uDC68\u200D\uD83D\uDCBC', 
-                                                    supervisor:'Supervisor \uD83D\uDD0D', 
-                                                    employee:'Employee \uD83D\uDC64' 
-                    };
-
-                    const msg = ar ? 
-                                                    `\uD83D\uDC64 <b>\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0647\u0648\u064A\u0629 \u0627\u0644\u0645\u0647\u0646\u064A\u0629</b>\n` +
-                                                    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n` +
-                                                    `\uD83C\uDD94 <b>\u0627\u0644\u0631\u0642\u0645:</b> <code>${user.id}</code>\n` +
-                                                    `\uD83D\uDC51 <b>\u0627\u0644\u0627\u0633\u0645:</b> ${user.name || '-'}\n` +
-                                                    `\uD83D\uDCCB <b>\u0627\u0644\u0631\u062A\u0628\u0629:</b> ${roleLabel[user.role] || user.role}` :
-                                                    `\uD83D\uDC64 <b>Carte d'Identit\u00E9 Professionnelle</b>\n` +
-                                                    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n` +
-                                                    `\uD83C\uDD94 <b>ID:</b> <code>${user.id}</code>\n` +
-                                                    `\uD83D\uDC51 <b>Nom:</b> ${user.name || '-'}\n` +
-                                                    `\uD83D\uDCCB <b>R\u00F4le:</b> ${roleLabelFr[user.role] || user.role}`;
-
-                    await send(chatId, msg);
+const showMenu = async (chatId, user, lang) => {
+    const ar = lang === 'ar';
+    const kbd = { inline_keyboard: [] };
+    if (canViewEmployees(user.role)) {
+        kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث عن موظف' : '🔍 Chercher employé', callback_data: 'emp_search' }]);
+    }
+    if (canViewStats(user.role)) {
+        kbd.inline_keyboard.push([{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats' }]);
+    }
+    kbd.inline_keyboard.push([{ text: ar ? '⚙️ تحديث البيانات' : '⚙️ Sync Database', callback_data: 'sync_db' }]);
+    return send(chatId, ar ? '📋 <b>القائمة الرئيسية</b>' : '📋 <b>Menu Principal</b>', kbd);
 };
 
-const handleMenu = async (chatId, user, lang) => {
-                    const ar = lang === 'ar';
-                    const kbd = { inline_keyboard: [] };
-                    if (canViewEmployees(user.role)) {
-                                                    kbd.inline_keyboard.push([{ text: ar ? '\uD83D\uDD0D \u0628\u062D\u062B \u0639\u0646 \u0645\u0648\u0638\u0641' : '\uD83D\uDD0D Chercher employ\u00E9', callback_data: 'emp_search' }]);
-                    }
-                    kbd.inline_keyboard.push([{ text: ar ? '\uD83D\uDCC4 \u0637\u0644\u0628 \u0648\u062b\u064a\u0642\u0629' : '\uD83D\uDCC4 Demander document', callback_data: 'show_docs' }]);
-                    if (canViewStats(user.role)) {
-                                                    kbd.inline_keyboard.push([{ text: ar ? '\uD83D\uDCCA \u0627\u0644\u0625\u062D\u0635\u0627\u0626\u064A\u0627\u062A' : '\uD83D\uDCCA Statistiques', callback_data: 'stats' }]);
-                    }
-                    if (user.role === 'admin') {
-                                                    kbd.inline_keyboard.push([{ text: ar ? '\uD83D\uDD04 \u062A\u062D\u062F\u064A\u062b \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A' : '\uD83D\uDD04 Sync Database', callback_data: 'sync_db' }]);
-                    }
-                    kbd.inline_keyboard.push([{ text: ar ? '\u062A\u063a\u064a\u064a\u0631 \u0627\u0644\u0644\u063a\u0629 \uD83C\uDF10' : 'Changer Langue \uD83C\uDF10', callback_data: 'choose_lang' }]);
-                    await send(chatId, ar ? '\uD83D\uDCCB <b>\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0631\u0623\u064A\u0633\u064A\u0629</b>' : '\uD83D\uDCCB <b>Menu Principal</b>', kbd);
+const showEmpCard = async (chatId, empId, lang, user) => {
+    const db = loadDatabase();
+    const e = db.hr_employees?.find(x => String(x.id) === String(empId));
+    if (!e) return;
+    const ar = lang === 'ar';
+    
+    let msg = ar ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(e.lastName_ar)} ${T(e.firstName_ar)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 الوظيفة: <i>${T(e.jobTitle_ar)}</i>\n⏳ نهاية العقد: <code>${e.contractEndDate || '—'}</code>\n\nيرجى اختيار الإجراء المطلوب:`
+                 : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(e.lastName_fr)} ${T(e.firstName_fr)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 Poste: <i>${T(e.jobTitle_fr)}</i>\n⏳ Fin Contrat: <code>${e.contractEndDate || '—'}</code>\n\nVeuillez choisir l'action :`;
+
+    const kbd = { inline_keyboard: [
+        [{ text: ar ? '📄 ملف الموظف' : '📄 Fiche Employé', callback_data: 'full_card:' + empId }],
+        [{ text: ar ? '🏖️ رصيد العطل' : '🏖️ Solde Congés', callback_data: 'emp_leave:' + empId }],
+        [{ text: ar ? '📝 طلب وثيقة' : '📝 Demander Doc', callback_data: 'emp_docs:' + empId }, { text: ar ? '🚨 إعلام غياب' : '🚨 Signal. Absence', callback_data: 'emp_abs:' + empId }],
+        [{ text: ar ? '📊 إجراء استبيان' : '📊 Faire un Questionnaire', callback_data: 'emp_survey:' + empId }],
+        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
+    ] };
+    return send(chatId, msg, kbd);
 };
 
-const handleInfoSearch = async (chatId, user, lang, query) => {
-                    const ar = lang === 'ar';
-                    const db = loadDatabase();
-                    const q = query.toLowerCase();
-
-                    const results = (db.hr_employees || []).filter(e => {
-                                          if (!e) return false;
-                                          
-                                          // Apply scoping restrictions
-                                          if (['supervisor', 'manager', 'gestionnaire_rh'].includes(user.role)) {
-                                              if (user.allowed_company && user.allowed_company !== 'all' && e.companyId !== user.allowed_company) return false;
-                                              if (user.allowed_departments && user.allowed_departments.length > 0 && 
-                                                  !user.allowed_departments.includes(e.department_fr) && 
-                                                  !user.allowed_departments.includes(e.department_ar) &&
-                                                  !user.allowed_departments.includes(e.direction_fr) &&
-                                                  !user.allowed_departments.includes(e.direction_ar)) return false;
-                                              if (user.scope === 'custom_employees' && user.allowed_employees && user.allowed_employees.length > 0 &&
-                                                  !user.allowed_employees.includes(String(e.clockingId)) && !user.allowed_employees.includes(String(e.id))) return false;
-                                          }
-
-                                          const idMatch = String(e.id || '').includes(q) || String(e.clockingId || '').includes(q);
-                                          const nameFrMatch = `${e.firstName_fr || ''} ${e.lastName_fr || ''}`.toLowerCase().includes(q) || `${e.lastName_fr || ''} ${e.firstName_fr || ''}`.toLowerCase().includes(q);
-                                          const nameArMatch = `${e.firstName_ar || ''} ${e.lastName_ar || ''}`.includes(q) || `${e.lastName_ar || ''} ${e.firstName_ar || ''}`.includes(q);
-                                          return idMatch || nameFrMatch || nameArMatch;
-                    }).slice(0, 5);
-
-                    if (!results.length) return send(chatId, ar ? "\u274c \u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0623\u064a \u0645\u0648\u0638\u0641." : "\u274c Aucun employ\u00E9.");
-
-                    for (const emp of results) {
-                                                    const empNameAr = `${emp.lastName_ar} ${emp.firstName_ar}`;
-                                                    const empNameFr = `${emp.lastName_fr} ${emp.firstName_fr}`;
-                                                    const msg = ar ? `\uD83D\uDC64 <b>\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0628\u062d\u062b</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>\u0627\u0644\u0631\u0642\u0645:</b> <code>${emp.clockingId || emp.id}</code>\n\uD83D\uDC51 <b>\u0627\u0644\u0627\u0633\u0645:</b> ${empNameAr}\n\uD83D\uDCBC <b>\u0627\u0644\u0645\u0646\u0635\u0628:</b> ${emp.jobTitle_ar || '-'}\n\u2705 <b>\u0627\u0644\u062d\u0627\u0644\u0629:</b> ${emp.status==='active'?'\u0646\u0634\u0637':'\u063a\u064a\u0631 \u0646\u0634\u0637'}` :
-                                                                                                  `\uD83D\uDC64 <b>R\u00E9sultats</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>ID:</b> <code>${emp.clockingId || emp.id}</code>\n\uD83D\uDC51 <b>Nom:</b> ${empNameFr}\n\uD83D\uDCBC <b>Poste:</b> ${emp.jobTitle_fr || '-'}\n\u2705 <b>Statut:</b> ${emp.status==='active'?'Actif':'Inactif'}`;
-                                                    await send(chatId, msg);
-                    }
+const showStats = async (chatId, lang) => {
+    const db = loadDatabase();
+    const emps = (db.hr_employees || []).filter(e => e.status === 'active');
+    const ar = lang === 'ar';
+    const al = emps.filter(e => e.companyId === 'alver'), vt = emps.filter(e => e.companyId !== 'alver');
+    const msg = ar ? `📊 <b>إحصائيات الشركة</b>\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <code>${emps.length}</code>\n├ 🟢 ALVER: <code>${al.length}</code>\n└ 🔵 Verre Tech: <code>${vt.length}</code>`
+                   : `📊 <b>STATISTIQUES</b>\n━━━━━━━━━━━━━━\n👥 Effectif: <code>${emps.length}</code>\n├ 🟢 ALVER: <code>${al.length}</code>\n└ 🔵 Verre Tech: <code>${vt.length}</code>`;
+    return send(chatId, msg, { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
 };
 
-const handleInfo = async (chatId, user, lang) => {
-                    const ar = lang === 'ar';
-                    if (!canViewEmployees(user.role)) return send(chatId, ar ? '\u26A0\uFE0F \u0644\u064a\u0633 \u0644\u062f\u064a\u0643 \u0635\u0644\u0627\u062d\u064a\u0629.' : '\u26A0\uFE0F Pas de permission.');
-                    states.set(chatId, { step: 'search_query' });
-                    await send(chatId, ar ? '\uD83D\uDD0D \u0623\u062F\u062e\u0644 \u0627\u0644\u0627\u0633\u0645 \u0623\u0648 \u0631\u0642\u0645 \u0627\u0644\u0645\u0648\u0638\u0641:' : '\uD83D\uDD0D Nom ou ID:');
+const handleCb = async (chatId, fromId, data, user, lang) => {
+    const ar = lang === 'ar';
+    if (data.startsWith('lang:')) { langs.set(chatId, data.split(':')[1]); return showMenu(chatId, user, data.split(':')[1]); }
+    if (data === 'menu') return showMenu(chatId, user, lang);
+    if (data === 'stats') return showStats(chatId, lang);
+    if (data === 'sync_db') { const r = await syncFromDrive(); return send(chatId, `Sync Report:\n${r}`); }
+    if (data === 'emp_search') { states.set(chatId, { step: 'search_query' }); return send(chatId, ar ? '🔍 أدخل اسم الموظف أو رقمه:' : '🔍 Entrez nom ou matricule :'); }
+    if (data.startsWith('select:')) return showEmpCard(chatId, data.split(':')[1], lang, user);
+    if (data.startsWith('full_card:')) {
+        const db = loadDatabase();
+        const e = db.hr_employees?.find(x => String(x.id) === String(data.split(':')[1]));
+        const msg = ar ? `📋 <b>الملف الكامل: ${T(e.lastName_ar)}</b>\n\n📅 التوظيف: ${e.startDate}\n🏢 القسم: ${T(e.department_ar)}\n📜 العقد: ${e.contractType}` : `📋 <b>FICHE : ${T(e.lastName_fr)}</b>\n\n📅 Embauche: ${e.startDate}\n🏢 Dpt: ${T(e.department_fr)}\n📜 Contrat: ${e.contractType}`;
+        return send(chatId, msg, { inline_keyboard: [[{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'select:' + e.id }]] });
+    }
+    if (data.startsWith('emp_docs:')) {
+        states.set(chatId, { step: 'doc_select', empId: data.split(':')[1] });
+        const kbd = { inline_keyboard: DOCS.map(d => [{ text: ar ? d.ar : d.fr, callback_data: 'doc:' + d.id }]) };
+        return send(chatId, ar ? '📝 <b>اختر الوثيقة المطلوبة:</b>' : '📝 <b>Choisissez le document :</b>', kbd);
+    }
+    if (data.startsWith('doc:')) {
+        const d = DOCS.find(x => x.id === +data.split(':')[1]);
+        const state = states.get(chatId);
+        states.set(chatId, { ...state, step: 'doc_motif', doc: ar ? d.ar : d.fr });
+        return send(chatId, ar ? '❓ <b>ما هو الغرض من الطلب؟</b>' : '❓ <b>Motif de la demande ?</b>');
+    }
+    if (data.startsWith('emp_abs:')) {
+        states.set(chatId, { step: 'abs_type', empId: data.split(':')[1] });
+        const kbd = { inline_keyboard: [[{ text: ar ? '✅ مبرر' : '✅ Autorisé', callback_data: 'abstype:auth' }, { text: ar ? '❌ غير مبرر' : '❌ Non Autorisé', callback_data: 'abstype:unauth' }]] };
+        return send(chatId, ar ? '🚨 <b>نوع الغياب:</b>' : '🚨 <b>Type d\'absence :</b>', kbd);
+    }
+    if (data.startsWith('abstype:')) {
+        const state = states.get(chatId);
+        states.set(chatId, { ...state, step: 'abs_date', absType: data.split(':')[1] });
+        return send(chatId, ar ? '📅 <b>تاريخ الغياب:</b>' : '📅 <b>Date de l\'absence :</b>');
+    }
+    if (data.startsWith('emp_survey:')) {
+        states.set(chatId, { step: 'survey_type', empId: data.split(':')[1] });
+        const kbd = { inline_keyboard: FAUTES.map(f => [{ text: ar ? f.ar : f.fr, callback_data: 'faute:' + f.id }]) };
+        return send(chatId, ar ? '📊 <b>اختر نوع المخالفة:</b>' : '📊 <b>Type de faute :</b>', kbd);
+    }
+    if (data.startsWith('faute:')) {
+        const f = FAUTES.find(x => x.id === +data.split(':')[1]);
+        const state = states.get(chatId);
+        states.set(chatId, { ...state, step: 'survey_date', faute: ar ? f.ar : f.fr });
+        return send(chatId, ar ? '📅 <b>تاريخ الواقعة:</b>' : '📅 <b>Date de l\'incident :</b>');
+    }
 };
 
-const handleDocRequest = async (chatId, user, lang, config) => {
-                    const ar = lang === 'ar';
-                    const allowed = config.allowed_documents || {};
-                    const docs = DOCS.filter(d => allowed["doc_" + d.id] !== false);
-                    const kbd = { inline_keyboard: docs.map(d => [{ text: ar ? d.ar : d.fr, callback_data: "doc:" + d.id }]) };
-                    await send(chatId, ar ? '\uD83D\uDCC4 \u0627\u062e\u062A\u0631 \u0627\u0644\u0648\u062b\u064a\u0642\u0629:' : '\uD83D\uDCC4 Document:', kbd);
+const handleUpdate = async (u) => {
+    const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
+    if (!msg || !from) return;
+    const chatId = msg.chat.id, fromId = String(from.id), txt = (msg.text || '').trim();
+    if (cbq) await tgCall('answerCallbackQuery', { callback_query_id: cbq.id });
+
+    const config = loadConfig();
+    const user = config.authorized_users?.find(x => String(x.id) === fromId);
+    if (!user) return send(chatId, `❌ Unauthorized. ID: ${fromId}`);
+
+    const lang = langs.get(chatId) || 'ar';
+    const state = states.get(chatId);
+
+    if (cbq) return handleCb(chatId, fromId, cbq.data, user, lang);
+
+    if (txt === '/start') return handleStart(chatId, user, lang);
+    if (txt === '/menu') return showMenu(chatId, user, lang);
+    if (txt === '/id') return send(chatId, `Your ID: <code>${fromId}</code>`);
+    if (txt === '/sync') { const r = await syncFromDrive(); return send(chatId, r); }
+
+    if (state) {
+        if (state.step === 'search_query') {
+            states.delete(chatId);
+            const db = loadDatabase();
+            const q = txt.toLowerCase();
+            const results = (db.hr_employees || []).filter(e => e.status === 'active' && (String(e.clockingId).includes(q) || T(e.lastName_fr).toLowerCase().includes(q) || T(e.lastName_ar).includes(q)));
+            if (results.length === 0) return send(chatId, '❌ No results.');
+            if (results.length === 1) return showEmpCard(chatId, results[0].id, lang, user);
+            const kbd = { inline_keyboard: results.slice(0, 8).map(e => [{ text: `👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}`, callback_data: 'select:' + e.id }]) };
+            return send(chatId, '📂 Results:', kbd);
+        }
+        if (state.step === 'doc_motif') {
+            saveRequest({ type: 'document', doc: state.doc, motif: txt, fromId, targetEmpId: state.empId });
+            states.delete(chatId);
+            return send(chatId, lang === 'ar' ? '✅ تم استلام طلبك.' : '✅ Demande reçue.');
+        }
+        if (state.step === 'abs_date') {
+            saveRequest({ type: 'absence', absType: state.absType, date: txt, fromId, targetEmpId: state.empId });
+            states.delete(chatId);
+            return send(chatId, '✅ Received.');
+        }
+        if (state.step === 'survey_date') {
+            saveRequest({ type: 'survey', faute: state.faute, date: txt, fromId, targetEmpId: state.empId });
+            states.delete(chatId);
+            return send(chatId, '✅ Received.');
+        }
+    }
 };
 
-const handleMotifs = async (chatId, lang) => {
-                    const ar = lang === 'ar';
-                    const kbd = { inline_keyboard: [] };
-                    for (let i = 0; i < MOTIFS.length; i += 2) {
-                                                    const row = [{ text: ar ? MOTIFS[i].ar : MOTIFS[i].fr, callback_data: "motif:" + i }];
-                                                    if (MOTIFS[i+1]) row.push({ text: ar ? MOTIFS[i+1].ar : MOTIFS[i+1].fr, callback_data: "motif:" + (i+1) });
-                                                    kbd.inline_keyboard.push(row);
-                    }
-                    await send(chatId, ar ? '\u2753 \u0627\u0630\u0643\u0631 \u0633\u0628\u0628 \u0627\u0644\u0637\u0644\u0628:' : '\u2753 Motif:', kbd);
-};
+// -- Server & Polling --------------------------------------
+const server = http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('Bot is running');
+});
+server.listen(process.env.PORT || 8080);
 
-const handle = async (update, config) => {
-                    const cbq = update.callback_query;
-                    const msg = update.message || cbq?.message;
-                    const from = update.message?.from || cbq?.from;
-                    if (!msg || !from) return;
-                    const chatId = String(msg.chat.id), fromId = String(from.id), txt = (msg.text || '').trim().toLowerCase(), lang = getLang(chatId), ar = lang === 'ar';
-                    const user = config.authorized_users?.find(u => String(u.id) === fromId);
-                    if (!user) {
-                                                    if (txt === '/start') return send(chatId, `\u26A0\uFE0F <b>\u062F\u062E\u0648\u0644 \u0645\u0631\u0641\u0648\u0636</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nID: <code>${fromId}</code>`);
-                                                    return;
-                    }
-                    if (cbq) {
-                                                    await tgCall('answerCallbackQuery', { callback_query_id: cbq.id });
-                                                    const data = cbq.data;
-                                                    if (data === 'choose_lang') return send(chatId, 'Language?', { inline_keyboard: [[{ text: 'AR', callback_data: 'lang:ar' }, { text: 'FR', callback_data: 'lang:fr' }]] });
-                                                    if (data.startsWith('lang:')) { setLang(chatId, data.split(':')[1]); return handleMenu(chatId, user, getLang(chatId)); }
-                                                    if (data === 'emp_search') return handleInfo(chatId, user, lang);
-                                                    if (data === 'show_docs') return handleDocRequest(chatId, user, lang, config);
-                                                    if (data === 'sync_db') { await syncFromDrive(); return send(chatId, "\u2705 Done"); }
-                                                    if (data.startsWith('doc:')) {
-                                                                                                  const doc = DOCS.find(d => d.id === parseInt(data.split(':')[1]));
-                                                                                                  states.set(chatId, { step: 'doc_motif', doc });
-                                                                                                  return handleMotifs(chatId, lang);
-                                                    }
-                                                    if (data.startsWith('motif:')) {
-                                                                                                  const m = MOTIFS[parseInt(data.split(':')[1])];
-                                                                                                  saveRequest({ type: 'document', doc: states.get(chatId)?.doc?.fr, motif: ar ? m.ar : m.fr, fromId, fromName: user.name, lang });
-                                                                                                  states.delete(chatId);
-                                                                                                  return send(chatId, ar ? '\u2705 \u062A\u0645 \u0627\u0644\u0627\u0633\u062A\u0644\u0627\u0645.' : '\u2705 Re\u00E7u.');
-                                                    }
-                    }
-                    if (states.has(chatId) && txt) {
-                                                    const st = states.get(chatId);
-                                                    if (st.step === 'search_query') { states.delete(chatId); return handleInfoSearch(chatId, user, lang, txt); }
-                    }
-                    if (txt === '/start') return handleStart(chatId, user, lang);
-                    if (txt === '/me' || txt === '/id') return handleMe(chatId, user, lang);
-                    if (txt === '/menu') return handleMenu(chatId, user, lang);
-                    if (txt === '/db_status') {
-                        const db = loadDatabase();
-                        const len = (db.hr_employees || []).length;
-                        return send(chatId, `DB Employees: ${len}\nRole: ${user.role}`);
-                    }
-                    if (txt === '/sync') {
-                        const report = await syncFromDrive();
-                        return send(chatId, `Sync Process Report:\n${report}`);
-                    }
-                    if (txt === '/info') return handleInfo(chatId, user, lang);
-};
+let offset = 0;
+try { offset = JSON.parse(fs.readFileSync(OFFSET_PATH, 'utf8')).offset || 0; } catch {}
 
-let offset = loadOffset();
 const poll = async () => {
-                    const config = loadConfig();
-                    try {
-                                                    const res = await tgCall('getUpdates', { offset, timeout: 25 });
-                                                    if (res?.ok) {
-                                                                                                  for (const u of res.result || []) { offset = u.update_id + 1; saveOffset(offset); await handle(u, config); }
-                                                    }
-                                                    setTimeout(poll, 500);
-                    } catch (e) { setTimeout(poll, 5000); }
+    const res = await tgCall('getUpdates', { offset, timeout: 30 });
+    if (res.ok && res.result) {
+        for (const u of res.result) {
+            offset = u.update_id + 1;
+            fs.writeFileSync(OFFSET_PATH, JSON.stringify({ offset }));
+            await handleUpdate(u);
+        }
+    }
+    setTimeout(poll, 1000);
 };
-
-http.createServer((req, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 3000);
-syncFromDrive().then(() => poll());
+poll();
+log("Cloud Bot Started Successfully.");

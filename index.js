@@ -16,7 +16,7 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DB_LOCAL_PATH = path.join(DATA_DIR, 'database.json');
 const OFFSET_PATH = path.join(DATA_DIR, 'offset.json');
 
-const BOT_TOKEN = '7434503714:AAFm0o7rNisG9tKOfYp37C1V9pC-m7q3vPk';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w';
 const ADMIN_ID = '8626592284';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
 const ENCRYPTION_KEY = 'nouar2026';

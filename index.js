@@ -271,9 +271,23 @@ const handleInfoSearch = async (chatId, user, lang, query) => {
                     const q = query.toLowerCase();
 
                     const results = (db.hr_employees || []).filter(e => {
-                                          const idMatch = String(e.id).includes(q) || String(e.clockingId).includes(q);
-                                          const nameFrMatch = `${e.firstName_fr} ${e.lastName_fr}`.toLowerCase().includes(q) || `${e.lastName_fr} ${e.firstName_fr}`.toLowerCase().includes(q);
-                                          const nameArMatch = `${e.firstName_ar} ${e.lastName_ar}`.includes(q) || `${e.lastName_ar} ${e.firstName_ar}`.includes(q);
+                                          if (!e) return false;
+                                          
+                                          // Apply scoping restrictions
+                                          if (['supervisor', 'manager', 'gestionnaire_rh'].includes(user.role)) {
+                                              if (user.allowed_company && user.allowed_company !== 'all' && e.companyId !== user.allowed_company) return false;
+                                              if (user.allowed_departments && user.allowed_departments.length > 0 && 
+                                                  !user.allowed_departments.includes(e.department_fr) && 
+                                                  !user.allowed_departments.includes(e.department_ar) &&
+                                                  !user.allowed_departments.includes(e.direction_fr) &&
+                                                  !user.allowed_departments.includes(e.direction_ar)) return false;
+                                              if (user.scope === 'custom_employees' && user.allowed_employees && user.allowed_employees.length > 0 &&
+                                                  !user.allowed_employees.includes(String(e.clockingId)) && !user.allowed_employees.includes(String(e.id))) return false;
+                                          }
+
+                                          const idMatch = String(e.id || '').includes(q) || String(e.clockingId || '').includes(q);
+                                          const nameFrMatch = `${e.firstName_fr || ''} ${e.lastName_fr || ''}`.toLowerCase().includes(q) || `${e.lastName_fr || ''} ${e.firstName_fr || ''}`.toLowerCase().includes(q);
+                                          const nameArMatch = `${e.firstName_ar || ''} ${e.lastName_ar || ''}`.includes(q) || `${e.lastName_ar || ''} ${e.firstName_ar || ''}`.includes(q);
                                           return idMatch || nameFrMatch || nameArMatch;
                     }).slice(0, 5);
 

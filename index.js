@@ -57,24 +57,31 @@ function decrypt(b64, pass) {
 
 async function syncDB() {
   try {
-    const raw = await new Promise((res) => {
-      https.get(SCRIPT_URL, (r) => {
-        let d=''; r.on('data',c=>d+=c); r.on('end',()=>res(d));
-      }).on('error',()=>res(null));
-    });
-    if (!raw) return 'Error: No data';
+    // Use global fetch (Node 18+) which follows redirects automatically
+    const response = await fetch(SCRIPT_URL);
+    if (!response.ok) return `Error: HTTP ${response.status}`;
+    const raw = await response.text();
+    if (!raw || raw.length < 100) return 'Error: Data too small';
+    
     let data = raw.charCodeAt(0)===0xFEFF ? raw.slice(1) : raw;
+    
+    // Try plain JSON first
     try {
       const j = JSON.parse(data);
-      if (j.hr_employees) { fs.writeFileSync(DB_PATH,data); return `OK: ${j.hr_employees.length} employees`; }
+      if (j.hr_employees) { 
+        fs.writeFileSync(DB_PATH, data); 
+        return `OK: ${j.hr_employees.length} employees`; 
+      }
     } catch {}
+    
+    // Try decryption
     const dec = decrypt(data.trim(), ENC_KEY);
     if (dec) {
       const j = JSON.parse(dec);
       fs.writeFileSync(DB_PATH, dec);
       return `OK (decrypted): ${j.hr_employees?.length||0} employees`;
     }
-    return 'Error: parse/decrypt failed';
+    return `Error: not JSON, not encrypted. Starts: ${data.substring(0,20)}`;
   } catch(e) { return 'Error: '+e.message; }
 }
 

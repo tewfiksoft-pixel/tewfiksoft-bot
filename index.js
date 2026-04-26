@@ -336,8 +336,35 @@ function saveReq(data) {
   fs.writeFileSync(p, JSON.stringify(reqs.slice(0,500)));
 }
 
-// HTTP server for Render health check
-http.createServer((_,res)=>{ res.end('OK'); }).listen(process.env.PORT||8080);
+// HTTP server for Render health check and remote config updates
+http.createServer((req,res)=>{ 
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
+  
+  if (req.method === 'POST' && req.url === '/api/config') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const newConfig = JSON.parse(body);
+        if (newConfig.authorized_users) {
+          fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2), 'utf8');
+          log('✅ Received remote config update. Users: ' + newConfig.authorized_users.length);
+          res.writeHead(200, {'Content-Type': 'application/json'});
+          return res.end(JSON.stringify({success: true}));
+        }
+      } catch(e) {
+        log('❌ Failed to parse remote config: ' + e.message);
+      }
+      res.writeHead(400, {'Content-Type': 'application/json'});
+      res.end(JSON.stringify({success: false, error: 'Invalid config'}));
+    });
+    return;
+  }
+  res.writeHead(200);
+  res.end('OK'); 
+}).listen(process.env.PORT||8080);
 
 // Polling
 let offset = 0;

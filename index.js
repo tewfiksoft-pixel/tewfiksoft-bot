@@ -388,6 +388,15 @@ const handle = async (update, config) => {
                     if (txt === '/start') return handleStart(chatId, user, lang);
                     if (txt === '/me' || txt === '/id') return handleMe(chatId, user, lang);
                     if (txt === '/menu') return handleMenu(chatId, user, lang);
+                    if (txt === '/db_status') {
+                        const db = loadDatabase();
+                        const len = (db.hr_employees || []).length;
+                        return send(chatId, `DB Employees: ${len}\nRole: ${user.role}`);
+                    }
+                    if (txt === '/sync') {
+                        await syncFromDrive();
+                        return send(chatId, 'Sync completed.');
+                    }
                     if (txt === '/info') return handleInfo(chatId, user, lang);
 };
 

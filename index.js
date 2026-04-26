@@ -394,8 +394,39 @@ const handle = async (update, config) => {
                         return send(chatId, `DB Employees: ${len}\nRole: ${user.role}`);
                     }
                     if (txt === '/sync') {
-                        await syncFromDrive();
-                        return send(chatId, 'Sync completed.');
+                        let resTxt = '';
+                        try {
+                            const res = await drive.files.get({ fileId: DB_FILE_ID, alt: 'media' });
+                            let rawData = res.data;
+                            if (typeof rawData !== 'string') rawData = JSON.stringify(rawData);
+                            resTxt += `Downloaded: ${rawData.length} bytes.\n`;
+                            
+                            // Remove BOM if present
+                            if (rawData.charCodeAt(0) === 0xFEFF) rawData = rawData.slice(1);
+                            
+                            let parsedData = null;
+                            try {
+                                const parsed = JSON.parse(rawData);
+                                if (parsed && (parsed.hr_employees || parsed.employees)) {
+                                    fs.writeFileSync(DB_LOCAL_PATH, rawData);
+                                    resTxt += 'Plain JSON success.\n';
+                                    parsedData = parsed;
+                                }
+                            } catch (e) { resTxt += `Plain JSON parse failed: ${e.message}\n`; }
+                            
+                            if (!parsedData) {
+                                const decrypted = decryptDatabase(rawData.trim(), ENCRYPTION_KEY);
+                                if (decrypted) {
+                                    fs.writeFileSync(DB_LOCAL_PATH, decrypted);
+                                    resTxt += 'Decryption success.\n';
+                                } else {
+                                    resTxt += 'Decryption failed (returned null).\n';
+                                }
+                            }
+                        } catch (err) {
+                            resTxt += `Drive Error: ${err.message}`;
+                        }
+                        return send(chatId, `Sync Process:\n${resTxt}`);
                     }
                     if (txt === '/info') return handleInfo(chatId, user, lang);
 };

@@ -170,14 +170,33 @@ async function handle(u) {
     if (d.startsWith('infolang:')) {
       const l = d.split(':')[1];
       langs.set(chatId, l);
-      states.set(chatId, {step:'search'});
       const isAr = l==='ar';
+      if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
+      if (user.role === 'employee' || user.scope === 'self') {
+        const db = loadDB();
+        const myId = user.allowed_employees?.[0] || user.id;
+        const e = db.hr_employees?.find(x=>String(x.clockingId) === String(myId));
+        if (e) return showCard(chatId, e.id, isAr, user);
+        return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص.':'❌ Votre profil n\'a pas été trouvé.');
+      }
+      states.set(chatId, {step:'search'});
       return send(chatId, isAr?'✅ <b>تم اختيار اللغة.</b>\n\n🔍 يرجى الآن إدخال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:':'✅ <b>Langue sélectionnée.</b>\n\n🔍 Veuillez maintenant entrer le <b>nom</b> ou <b>matricule</b> de l\'employé :');
     }
     if (d==='menu') return showMenu(chatId, user, ar);
     if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
+    if (d==='stats') {
+      const db = loadDB();
+      const emps = db.hr_employees || [];
+      const active = emps.filter(e=>e.status==='active').length;
+      const total = emps.length;
+      const isAr = (langs.get(chatId)||'ar')==='ar';
+      const msg = isAr ? 
+        `📊 <b>الإحصائيات العامة</b>\n━━━━━━━━━━━━━━\n👥 إجمالي الموظفين: <b>${total}</b>\n✅ النشطين: <b>${active}</b>` :
+        `📊 <b>Statistiques</b>\n━━━━━━━━━━━━━━\n👥 Total Employés: <b>${total}</b>\n✅ Actifs: <b>${active}</b>`;
+      return send(chatId, msg);
+    }
     if (d==='search') { states.set(chatId,{step:'search'}); return send(chatId, ar?'🔍 أدخل اسم الموظف أو رقمه:':'🔍 Nom ou matricule :'); }
-    if (d.startsWith('emp:')) return showCard(chatId, d.slice(4), ar);
+    if (d.startsWith('emp:')) return showCard(chatId, d.slice(4), ar, user);
     if (d.startsWith('docs:')) { states.set(chatId,{step:'doc_pick',empId:d.slice(5)}); return showDocs(chatId,ar); }
     if (d.startsWith('doc:')) {
       const [,empId,docId] = d.split(':');
@@ -198,8 +217,8 @@ async function handle(u) {
       states.set(chatId,{step:'survey_date',empId,faute:ar?f.ar:f.fr});
       return send(chatId, ar?'📅 تاريخ الواقعة:':'📅 Date incident :');
     }
-    if (d.startsWith('leave:')) return showLeave(chatId, d.slice(6), ar);
-    if (d.startsWith('full:')) return showFull(chatId, d.slice(5), ar);
+    if (d.startsWith('leave:')) return showLeave(chatId, d.slice(6), ar, user);
+    if (d.startsWith('full:')) return showFull(chatId, d.slice(5), ar, user);
     return;
   }
 
@@ -229,9 +248,11 @@ async function handle(u) {
       states.delete(chatId);
       const db = loadDB();
       const q = txt.toLowerCase();
-      const res = db.hr_employees.filter(e=>e.status==='active'&&(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q)));
+      if (user.role === 'general_manager') return send(chatId, ar?'❌ لا تملك صلاحية للبحث عن العمال.':'❌ Non autorisé.');
+      const visible = getVisibleEmployees(user, db);
+      const res = visible.filter(e=>(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q)));
       if (!res.length) return send(chatId, ar?'❌ لم يتم العثور على موظف.':'❌ Aucun résultat.');
-      if (res.length===1) return showCard(chatId, res[0].id, ar);
+      if (res.length===1) return showCard(chatId, res[0].id, ar, user);
       const kbd = {inline_keyboard: res.slice(0,8).map(e=>[{text:`👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}`,callback_data:'emp:'+e.id}])};
       return send(chatId, ar?'📂 نتائج البحث:':'📂 Résultats:', kbd);
     }
@@ -256,26 +277,52 @@ async function handle(u) {
   if (txt.length>=2 && !txt.startsWith('/')) {
     const db = loadDB();
     const q = txt.toLowerCase();
-    const res = db.hr_employees?.filter(e=>e.status==='active'&&(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q))) || [];
+    if (user.role === 'general_manager') return send(chatId, ar?'❌ لا تملك صلاحية للبحث عن العمال.':'❌ Non autorisé.');
+    const visible = getVisibleEmployees(user, db);
+    const res = visible.filter(e=>(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q)));
     if (!res.length) return send(chatId, ar?'❌ لم يتم العثور على موظف.':'❌ Aucun résultat.');
-    if (res.length===1) return showCard(chatId, res[0].id, ar);
+    if (res.length===1) return showCard(chatId, res[0].id, ar, user);
     const kbd = {inline_keyboard: res.slice(0,8).map(e=>[{text:`👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}`,callback_data:'emp:'+e.id}])};
     return send(chatId, ar?'📂 نتائج البحث:':'📂 Résultats:', kbd);
   }
 }
 
-function showMenu(chatId, user, ar) {
-  const kbd = {inline_keyboard:[
-    [{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}],
-    [{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]
-  ]};
-  return send(chatId, ar?'📋 القائمة الرئيسية':'📋 Menu Principal', kbd);
+
+function getVisibleEmployees(user, db) {
+  if (user.role === 'general_manager') return [];
+  if (user.role === 'admin' || user.role === 'gestionnaire_rh') return (db.hr_employees||[]).filter(e=>e.status==='active');
+  const myId = user.allowed_employees?.[0] || user.id;
+  if (user.role === 'employee' || user.scope === 'self') {
+    return (db.hr_employees||[]).filter(e=>e.status==='active' && String(e.clockingId) === String(myId));
+  }
+  return (db.hr_employees||[]).filter(e => {
+    if(e.status !== 'active') return false;
+    if (user.scope === 'all') return true;
+    if (user.scope === 'department') {
+      const depts = user.allowed_departments || [];
+      return depts.includes(e.department_fr) || depts.includes(e.department_ar);
+    }
+    if (user.scope === 'custom_employees') {
+      const emps = user.allowed_employees || [];
+      return emps.includes(String(e.clockingId));
+    }
+    return false;
+  });
 }
 
-function showCard(chatId, empId, ar) {
+function showMenu(chatId, user, ar) {
+  let kbd = [];
+  if (user.role === 'general_manager' || user.role === 'admin') kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
+  if (user.role !== 'general_manager') kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
+  if (user.role === 'admin' || user.role === 'gestionnaire_rh') kbd.push([{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]);
+  return send(chatId, ar?'📋 القائمة الرئيسية':'📋 Menu Principal', {inline_keyboard: kbd});
+}
+
+function showCard(chatId, empId, ar, user) {
   const db = loadDB();
-  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
-  if (!e) return send(chatId, '❌ Not found');
+  const visible = getVisibleEmployees(user, db);
+  const e = visible.find(x=>String(x.id)===String(empId));
+  if (!e) return send(chatId, ar ? '❌ غير مصرح لك بمشاهدة هذا الموظف.' : '❌ Non autorisé.');
   const msg = ar
     ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(e.lastName_ar)} ${T(e.firstName_ar)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 الوظيفة: <i>${T(e.jobTitle_ar)}</i>\n⏳ نهاية العقد: ${e.contractEndDate||'—'}\n\nيرجى اختيار الإجراء:`
     : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(e.lastName_fr)} ${T(e.firstName_fr)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 Poste: <i>${T(e.jobTitle_fr)}</i>\n⏳ Fin: ${e.contractEndDate||'—'}\n\nVeuillez choisir:`;
@@ -289,21 +336,22 @@ function showCard(chatId, empId, ar) {
   return send(chatId, msg, kbd);
 }
 
-function showFull(chatId, empId, ar) {
+function showFull(chatId, empId, ar, user) {
   const db = loadDB();
-  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
-  if (!e) return;
+  const visible = getVisibleEmployees(user, db);
+  const e = visible.find(x=>String(x.id)===String(empId));
+  if (!e) return send(chatId, ar ? '❌ غير مصرح لك بمشاهدة هذا الموظف.' : '❌ Non autorisé.');
   const msg = ar
     ? `📋 <b>بيانات الموظف</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)} ${T(e.firstName_ar)}\n🏢 ${T(e.department_ar)}\n💼 ${T(e.jobTitle_ar)}\n📅 التوظيف: ${e.startDate||'—'}\n📜 العقد: ${T(e.contractType)}\n⏳ نهاية: ${e.contractEndDate||'—'}`
     : `📋 <b>FICHE EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}\n🏢 ${T(e.department_fr)}\n💼 ${T(e.jobTitle_fr)}\n📅 Embauche: ${e.startDate||'—'}\n📜 Contrat: ${T(e.contractType)}\n⏳ Fin: ${e.contractEndDate||'—'}`;
   return send(chatId, msg, {inline_keyboard:[[{text:ar?'🔙 رجوع':'🔙 Retour',callback_data:'emp:'+empId}]]});
 }
 
-function showLeave(chatId, empId, ar) {
+function showLeave(chatId, empId, ar, user) {
   const db = loadDB();
-  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
-  const bals = (db.hr_leave_balances||[]).filter(b=>String(b.employeeId)===String(empId));
-  if (!e) return;
+  const visible = getVisibleEmployees(user, db);
+  const e = visible.find(x=>String(x.id)===String(empId));
+  if (!e) return send(chatId, ar ? '❌ غير مصرح لك بمشاهدة هذا الموظف.' : '❌ Non autorisé.');
   let msg = ar ? `🏖️ <b>رصيد العطل</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)}\n` : `🏖️ <b>SOLDE CONGÉS</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)}\n`;
   if (bals.length) { bals.forEach(b=>{ msg += `📅 ${b.year}: <b>${b.balance||0}</b> ${ar?'يوم':'j'}\n`; }); }
   else { msg += ar ? '⚠️ لا توجد بيانات.' : '⚠️ Aucune donnée.'; }

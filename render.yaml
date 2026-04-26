@@ -1,14 +1,12 @@
 services:
   - type: web
-      name: tewfiksoft-telegram-bot
-          env: node
-              plan: free
-                  buildCommand: npm install
-                      startCommand: npm start
-                          envVars:
-                                - key: BOT_TOKEN
-                                        sync: false
-                                              - key: NODE_ENV
-                                                      value: production
-                                                          healthCheckPath: /
-                                                              autoDeploy: true
+    name: tewfiksoft-telegram-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: BOT_TOKEN
+        value: 8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w
+      - key: NODE_ENV
+        value: production

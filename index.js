@@ -196,12 +196,16 @@ async function handle(u) {
             ))
         );
 
-        if (employee && employee.role) {
+        if (employee) {
             let dbRole = employee.role === 'user' ? 'employee' : employee.role;
             if (dbRole !== user.role) {
-                log(`🔄 Role Sync [Cloud]: ${user.name} updated from ${user.role} to ${dbRole}`);
+                log(`🔄 Role Sync [Cloud]: ${user.name} matched. Updating from ${user.role} to ${dbRole}`);
                 user.role = dbRole;
+            } else {
+                log(`ℹ️ Role Sync [Cloud]: ${user.name} matched but role ${user.role} is already up to date.`);
             }
+        } else {
+            log(`⚠️ Role Sync [Cloud]: No employee match found in database for ${user.name} (Phone: ${user.phone}, ID: ${user.clockingId})`);
         }
     }
   } catch (e) {

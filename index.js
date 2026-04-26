@@ -169,7 +169,7 @@ const DOCS = [
           { id: 3, ar: '\u0641\u064A\u0634 \u062F\u064A \u0628\u064A', fr: 'Fiche de paie' },
           { id: 4, ar: '\u0628\u0637\u0627\u0642\u0629 \u0634\u0641\u0627\u0621', fr: 'Activation carte Chifa' },
           { id: 5, ar: '\u062A\u0633\u0648\u064A\u0629 \u0631\u0627\u062A\u0628', fr: 'Regularisation de paie' },
-          { id: 6, ar: '\u062A\u0642\u064I\u064A\u0645 \u0641\u062A\u0631\u0629 \u0627\u0644\u062A\u062C\u0631\u0628\u0629', fr: 'Evaluation Periode Essai' }
+          { id: 6, ar: '\u062A\u0642\u064A\u064A\u0645 \u0641\u062A\u0631\u0629 \u0627\u0644\u062A\u062C\u0631\u0628\u0629', fr: 'Evaluation Periode Essai' }
                   ];
 
 const MOTIFS = [

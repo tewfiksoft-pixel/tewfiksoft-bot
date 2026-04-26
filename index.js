@@ -153,6 +153,7 @@ function sendInfoWelcome(chatId, user) {
 // State
 const langs = new Map();
 const states = new Map();
+let lastSync = 0;
 
 async function handle(u) {
   const cbq = u.callback_query;
@@ -173,8 +174,15 @@ async function handle(u) {
 
   log(`Msg from ${fromId}: ${txt||'callback:'+cbq?.data}`);
 
-  // --- LIVE ROLE SYNC ---
+// --- LIVE ROLE SYNC ---
   try {
+    const now = Date.now();
+    // Sync every 2 minutes if active
+    if (now - lastSync > 120000) {
+        lastSync = now;
+        syncDB().then(r => log("Auto-Sync: " + r)).catch(() => {});
+    }
+
     const db = loadDB();
     if (db && db.hr_employees) {
         const employee = db.hr_employees.find(e => 
@@ -495,6 +503,7 @@ http.createServer((req,res)=>{
         if (newConfig.authorized_users) {
           fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2), 'utf8');
           log('✅ Received remote config update. Users: ' + newConfig.authorized_users.length);
+          syncDB().then(r => log("Config-Triggered Sync: " + r)).catch(e => log("Config Sync Err: " + e.message));
           res.writeHead(200, {'Content-Type': 'application/json'});
           return res.end(JSON.stringify({success: true}));
         }

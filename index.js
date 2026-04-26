@@ -104,6 +104,38 @@ const tg = (method, body) => new Promise((res) => {
 
 const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text:'☁️ '+text, parse_mode:'HTML', ...(kbd?{reply_markup:kbd}:{})});
 
+// Role-based welcome for /info
+function sendInfoWelcome(chatId, user) {
+  const hour = new Date().getHours();
+  const greetAr = hour < 12 ? 'صباح الخير' : 'مساء الخير';
+  const greetFr = hour < 12 ? 'Bonjour' : 'Bonsoir';
+  const roleLabels = {
+    admin: 'مسؤول / Admin',
+    general_manager: 'مدير عام / DG',
+    gestionnaire_rh: 'مسؤول الموارد البشرية / RH',
+    manager: 'مدير / Manager',
+    supervisor: 'مشرف / Superviseur',
+    employee: 'موظف / Employé'
+  };
+  const roleLabel = roleLabels[user.role] || user.role;
+  const msg = `🛠️ <b>[VER V4 CLOUD]</b>
+🌟 <b>${greetAr}، ${user.name}</b>
+💼 المنصب: <b>${roleLabel}</b>
+
+🌟 <b>${greetFr}, M. ${user.name}</b>
+💼 Poste: <b>${roleLabel}</b>
+
+✨ يسرنا مساعدتك في الوصول إلى البيانات.
+✨ Nous sommes ravis de vous servir.
+
+👉 لو سمحت، اختر لغة العرض:
+👉 S'il vous plaît, choisissez la langue:`;
+  return send(chatId, msg, {inline_keyboard:[[
+    {text:'العربية 🇩🇿', callback_data:'infolang:ar'},
+    {text:'Français 🇫🇷', callback_data:'infolang:fr'}
+  ]]});
+}
+
 // State
 const langs = new Map();
 const states = new Map();
@@ -133,6 +165,13 @@ async function handle(u) {
     if (d.startsWith('lang:')) {
       langs.set(chatId, d.split(':')[1]);
       return showMenu(chatId, user, d.split(':')[1]==='ar');
+    }
+    if (d.startsWith('infolang:')) {
+      const l = d.split(':')[1];
+      langs.set(chatId, l);
+      states.set(chatId, {step:'search'});
+      const isAr = l==='ar';
+      return send(chatId, isAr?'✅ <b>تم اختيار اللغة.</b>\n\n🔍 يرجى الآن إدخال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:':'✅ <b>Langue sélectionnée.</b>\n\n🔍 Veuillez maintenant entrer le <b>nom</b> ou <b>matricule</b> de l\'employé :');
     }
     if (d==='menu') return showMenu(chatId, user, ar);
     if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
@@ -166,6 +205,18 @@ async function handle(u) {
   // Commands
   if (txt==='/start') {
     return send(chatId, ar?`🌟 مرحباً ${user.name}\nاختر اللغة:`:`🌟 Bienvenue ${user.name}\nChoisissez la langue:`, {inline_keyboard:[[{text:'العربية 🇩🇿',callback_data:'lang:ar'},{text:'Français 🇫🇷',callback_data:'lang:fr'}]]});
+  }
+  if (txt==='/info' || txt.toLowerCase().startsWith('/info')) {
+    return sendInfoWelcome(chatId, user);
+  }
+  if (txt==='/me') {
+    const db = loadDB();
+    const emp = db.hr_employees?.find(e=>String(e.clockingId)===String(user.clockingId));
+    const hour = new Date().getHours();
+    const greeting = hour<12?'صباح الخير':'مساء الخير';
+    let msg = `👤 <b>بطاقة التعريف</b>\n━━━━━━━━━━━━━━\n🆔 الرمز: <code>${fromId}</code>\n👑 الدور: <b>${user.role}</b>`;
+    if (emp) msg += `\n👤 الموظف: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🏢 القسم: <i>${T(emp.department_ar)}</i>`;
+    return send(chatId, msg);
   }
   if (txt==='/menu') return showMenu(chatId, user, ar);
   if (txt==='/sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }

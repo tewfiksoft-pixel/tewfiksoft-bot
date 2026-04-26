@@ -6,168 +6,303 @@ import { fileURLToPath } from 'url';
 import http from 'http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-// -- Config ------------------------------------------------
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
-const DB_LOCAL_PATH = path.join(DATA_DIR, 'database.json');
+const DB_PATH = path.join(DATA_DIR, 'database.json');
 const OFFSET_PATH = path.join(DATA_DIR, 'offset.json');
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w';
 const ADMIN_ID = '8626592284';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
-const ENCRYPTION_KEY = 'nouar2026';
+const ENC_KEY = 'nouar2026';
+const SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
 
-// -- Constants ---------------------------------------------
+// Docs & Fautes lists
 const DOCS = [
-  {id: 0, ar: '🌴 سند عطلة', fr: '🌴 Titre de congés', val: 'Titre de congés'},
-  {id: 1, ar: '💼 شهادة عمل', fr: '💼 Attestation de travail', val: 'Attestation de travail'},
-  {id: 2, ar: '💰 كشف الراتب', fr: '💰 Relevé des émoluments', val: 'Relevé des émoluments'},
-  {id: 3, ar: '📄 قسيمة الراتب', fr: '📄 Fiche de paie', val: 'Fiche de paie'},
-  {id: 4, ar: '💳 تفعيل بطاقة الشفاء', fr: '💳 Activation carte Chifa', val: 'Activation carte Chifa'},
-  {id: 5, ar: '📊 تسوية الراتب', fr: '📊 Régularisation de paie', val: 'Régularisation de paie'},
-  {id: 6, ar: '📝 تقييم فترة تجريبية', fr: '📝 Évaluation Période d\'Essai', val: 'Évaluation Période Essai'}
+  {id:0,ar:'🌴 سند عطلة',fr:'🌴 Titre de congés'},
+  {id:1,ar:'💼 شهادة عمل',fr:'💼 Attestation de travail'},
+  {id:2,ar:'💰 كشف الراتب',fr:'💰 Relevé des émoluments'},
+  {id:3,ar:'📄 قسيمة الراتب',fr:'📄 Fiche de paie'},
+  {id:4,ar:'💳 بطاقة الشفاء',fr:'💳 Activation carte Chifa'},
+  {id:5,ar:'📊 تسوية الراتب',fr:'📊 Régularisation de paie'},
+  {id:6,ar:'📝 فترة تجريبية',fr:'📝 Évaluation Période Essai'}
 ];
-
 const FAUTES = [
-  {id: 0, ar: 'تخلي عن المنصب', fr: 'Abandon de poste', val: 'Abandon de poste'},
-  {id: 1, ar: 'تأخر متكرر', fr: 'Retard répété', val: 'Retard répété'},
-  {id: 2, ar: 'عصيان / تمرد', fr: 'Insubordination', val: 'Insubordination'},
-  {id: 3, ar: 'إهمال', fr: 'Négligence', val: 'Négligence'},
-  {id: 4, ar: 'غياب غير مبرر', fr: 'Absence injustifiée', val: 'Absence injustifiée'},
-  {id: 5, ar: 'مخالفة النظام', fr: 'Violation règlement', val: 'Violation règlement'},
-  {id: 6, ar: 'سلوك غير لائق', fr: 'Comportement incorrect', val: 'Comportement incorrect'},
-  {id: 7, ar: 'أخرى', fr: 'Autre', val: 'Autre'}
+  {id:0,ar:'تخلي عن المنصب',fr:'Abandon de poste'},
+  {id:1,ar:'تأخر متكرر',fr:'Retard répété'},
+  {id:2,ar:'عصيان',fr:'Insubordination'},
+  {id:3,ar:'إهمال',fr:'Négligence'},
+  {id:4,ar:'غياب غير مبرر',fr:'Absence injustifiée'},
+  {id:5,ar:'مخالفة النظام',fr:'Violation règlement'},
+  {id:6,ar:'سلوك غير لائق',fr:'Comportement incorrect'},
+  {id:7,ar:'أخرى',fr:'Autre'}
 ];
 
-// -- Helpers -----------------------------------------------
-const clean = (s) => String(s||'').trim().replace(/Ã/g, ''); // Simple cleanup
-const T = (s, fallback='') => {
-    let str = clean(s);
-    return (str && !str.includes('\uFFFD')) ? str : (fallback || '—');
-};
+const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
+const T = (s) => { try { return String(s||'').trim() || '—'; } catch { return '—'; } };
 
-const deriveKey = (password) => crypto.pbkdf2Sync(password, Buffer.from('tewfiksoft_hr_salt_2026', 'utf8'), 100000, 32, 'sha256');
-
-function decryptDatabase(encryptedBase64, password) {
-    try {
-        const data = Buffer.from(encryptedBase64, 'base64');
-        const nonce = data.slice(0, 12);
-        const ciphertext = data.slice(12);
-        const key = deriveKey(password);
-        const authTag = ciphertext.slice(ciphertext.length - 16);
-        const encrypted = ciphertext.slice(0, ciphertext.length - 16);
-        const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
-        decipher.setAuthTag(authTag);
-        return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
-    } catch (e) { return null; }
+function decrypt(b64, pass) {
+  try {
+    const buf = Buffer.from(b64, 'base64');
+    const key = crypto.pbkdf2Sync(pass, SALT, 100000, 32, 'sha256');
+    const nonce = buf.slice(0,12), ct = buf.slice(12);
+    const tag = ct.slice(ct.length-16), enc = ct.slice(0,ct.length-16);
+    const d = crypto.createDecipheriv('aes-256-gcm', key, nonce);
+    d.setAuthTag(tag);
+    return Buffer.concat([d.update(enc), d.final()]).toString('utf8');
+  } catch { return null; }
 }
 
-// -- Network -----------------------------------------------
-const request = (url, method = 'GET', body = null) => new Promise((resolve) => {
-    const options = { method, headers: {} };
-    if (body) {
-        options.headers['Content-Type'] = 'application/json';
-        options.headers['Content-Length'] = Buffer.byteLength(body);
-    }
-    const req = https.request(url, options, (res) => {
-        let d = '';
-        res.on('data', (chunk) => d += chunk);
-        res.on('end', () => resolve(d));
+async function syncDB() {
+  try {
+    const raw = await new Promise((res) => {
+      https.get(SCRIPT_URL, (r) => {
+        let d=''; r.on('data',c=>d+=c); r.on('end',()=>res(d));
+      }).on('error',()=>res(null));
     });
-    req.on('error', () => resolve(null));
-    if (body) req.write(body);
-    req.end();
+    if (!raw) return 'Error: No data';
+    let data = raw.charCodeAt(0)===0xFEFF ? raw.slice(1) : raw;
+    try {
+      const j = JSON.parse(data);
+      if (j.hr_employees) { fs.writeFileSync(DB_PATH,data); return `OK: ${j.hr_employees.length} employees`; }
+    } catch {}
+    const dec = decrypt(data.trim(), ENC_KEY);
+    if (dec) {
+      const j = JSON.parse(dec);
+      fs.writeFileSync(DB_PATH, dec);
+      return `OK (decrypted): ${j.hr_employees?.length||0} employees`;
+    }
+    return 'Error: parse/decrypt failed';
+  } catch(e) { return 'Error: '+e.message; }
+}
+
+function loadDB() {
+  try { return JSON.parse(fs.readFileSync(DB_PATH,'utf8')); } catch { return {hr_employees:[]}; }
+}
+function loadConfig() {
+  try { return JSON.parse(fs.readFileSync(CONFIG_PATH,'utf8')); } catch { return {authorized_users:[]}; }
+}
+
+// Telegram
+const tg = (method, body) => new Promise((res) => {
+  const p = JSON.stringify(body);
+  const req = https.request({hostname:'api.telegram.org',path:`/bot${BOT_TOKEN}/${method}`,method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(p)}}, (r) => {
+    let d=''; r.on('data',c=>d+=c); r.on('end',()=>{ try{res(JSON.parse(d));}catch{res({ok:false});} });
+  });
+  req.on('error',()=>res({ok:false}));
+  req.write(p); req.end();
 });
 
-const tgCall = (method, body = {}) => request(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, 'POST', JSON.stringify(body)).then(d => JSON.parse(d || '{}'));
-const send = (chatId, text, kbd = null) => tgCall('sendMessage', { chat_id: chatId, text: `☁️ <b>[CLOUD]</b>\n${text}`, parse_mode: 'HTML', reply_markup: kbd });
+const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text:'☁️ '+text, parse_mode:'HTML', ...(kbd?{reply_markup:kbd}:{})});
 
-// -- Core --------------------------------------------------
-const sync = async () => {
-    const rawData = await request(SCRIPT_URL);
-    if (!rawData) return "Error: No data";
-    let data = rawData;
-    if (data.charCodeAt(0) === 0xFEFF) data = data.slice(1);
-    
-    let ok = false;
-    try { if (JSON.parse(data).hr_employees) { fs.writeFileSync(DB_LOCAL_PATH, data); ok = true; } } catch {}
-    
-    if (!ok) {
-        const decrypted = decryptDatabase(data.trim(), ENCRYPTION_KEY);
-        if (decrypted) { fs.writeFileSync(DB_LOCAL_PATH, decrypted); ok = true; }
+// State
+const langs = new Map();
+const states = new Map();
+
+async function handle(u) {
+  const cbq = u.callback_query;
+  const msg = u.message || cbq?.message;
+  const from = u.message?.from || cbq?.from;
+  if (!msg||!from) return;
+
+  const chatId = msg.chat.id;
+  const fromId = String(from.id);
+  const txt = (msg.text||'').trim();
+  const ar = (langs.get(chatId)||'ar') === 'ar';
+
+  if (cbq) await tg('answerCallbackQuery',{callback_query_id:cbq.id});
+
+  const cfg = loadConfig();
+  const user = cfg.authorized_users?.find(x=>String(x.id)===fromId);
+  if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
+
+  log(`Msg from ${fromId}: ${txt||'callback:'+cbq?.data}`);
+
+  // Handle callbacks
+  if (cbq) {
+    const d = cbq.data;
+    if (d.startsWith('lang:')) {
+      langs.set(chatId, d.split(':')[1]);
+      return showMenu(chatId, user, d.split(':')[1]==='ar');
     }
-    return ok ? "Sync Success" : "Sync Failed";
-};
-
-const handleUpdate = async (u) => {
-    const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
-    if (!msg || !from) return;
-    const chatId = msg.chat.id, fromId = String(from.id), txt = (msg.text || '').trim();
-    
-    let config = { authorized_users: [] };
-    try { config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch {}
-    const user = config.authorized_users?.find(x => String(x.id) === fromId);
-    if (!user) return send(chatId, `Unauthorized: ${fromId}`);
-
-    if (cbq) {
-        const data = cbq.data;
-        if (data.startsWith('lang:')) return send(chatId, "Language Set. Type /menu");
-        if (data === 'menu') return send(chatId, "Menu: /sync or /search");
-        if (data === 'sync_db') { const r = await sync(); return send(chatId, r); }
-        if (data.startsWith('select:')) {
-            const db = JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8'));
-            const e = db.hr_employees.find(x => String(x.id) === data.split(':')[1]);
-            let res = `👤 ${T(e.lastName_fr)}\n🆔 ${e.clockingId}\n💼 ${T(e.jobTitle_fr)}`;
-            const kbd = { inline_keyboard: [[{text:'🏖️ Congés', callback_data:'c'}, {text:'🚨 Absence', callback_data:'a'}], [{text:'📝 Docs', callback_data:'d'}, {text:'📊 Survey', callback_data:'s'}]] };
-            return send(chatId, res, kbd);
-        }
+    if (d==='menu') return showMenu(chatId, user, ar);
+    if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
+    if (d==='search') { states.set(chatId,{step:'search'}); return send(chatId, ar?'🔍 أدخل اسم الموظف أو رقمه:':'🔍 Nom ou matricule :'); }
+    if (d.startsWith('emp:')) return showCard(chatId, d.slice(4), ar);
+    if (d.startsWith('docs:')) { states.set(chatId,{step:'doc_pick',empId:d.slice(5)}); return showDocs(chatId,ar); }
+    if (d.startsWith('doc:')) {
+      const [,empId,docId] = d.split(':');
+      const doc = DOCS.find(x=>x.id===+docId);
+      states.set(chatId,{step:'doc_motif',empId,doc:ar?doc.ar:doc.fr});
+      return send(chatId, ar?'❓ ما هو الغرض من الطلب؟':'❓ Motif de la demande ?');
     }
-
-    if (txt === '/start') return send(chatId, `Welcome ${user.name}! Cloud Bot Active.`);
-    if (txt === '/sync') { const r = await sync(); return send(chatId, r); }
-    if (txt === '/menu') return send(chatId, "Options:", { inline_keyboard: [[{text:'⚙️ Sync', callback_data:'sync_db'}]] });
-    
-    if (txt.length > 2) {
-        let db = { hr_employees: [] };
-        try { db = JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8')); } catch {}
-        const q = txt.toLowerCase();
-        const res = db.hr_employees.filter(e => String(e.clockingId).includes(q) || T(e.lastName_fr).toLowerCase().includes(q));
-        if (res.length === 0) return send(chatId, "No results.");
-        if (res.length === 1) {
-            const e = res[0];
-            const kbd = { inline_keyboard: [[{text:'🏖️ Congés', callback_data:'c'}, {text:'🚨 Absence', callback_data:'a'}], [{text:'📝 Docs', callback_data:'d'}, {text:'📊 Survey', callback_data:'s'}]] };
-            return send(chatId, `👤 ${T(e.lastName_fr)}\n🆔 ${e.clockingId}`, kbd);
-        }
-        const kbd = { inline_keyboard: res.slice(0, 5).map(e => [{text: `👤 ${T(e.lastName_fr)}`, callback_data: 'select:'+e.id}]) };
-        return send(chatId, "Results:", kbd);
+    if (d.startsWith('abs:')) { states.set(chatId,{step:'abs_type',empId:d.slice(4)}); return showAbsType(chatId,ar); }
+    if (d.startsWith('atype:')) {
+      const [,empId,type] = d.split(':');
+      states.set(chatId,{step:'abs_date',empId,absType:type});
+      return send(chatId, ar?'📅 تاريخ الغياب:':'📅 Date absence :');
     }
-};
+    if (d.startsWith('survey:')) { states.set(chatId,{step:'faute_pick',empId:d.slice(7)}); return showFautes(chatId,ar); }
+    if (d.startsWith('faute:')) {
+      const [,empId,fId] = d.split(':');
+      const f = FAUTES.find(x=>x.id===+fId);
+      states.set(chatId,{step:'survey_date',empId,faute:ar?f.ar:f.fr});
+      return send(chatId, ar?'📅 تاريخ الواقعة:':'📅 Date incident :');
+    }
+    if (d.startsWith('leave:')) return showLeave(chatId, d.slice(6), ar);
+    if (d.startsWith('full:')) return showFull(chatId, d.slice(5), ar);
+    return;
+  }
 
-// -- Main --------------------------------------------------
-http.createServer((req, res) => { res.end('Active'); }).listen(process.env.PORT || 8080);
+  // Commands
+  if (txt==='/start') {
+    return send(chatId, ar?`🌟 مرحباً ${user.name}\nاختر اللغة:`:`🌟 Bienvenue ${user.name}\nChoisissez la langue:`, {inline_keyboard:[[{text:'العربية 🇩🇿',callback_data:'lang:ar'},{text:'Français 🇫🇷',callback_data:'lang:fr'}]]});
+  }
+  if (txt==='/menu') return showMenu(chatId, user, ar);
+  if (txt==='/sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
 
+  // States
+  const st = states.get(chatId);
+  if (st) {
+    if (st.step==='search') {
+      states.delete(chatId);
+      const db = loadDB();
+      const q = txt.toLowerCase();
+      const res = db.hr_employees.filter(e=>e.status==='active'&&(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q)));
+      if (!res.length) return send(chatId, ar?'❌ لم يتم العثور على موظف.':'❌ Aucun résultat.');
+      if (res.length===1) return showCard(chatId, res[0].id, ar);
+      const kbd = {inline_keyboard: res.slice(0,8).map(e=>[{text:`👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}`,callback_data:'emp:'+e.id}])};
+      return send(chatId, ar?'📂 نتائج البحث:':'📂 Résultats:', kbd);
+    }
+    if (st.step==='doc_motif') {
+      saveReq({type:'document',doc:st.doc,motif:txt,fromId,empId:st.empId});
+      states.delete(chatId);
+      return send(chatId, ar?'✅ تم استلام طلبك بنجاح.':'✅ Demande reçue avec succès.');
+    }
+    if (st.step==='abs_date') {
+      saveReq({type:'absence',absType:st.absType,date:txt,fromId,empId:st.empId});
+      states.delete(chatId);
+      return send(chatId, ar?'✅ تم تسجيل الغياب.':'✅ Absence enregistrée.');
+    }
+    if (st.step==='survey_date') {
+      saveReq({type:'survey',faute:st.faute,date:txt,fromId,empId:st.empId});
+      states.delete(chatId);
+      return send(chatId, ar?'✅ تم تسجيل الاستبيان.':'✅ Questionnaire enregistré.');
+    }
+  }
+
+  // Direct search if text is not a command
+  if (txt.length>=2 && !txt.startsWith('/')) {
+    const db = loadDB();
+    const q = txt.toLowerCase();
+    const res = db.hr_employees?.filter(e=>e.status==='active'&&(String(e.clockingId).includes(q)||T(e.lastName_fr).toLowerCase().includes(q)||T(e.lastName_ar).includes(q)||T(e.firstName_fr).toLowerCase().includes(q))) || [];
+    if (!res.length) return send(chatId, ar?'❌ لم يتم العثور على موظف.':'❌ Aucun résultat.');
+    if (res.length===1) return showCard(chatId, res[0].id, ar);
+    const kbd = {inline_keyboard: res.slice(0,8).map(e=>[{text:`👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}`,callback_data:'emp:'+e.id}])};
+    return send(chatId, ar?'📂 نتائج البحث:':'📂 Résultats:', kbd);
+  }
+}
+
+function showMenu(chatId, user, ar) {
+  const kbd = {inline_keyboard:[
+    [{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}],
+    [{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]
+  ]};
+  return send(chatId, ar?'📋 القائمة الرئيسية':'📋 Menu Principal', kbd);
+}
+
+function showCard(chatId, empId, ar) {
+  const db = loadDB();
+  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
+  if (!e) return send(chatId, '❌ Not found');
+  const msg = ar
+    ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(e.lastName_ar)} ${T(e.firstName_ar)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 الوظيفة: <i>${T(e.jobTitle_ar)}</i>\n⏳ نهاية العقد: ${e.contractEndDate||'—'}\n\nيرجى اختيار الإجراء:`
+    : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(e.lastName_fr)} ${T(e.firstName_fr)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 Poste: <i>${T(e.jobTitle_fr)}</i>\n⏳ Fin: ${e.contractEndDate||'—'}\n\nVeuillez choisir:`;
+  const kbd = {inline_keyboard:[
+    [{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}],
+    [{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}],
+    [{text:ar?'📝 طلب وثيقة':'📝 Demander Doc',callback_data:'docs:'+empId},{text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}],
+    [{text:ar?'📊 إجراء استبيان':'📊 Questionnaire',callback_data:'survey:'+empId}],
+    [{text:ar?'🏠 القائمة':'🏠 Menu',callback_data:'menu'}]
+  ]};
+  return send(chatId, msg, kbd);
+}
+
+function showFull(chatId, empId, ar) {
+  const db = loadDB();
+  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
+  if (!e) return;
+  const msg = ar
+    ? `📋 <b>بيانات الموظف</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)} ${T(e.firstName_ar)}\n🏢 ${T(e.department_ar)}\n💼 ${T(e.jobTitle_ar)}\n📅 التوظيف: ${e.startDate||'—'}\n📜 العقد: ${T(e.contractType)}\n⏳ نهاية: ${e.contractEndDate||'—'}`
+    : `📋 <b>FICHE EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}\n🏢 ${T(e.department_fr)}\n💼 ${T(e.jobTitle_fr)}\n📅 Embauche: ${e.startDate||'—'}\n📜 Contrat: ${T(e.contractType)}\n⏳ Fin: ${e.contractEndDate||'—'}`;
+  return send(chatId, msg, {inline_keyboard:[[{text:ar?'🔙 رجوع':'🔙 Retour',callback_data:'emp:'+empId}]]});
+}
+
+function showLeave(chatId, empId, ar) {
+  const db = loadDB();
+  const e = db.hr_employees?.find(x=>String(x.id)===String(empId));
+  const bals = (db.hr_leave_balances||[]).filter(b=>String(b.employeeId)===String(empId));
+  if (!e) return;
+  let msg = ar ? `🏖️ <b>رصيد العطل</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)}\n` : `🏖️ <b>SOLDE CONGÉS</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)}\n`;
+  if (bals.length) { bals.forEach(b=>{ msg += `📅 ${b.year}: <b>${b.balance||0}</b> ${ar?'يوم':'j'}\n`; }); }
+  else { msg += ar ? '⚠️ لا توجد بيانات.' : '⚠️ Aucune donnée.'; }
+  return send(chatId, msg, {inline_keyboard:[[{text:ar?'🔙 رجوع':'🔙 Retour',callback_data:'emp:'+empId}]]});
+}
+
+function showDocs(chatId, ar) {
+  const kbd = {inline_keyboard: DOCS.map(d=>[{text:ar?d.ar:d.fr, callback_data:`doc:${states.get(chatId)?.empId}:${d.id}`}])};
+  return send(chatId, ar?'📝 اختر الوثيقة:':'📝 Choisissez le document:', kbd);
+}
+
+function showAbsType(chatId, ar) {
+  const empId = states.get(chatId)?.empId;
+  return send(chatId, ar?'🚨 نوع الغياب:':'🚨 Type absence:', {inline_keyboard:[
+    [{text:ar?'✅ مبرر':'✅ Autorisé',callback_data:`atype:${empId}:auth`},{text:ar?'❌ غير مبرر':'❌ Non autorisé',callback_data:`atype:${empId}:unauth`}]
+  ]});
+}
+
+function showFautes(chatId, ar) {
+  const empId = states.get(chatId)?.empId;
+  const kbd = {inline_keyboard: FAUTES.map(f=>[{text:ar?f.ar:f.fr, callback_data:`faute:${empId}:${f.id}`}])};
+  return send(chatId, ar?'📊 نوع المخالفة:':'📊 Type de faute:', kbd);
+}
+
+function saveReq(data) {
+  const p = path.join(DATA_DIR, 'requests.json');
+  let reqs = [];
+  try { reqs = JSON.parse(fs.readFileSync(p,'utf8')); } catch {}
+  reqs.unshift({...data, id:Date.now().toString(), createdAt:new Date().toISOString(), status:'pending'});
+  fs.writeFileSync(p, JSON.stringify(reqs.slice(0,500)));
+}
+
+// HTTP server for Render health check
+http.createServer((_,res)=>{ res.end('OK'); }).listen(process.env.PORT||8080);
+
+// Polling
 let offset = 0;
-try { offset = JSON.parse(fs.readFileSync(OFFSET_PATH, 'utf8')).offset || 0; } catch {}
+try { offset = JSON.parse(fs.readFileSync(OFFSET_PATH,'utf8')).offset||0; } catch {}
 
-const poll = async () => {
-    const res = await tgCall('getUpdates', { offset, timeout: 30 });
+async function poll() {
+  try {
+    const res = await tg('getUpdates',{offset,timeout:25,allowed_updates:['message','callback_query']});
     if (res.ok && res.result) {
-        for (const u of res.result) {
-            offset = u.update_id + 1;
-            fs.writeFileSync(OFFSET_PATH, JSON.stringify({ offset }));
-            await handleUpdate(u);
-        }
+      for (const u of res.result) {
+        offset = u.update_id+1;
+        fs.writeFileSync(OFFSET_PATH, JSON.stringify({offset}));
+        await handle(u).catch(e=>log('Handle error: '+e.message));
+      }
     }
-    setTimeout(poll, 1000);
-};
+  } catch(e) { log('Poll error: '+e.message); }
+  setTimeout(poll, 500);
+}
 
+// Boot
 (async () => {
-    console.log("Cloud Bot Booting...");
-    await sync();
-    await send(ADMIN_ID, "✅ <b>البوت السحابي متصل الآن!</b>\nهذه الرسالة تم إرسالها تلقائياً من خادم Render.\nيمكنك الآن إرسال أي اسم للبحث.");
-    poll();
+  log('Cloud Bot Starting...');
+  const syncResult = await syncDB();
+  log('Initial sync: ' + syncResult);
+  await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل!</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`);
+  poll();
 })();

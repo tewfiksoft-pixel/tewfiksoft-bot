@@ -173,6 +173,34 @@ async function handle(u) {
 
   log(`Msg from ${fromId}: ${txt||'callback:'+cbq?.data}`);
 
+  // --- LIVE ROLE SYNC ---
+  try {
+    const db = loadDB();
+    if (db && db.hr_employees) {
+        const employee = db.hr_employees.find(e => 
+            (e.clockingId && String(e.clockingId) === String(user.clockingId)) || 
+            (e.phone && e.phone === user.phone) ||
+            (user.name && (
+                `${T(e.firstName_fr)} ${T(e.lastName_fr)}`.toLowerCase() === user.name.toLowerCase() ||
+                `${T(e.lastName_fr)} ${T(e.firstName_fr)}`.toLowerCase() === user.name.toLowerCase() ||
+                `${T(e.firstName_ar)} ${T(e.lastName_ar)}` === user.name ||
+                `${T(e.lastName_ar)} ${T(e.firstName_ar)}` === user.name
+            ))
+        );
+
+        if (employee && employee.role) {
+            let dbRole = employee.role === 'user' ? 'employee' : employee.role;
+            if (dbRole !== user.role) {
+                log(`🔄 Role Sync [Cloud]: ${user.name} updated from ${user.role} to ${dbRole}`);
+                user.role = dbRole;
+            }
+        }
+    }
+  } catch (e) {
+    log("Role Sync Error: " + e.message);
+  }
+  // --- END SYNC ---
+
   // Handle callbacks
   if (cbq) {
     const d = cbq.data;

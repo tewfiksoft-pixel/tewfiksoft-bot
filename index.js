@@ -313,7 +313,25 @@ async function handle(u) {
   // Commands
   if (txt === '/sync' && (user.role === 'admin' || chatId === ADMIN_ID)) {
     const res = await syncDB();
-    return send(chatId, `🔄 Database Sync Attempted:\n${res}`);
+    const db = loadDB();
+    const matchName = (emp) => {
+        const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+        const dbNames = [
+            clean(`${T(emp.firstName_fr)} ${T(emp.lastName_fr)}`),
+            clean(`${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`),
+            clean(`${T(emp.firstName_ar)} ${T(emp.lastName_ar)}`),
+            clean(`${T(emp.lastName_ar)} ${T(emp.firstName_ar)}`)
+        ];
+        const target = clean(user.name);
+        return dbNames.includes(target);
+    };
+    const emp = db.hr_employees?.find(e => 
+        (e.clockingId && String(e.clockingId) === String(user.clockingId)) || 
+        (e.phone && e.phone === user.phone) ||
+        matchName(e)
+    );
+    let info = emp ? `\n👤 Found in DB: <b>${emp.firstName_fr} ${emp.lastName_fr}</b>\n🔑 DB Role: <b>${emp.role}</b>` : `\n⚠️ No match found in DB for name: ${user.name}`;
+    return send(chatId, `🔄 Sync Result: ${res}${info}\n\n<i>Note: Use /me to see active role.</i>`);
   }
   if (txt==='/start') {
     return send(chatId, ar?`🌟 مرحباً ${user.name}\nاختر اللغة:`:`🌟 Bienvenue ${user.name}\nChoisissez la langue:`, {inline_keyboard:[[{text:'العربية 🇩🇿',callback_data:'lang:ar'},{text:'Français 🇫🇷',callback_data:'lang:fr'}]]});

@@ -185,7 +185,7 @@ async function handle(u) {
       langs.set(chatId, l);
       const isAr = l==='ar';
       if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
-      if (user.role === 'employee' || user.scope === 'self') {
+      if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
         const db = loadDB();
         const myId = user.allowed_employees?.[0] || user.id;
         const e = db.hr_employees?.find(x=>String(x.clockingId) === String(myId));
@@ -240,8 +240,8 @@ async function handle(u) {
         const motifText = motifObj ? (ar ? motifObj.ar : motifObj.fr) : 'Autre';
         saveReq({type:'document',doc:st.doc,motif:motifText,fromId,empId:st.empId});
         states.delete(chatId);
-        send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.':'✅ Demande reçue avec succès.');
-        return sendInfoWelcome(chatId, loadConfig().authorized_users?.find(x=>String(x.id)===fromId));
+        send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Demande reçue avec succès.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
+        return showCard(chatId, st.empId, ar, loadConfig().authorized_users?.find(x=>String(x.id)===fromId));
       }
     }
     if (d.startsWith('abs:')) { states.set(chatId,{step:'abs_type',empId:d.slice(4)}); return showAbsType(chatId,ar); }
@@ -299,20 +299,20 @@ async function handle(u) {
     if (st.step==='doc_motif') {
       saveReq({type:'document',doc:st.doc,motif:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.':'✅ Demande reçue avec succès.');
-      return sendInfoWelcome(chatId, user);
+      send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Demande reçue avec succès.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
+      return showCard(chatId, st.empId, ar, user);
     }
     if (st.step==='abs_date') {
       saveReq({type:'absence',absType:st.absType,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      send(chatId, ar?'✅ تم تسجيل الغياب.':'✅ Absence enregistrée.');
-      return sendInfoWelcome(chatId, user);
+      send(chatId, ar?'✅ تم تسجيل الغياب.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Absence enregistrée.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
+      return showCard(chatId, st.empId, ar, user);
     }
     if (st.step==='survey_date') {
       saveReq({type:'survey',faute:st.faute,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
-      send(chatId, ar?'✅ تم تسجيل الاستبيان.':'✅ Questionnaire enregistré.');
-      return sendInfoWelcome(chatId, user);
+      send(chatId, ar?'✅ تم تسجيل الاستبيان.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Questionnaire enregistré.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
+      return showCard(chatId, st.empId, ar, user);
     }
   }
 
@@ -333,9 +333,9 @@ async function handle(u) {
 
 function getVisibleEmployees(user, db) {
   if (user.role === 'general_manager') return [];
-  if (user.role === 'admin' || user.role === 'gestionnaire_rh') return (db.hr_employees||[]).filter(e=>e.status==='active');
+  if (user.role === 'admin') return (db.hr_employees||[]).filter(e=>e.status==='active');
   const myId = user.allowed_employees?.[0] || user.id;
-  if (user.role === 'employee' || user.scope === 'self') {
+  if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
     return (db.hr_employees||[]).filter(e=>e.status==='active' && String(e.clockingId) === String(myId));
   }
   return (db.hr_employees||[]).filter(e => {

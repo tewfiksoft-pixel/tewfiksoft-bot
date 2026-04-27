@@ -5,6 +5,7 @@
                   "id": "8626592284",
                   "name": "General Manager",
                   "role": "admin",
+                  "clockingId": "admin",
                   "scope": "all",
                   "allowed_departments": [],
                   "allowed_company": "all",

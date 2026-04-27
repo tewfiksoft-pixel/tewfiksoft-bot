@@ -181,53 +181,34 @@ async function handle(u) {
   if (cbq) await tg('answerCallbackQuery',{callback_query_id:cbq.id});
 
   const cfg = loadConfig();
-  const user = cfg.authorized_users?.find(x=>String(x.id)===fromId);
-  if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
+  const fromUser = (from.username || '').toLowerCase();
+  
+  const user = cfg.authorized_users?.find(u => {
+      const adId = String(u.id).replace('@', '').toLowerCase().trim();
+      return adId === fromId || (fromUser && adId === fromUser);
+  });
 
-  log(`Msg from ${fromId}: ${txt||'callback:'+cbq?.data}`);
+  if (!user) {
+      log(`❌ Unauthorized access attempt from ID: ${fromId}, Username: @${fromUser}`);
+      return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>\n<i>Please provide this ID to your administrator.</i>`);
+  }
 
-// --- LIVE ROLE SYNC ---
+  log(`Msg from ${user.name} (@${fromUser}) [Role: ${user.role}]: ${txt||'callback:'+cbq?.data}`);
+
+// --- AUTO-SYNC DATABASE FROM DRIVE ---
   try {
     const now = Date.now();
-    // Sync every 2 minutes if active
-    if (now - lastSync > 120000) {
+    if (now - lastSync > 300000) {
         lastSync = now;
         syncDB().then(r => log("Auto-Sync: " + r)).catch(() => {});
     }
-
-    const db = loadDB();
-    if (db && db.hr_employees) {
-      const matchName = (emp) => {
-          const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
-          const dbNames = [
-              clean(`${T(emp.firstName_fr)} ${T(emp.lastName_fr)}`),
-              clean(`${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`),
-              clean(`${T(emp.firstName_ar)} ${T(emp.lastName_ar)}`),
-              clean(`${T(emp.lastName_ar)} ${T(emp.firstName_ar)}`)
-          ];
-          const target = clean(user.name);
-          return dbNames.includes(target);
-      };
-
-      const employee = db.hr_employees.find(e => 
-          (e.clockingId && String(e.clockingId) === String(user.clockingId)) || 
-          (e.phone && e.phone === user.phone) ||
-          matchName(e)
-      );
-
-      if (employee) {
-          log(`👤 User ${user.name} matched in DB as ${employee.clockingId}`);
-      } else {
-          log(`⚠️ No employee match found in database for ${user.name} (Role: ${user.role})`);
-      }
-    }
   } catch (e) {
-    log("Role Sync Error: " + e.message);
+    log("Sync check error: " + e.message);
   }
   // --- END SYNC ---
 
   // Handle callbacks
-  if (cbq) {
+    if (cbq) {
     const d = cbq.data;
     if (d.startsWith('lang:')) {
       langs.set(chatId, d.split(':')[1]);
@@ -245,10 +226,14 @@ async function handle(u) {
         if (e) return showCard(chatId, e.id, isAr, user);
         return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص.':'❌ Votre profil n\'a pas été trouvé.');
       }
+      if (user.role === 'manager' || user.role === 'supervisor') {
+         return showMenu(chatId, user, isAr);
+      }
       states.set(chatId, {step:'search'});
       return send(chatId, isAr?'✅ <b>تم اختيار اللغة.</b>\n\n🔍 يرجى الآن إدخال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:':'✅ <b>Langue sélectionnée.</b>\n\n🔍 Veuillez maintenant entrer le <b>nom</b> ou <b>matricule</b> de l\'employé :');
     }
     if (d==='menu') return showMenu(chatId, user, ar);
+    if (d==='team') return managerRole.handleTeamList(chatId, ar, user);
     if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
     if (d==='stats') {
       if (user.role === 'admin' || user.role === 'general_manager') {
@@ -447,8 +432,14 @@ function showMenu(chatId, user, ar) {
     kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
   }
 
-  // Others see search (and GM is excluded from search)
-  if (user.role !== 'general_manager' && user.role !== 'admin') {
+  // Managers and Supervisors see Team List AND Search
+  if (user.role === 'manager' || user.role === 'supervisor') {
+    kbd.push([{text:ar?'👥 موظفي فريقي':'👥 Mon Équipe',callback_data:'team'}]);
+    kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
+  }
+
+  // Others see search (if not handled above and not GM)
+  if (user.role !== 'general_manager' && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'supervisor') {
     kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
   }
   
@@ -471,11 +462,21 @@ function showCard(chatId, empId, ar, user) {
   const kbd = {inline_keyboard:[
     [{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}],
     [{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}],
-    [{text:ar?'📝 طلب وثيقة':'📝 Demander Doc',callback_data:'docs:'+empId},{text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}],
-    [{text:ar?'📊 إجراء استبيان':'📊 Questionnaire',callback_data:'survey:'+empId}],
+    [{text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId},{text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}],
+    [{text:'📊 Questionnaire',callback_data:'survey:'+empId}],
     [{text:ar?'🏠 القائمة':'🏠 Menu',callback_data:'menu'}]
   ]};
   return send(chatId, msg, kbd);
+}
+
+function calcCountdown(dateStr, ar) {
+  if (!dateStr || dateStr === '—' || dateStr.trim() === '') return '—';
+  const t = new Date(dateStr);
+  if (isNaN(t)) return dateStr;
+  const d = Math.ceil((t - new Date()) / (1000 * 60 * 60 * 24));
+  if (d > 0) return ar ? `${dateStr} (باقي ${d} يوم ⏳)` : `${dateStr} (Reste ${d} j ⏳)`;
+  if (d === 0) return ar ? `${dateStr} (اليوم ⚠️)` : `${dateStr} (Aujourd'hui ⚠️)`;
+  return ar ? `${dateStr} (انتهى منذ ${Math.abs(d)} يوم 🔴)` : `${dateStr} (Expiré depuis ${Math.abs(d)} j 🔴)`;
 }
 
 function showFull(chatId, empId, ar, user) {
@@ -483,9 +484,22 @@ function showFull(chatId, empId, ar, user) {
   const visible = getVisibleEmployees(user, db);
   const e = visible.find(x=>String(x.id)===String(empId));
   if (!e) return send(chatId, ar ? '❌ غير مصرح لك بمشاهدة هذا الموظف.' : '❌ Non autorisé.');
+
+  const contractEnd = calcCountdown(e.contractEndDate, ar);
+  const probationEnd = calcCountdown(e.probationEndDate || e.periodEssaiFin, ar);
+
+  const getStatusIcon = (dateStr) => {
+    if (!dateStr || dateStr === '—') return '⚪';
+    const d = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+    if (d > 30) return '🟢';
+    if (d > 0) return '🟡';
+    if (d > -30) return '🟠';
+    return '🔴';
+  };
+
   const msg = ar
-    ? `📋 <b>بيانات الموظف</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)} ${T(e.firstName_ar)}\n🏢 ${T(e.department_ar)}\n💼 ${T(e.jobTitle_ar)}\n📅 التوظيف: ${e.startDate||'—'}\n📜 العقد: ${T(e.contractType)}\n⏳ نهاية: ${e.contractEndDate||'—'}`
-    : `📋 <b>FICHE EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)} ${T(e.firstName_fr)}\n🏢 ${T(e.department_fr)}\n💼 ${T(e.jobTitle_fr)}\n📅 Embauche: ${e.startDate||'—'}\n📜 Contrat: ${T(e.contractType)}\n⏳ Fin: ${e.contractEndDate||'—'}`;
+    ? `📋 <b>الملف الشخصي للموظف</b>\n━━━━━━━━━━━━━━\n👤 <b>الاسم:</b> ${T(e.lastName_ar)} ${T(e.firstName_ar)}\n🏢 <b>القسم:</b> ${T(e.department_ar)}\n💼 <b>المنصب:</b> ${T(e.jobTitle_ar)}\n\n📅 <b>بداية العمل:</b> ${e.startDate||e.hireDate||'—'}\n${getStatusIcon(e.contractEndDate)} <b>نهاية العمل:</b> ${contractEnd}\n${getStatusIcon(e.probationEndDate || e.periodEssaiFin)} <b>نهاية فترة التجربة:</b> ${probationEnd}\n📜 <b>نوع العقد:</b> ${T(e.contractType)}`
+    : `📋 <b>PROFIL DE L'EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 <b>Nom:</b> ${T(e.lastName_fr)} ${T(e.firstName_fr)}\n🏢 <b>Département:</b> ${T(e.department_fr)}\n💼 <b>Poste:</b> ${T(e.jobTitle_fr)}\n\n📅 <b>Début de travail:</b> ${e.startDate||e.hireDate||'—'}\n${getStatusIcon(e.contractEndDate)} <b>Fin de travail:</b> ${contractEnd}\n${getStatusIcon(e.probationEndDate || e.periodEssaiFin)} <b>Fin période d'essai:</b> ${probationEnd}\n📜 <b>Contrat:</b> ${T(e.contractType)}`;
   return send(chatId, msg, {inline_keyboard:[[{text:ar?'🔙 رجوع':'🔙 Retour',callback_data:'emp:'+empId}]]});
 }
 
@@ -494,15 +508,46 @@ function showLeave(chatId, empId, ar, user) {
   const visible = getVisibleEmployees(user, db);
   const e = visible.find(x=>String(x.id)===String(empId));
   if (!e) return send(chatId, ar ? '❌ غير مصرح لك بمشاهدة هذا الموظف.' : '❌ Non autorisé.');
-  let msg = ar ? `🏖️ <b>رصيد العطل</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)}\n` : `🏖️ <b>SOLDE CONGÉS</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)}\n`;
-  if (bals.length) { bals.forEach(b=>{ msg += `📅 ${b.year}: <b>${b.balance||0}</b> ${ar?'يوم':'j'}\n`; }); }
-  else { msg += ar ? '⚠️ لا توجد بيانات.' : '⚠️ Aucune donnée.'; }
+  
+  let msg = ar ? `🏖️ <b>رصيد العطل</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)}\n\n` : `🏖️ <b>SOLDE CONGÉS</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)}\n\n`;
+  
+  // Look up in hr_leave_balances table
+  const bals = (db.hr_leave_balances || []).filter(b => b.employeeId === e.id);
+  
+  if (bals.length) { 
+    bals.sort((a, b) => String(b.exercice).localeCompare(String(a.exercice))).forEach(b=>{ 
+      msg += `📅 ${b.exercice}: <b>${b.remainingDays || 0}</b> ${ar?'يوم':'j'}\n`; 
+    }); 
+  } else { 
+    // Fallback to employee object fields if table is empty
+    const oldBals = e.leaveBalances || e.leave_balances || e.leaveBalance || e.balances || [];
+    if (Array.isArray(oldBals) && oldBals.length) {
+       oldBals.forEach(b=>{ msg += `📅 ${b.year||'—'}: <b>${b.balance||0}</b> ${ar?'يوم':'j'}\n`; });
+    } else {
+       msg += ar ? '⚠️ لا توجد بيانات رصيد عطل متاحة.' : '⚠️ Aucune donnée de solde disponible.'; 
+    }
+  }
   return send(chatId, msg, {inline_keyboard:[[{text:ar?'🔙 رجوع':'🔙 Retour',callback_data:'emp:'+empId}]]});
 }
 
 function showDocs(chatId, ar) {
-  const kbd = {inline_keyboard: DOCS.map(d=>[{text:ar?d.ar:d.fr, callback_data:`doc:${states.get(chatId)?.empId}:${d.id}`}])};
-  return send(chatId, ar?'📝 اختر الوثيقة:':'📝 Choisissez le document:', kbd);
+  const empId = states.get(chatId)?.empId;
+  const kbd = {inline_keyboard: []};
+  
+  // Custom display logic from local server
+  for(let i=0; i<DOCS.length; i+=2) {
+    const row = [{text:ar?DOCS[i].ar:DOCS[i].fr, callback_data:`doc:${empId}:${DOCS[i].id}`}];
+    if (DOCS[i+1]) row.push({text:ar?DOCS[i+1].ar:DOCS[i+1].fr, callback_data:`doc:${empId}:${DOCS[i+1].id}`});
+    kbd.inline_keyboard.push(row);
+  }
+  
+  kbd.inline_keyboard.push([{text:ar?'🔙 إلغاء والرجوع':'🔙 Annuler et Retour', callback_data:'emp:'+empId}]);
+  
+  const msg = ar ? 
+    `✨ <b>قسم الطلبيات</b> ✨\n━━━━━━━━━━━━━━\nيرجى اختيار الوثيقة المطلوبة بكل سهولة 👇` : 
+    `✨ <b>Département des Demandes</b> ✨\n━━━━━━━━━━━━━━\nVeuillez choisir le document souhaité 👇`;
+    
+  return send(chatId, msg, kbd);
 }
 
 function showAbsType(chatId, ar) {
@@ -514,8 +559,18 @@ function showAbsType(chatId, ar) {
 
 function showFautes(chatId, ar) {
   const empId = states.get(chatId)?.empId;
-  const kbd = {inline_keyboard: FAUTES.map(f=>[{text:ar?f.ar:f.fr, callback_data:`faute:${empId}:${f.id}`}])};
-  return send(chatId, ar?'📊 نوع المخالفة:':'📊 Type de faute:', kbd);
+  const kbd = {inline_keyboard: []};
+  
+  for(let i=0; i<FAUTES.length; i+=2) {
+    const row = [{text:'🔸 ' + FAUTES[i].fr, callback_data:`faute:${empId}:${FAUTES[i].id}`}];
+    if (FAUTES[i+1]) row.push({text:'🔸 ' + FAUTES[i+1].fr, callback_data:`faute:${empId}:${FAUTES[i+1].id}`});
+    kbd.inline_keyboard.push(row);
+  }
+  
+  kbd.inline_keyboard.push([{text:ar?'🔙 إلغاء':'🔙 Annuler', callback_data:'emp:'+empId}]);
+  
+  const msg = `📋 <b>Questionnaire</b>\n━━━━━━━━━━━━━━\nVeuillez sélectionner une option dans la liste ci-dessous :`;
+  return send(chatId, msg, kbd);
 }
 
 function saveReq(data) {

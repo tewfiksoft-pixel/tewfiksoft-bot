@@ -284,7 +284,7 @@ async function handle(u) {
         saveReq({type:'document',doc:st.doc,motif:motifText,fromId,empId:st.empId});
         states.delete(chatId);
         send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Demande reçue avec succès.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
-        return showCard(chatId, st.empId, ar, loadConfig().authorized_users?.find(x=>String(x.id)===fromId));
+        return;
       }
     }
     if (d.startsWith('abs:')) { states.set(chatId,{step:'abs_type',empId:d.slice(4)}); return showAbsType(chatId,ar); }

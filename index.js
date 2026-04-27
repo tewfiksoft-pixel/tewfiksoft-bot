@@ -205,15 +205,9 @@ async function handle(u) {
     );
 
         if (employee) {
-            let dbRole = employee.role === 'user' ? 'employee' : employee.role;
-            if (dbRole !== user.role) {
-                log(`🔄 Role Sync [Cloud]: ${user.name} matched. Updating from ${user.role} to ${dbRole}`);
-                user.role = dbRole;
-            } else {
-                log(`ℹ️ Role Sync [Cloud]: ${user.name} matched but role ${user.role} is already up to date.`);
-            }
+            log(`👤 User ${user.name} matched in DB as ${employee.clockingId}`);
         } else {
-            log(`⚠️ Role Sync [Cloud]: No employee match found in database for ${user.name} (Phone: ${user.phone}, ID: ${user.clockingId})`);
+            log(`⚠️ No employee match found in database for ${user.name}`);
         }
     }
   } catch (e) {

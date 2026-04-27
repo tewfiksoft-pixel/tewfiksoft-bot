@@ -184,6 +184,7 @@ async function handle(u) {
 
   if (cbq) await tg('answerCallbackQuery',{callback_query_id:cbq.id});
 
+  // --- Role identification from config ---
   const cfg = loadConfig();
   const fromUser = (from.username || '').toLowerCase();
   
@@ -196,28 +197,6 @@ async function handle(u) {
       log(`❌ Unauthorized access attempt from ID: ${fromId}, Username: @${fromUser}`);
       return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>\n<i>Please provide this ID to your administrator.</i>`);
   }
-
-  // --- LIVE ROLE SYNC FROM DATABASE ---
-  let activeRole = user.role;
-  const db = loadDB();
-  const dbEmp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
-  if (dbEmp && dbEmp.role) {
-      // Map DB roles to Bot roles if necessary
-      const dbRole = dbEmp.role.toLowerCase();
-      if (dbRole === 'user' || dbRole === 'employee' || dbRole === 'employé') activeRole = 'employee';
-      else if (dbRole === 'admin' || dbRole === 'administrateur') activeRole = 'admin';
-      else if (dbRole === 'rh' || dbRole === 'gestionnaire' || dbRole === 'gestionnaire_rh') activeRole = 'gestionnaire_rh';
-      else if (dbRole === 'manager' || dbRole === 'chef') activeRole = 'manager';
-      else if (dbRole === 'dg' || dbRole === 'general_manager' || dbRole === 'directeur') activeRole = 'general_manager';
-      else if (dbRole === 'supervisor' || dbRole === 'superviseur' || dbRole === 'chef_equipe') activeRole = 'supervisor';
-      else activeRole = dbRole; 
-      
-      if (activeRole !== user.role) {
-          log(`🔄 Role Sync: User ${user.name} role updated from ${user.role} to ${activeRole} via DB`);
-          user.role = activeRole; // Update the in-memory user object for this session
-      }
-  }
-  // --- END ROLE SYNC ---
 
   log(`Msg from ${user.name} (@${fromUser}) [Role: ${user.role}]: ${txt||'callback:'+cbq?.data}`);
 

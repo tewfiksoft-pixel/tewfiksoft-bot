@@ -122,30 +122,6 @@ const tg = (method, body) => new Promise((res) => {
 const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text:'☁️ '+text, parse_mode:'HTML', ...(kbd?{reply_markup:kbd}:{})});
 
 // Role-based welcome for /info
-function sendInfoWelcome(chatId, user) {
-  const db = loadDB();
-  const emp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
-  
-  const roleLabels = {
-    admin: 'مسؤول / Admin',
-    general_manager: 'مدير عام / DG',
-    gestionnaire_rh: 'مسؤول الموارد البشرية / RH',
-    manager: 'مدير / Manager',
-    supervisor: 'مشرف / Superviseur',
-    employee: 'موظف / Employé'
-  };
-
-  const systemRole = roleLabels[user.role] || user.role;
-  const jobAr = emp ? T(emp.jobTitle_ar) : systemRole;
-  const jobFr = emp ? T(emp.jobTitle_fr) : systemRole;
-
-function sendInfoWelcome(chatId, user, ar) {
-  // This function is no longer used for the initial prompt, 
-  // but kept for compatibility if needed elsewhere.
-  const msg = `🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>\n\n🔍 يرجى إدخال <b>الرقم التسلسلي</b> أو <b>الاسم واللقب</b>:`;
-  return send(chatId, msg);
-}
-
 // State
 const langs = new Map();
 const states = new Map();

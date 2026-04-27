@@ -141,10 +141,8 @@ function sendInfoWelcome(chatId, user) {
 
   const msg = `🛠️ <b>[VER V4 CLOUD]</b>
 🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>
-💼 المنصب: <b>${jobAr}</b>
 
 🌟 <b>Bonjour, comment puis-je vous aider ? Je suis à votre service.</b>
-💼 Poste: <b>${jobFr}</b>
 
 ✨ يسرنا مساعدتك في الوصول إلى البيانات.
 ✨ Nous sommes ravis de vous servir.

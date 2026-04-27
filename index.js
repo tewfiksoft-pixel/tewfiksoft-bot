@@ -346,7 +346,7 @@ async function handle(u) {
       return send(chatId, ar?'❌ لم يتم العثور على ملفك في القاعدة.':'❌ Votre profil n\'a pas été trouvé.');
     }
 
-    const displayName = emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : user.name;
+    const displayName = user.name || (emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : 'User');
     const welcome = ar ? `🌟 مرحباً، كيف أخدمك؟ إنني في خدمتك.\nيرجى اختيار اللغة للمتابعة:` : `🌟 Bonjour, comment puis-je vous aider ? Je suis à votre service.\nVeuillez choisir la langue :`;
     
     return send(chatId, welcome, {inline_keyboard:[[
@@ -360,7 +360,7 @@ async function handle(u) {
   if (txt==='/me') {
     const db = loadDB();
     const emp = db.hr_employees?.find(e=>String(e.clockingId)===String(user.clockingId));
-    const displayName = emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : user.name;
+    const displayName = user.name || (emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : 'User');
     let msg = `👤 <b>بطاقة التعريف</b>\n━━━━━━━━━━━━━━\n🆔 الرمز: <code>${fromId}</code>\n👑 الدور: <b>${user.role}</b>\n👤 الاسم: <b>${displayName}</b>`;
     if (emp) msg += `\n🏢 القسم: <i>${ar ? T(emp.department_ar) : T(emp.department_fr)}</i>`;
     return send(chatId, msg);

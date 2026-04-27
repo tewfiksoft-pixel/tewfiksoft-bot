@@ -638,8 +638,8 @@ function saveReq(data) {
       notifMsg += `\n📊 استبيان مخالفة\nالمخالفة: ${data.faute}\nالتاريخ: ${data.date}`;
     }
 
-    // Only Admin receives notifications now
-    const notifiers = cfg.authorized_users?.filter(u => u.role === 'admin');
+    // Admin and RH receive notifications
+    const notifiers = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'gestionnaire_rh');
     if (notifiers && notifiers.length) {
       notifiers.forEach(admin => {
         send(admin.id, notifMsg).catch(()=>{});

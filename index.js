@@ -225,25 +225,32 @@ async function handle(u) {
       const l = d.split(':')[1];
       langs.set(chatId, l);
       const isAr = l==='ar';
+      
       if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
+
+      // Try to find the user's personal profile first for EVERYONE
+      const db = loadDB();
+      let e = db.hr_employees?.find(x => String(x.clockingId) === String(user.clockingId));
+      if (!e) {
+         const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+         const target = clean(user.name);
+         e = db.hr_employees?.find(x => {
+            const names = [clean(`${x.firstName_fr} ${x.lastName_fr}`), clean(`${x.lastName_fr} ${x.firstName_fr}`)];
+            return names.includes(target);
+         });
+      }
+
+      // If personal profile found, show it directly!
+      if (e) return showCard(chatId, e.id, isAr, user);
+
+      // If not found, fall back to default role behavior
       if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
-        const db = loadDB();
-        let e = db.hr_employees?.find(x => String(x.clockingId) === String(user.clockingId));
-        if (!e) {
-           // Fallback to name match
-           const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
-           const target = clean(user.name);
-           e = db.hr_employees?.find(x => {
-              const names = [clean(`${x.firstName_fr} ${x.lastName_fr}`), clean(`${x.lastName_fr} ${x.firstName_fr}`)];
-              return names.includes(target);
-           });
-        }
-        if (e) return showCard(chatId, e.id, isAr, user);
         return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص.':'❌ Votre profil n\'a pas été trouvé.');
       }
-      if (user.role === 'manager' || user.role === 'supervisor') {
+      if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
          return showMenu(chatId, user, isAr);
       }
+
       states.set(chatId, {step:'search'});
       return send(chatId, isAr?'✅ <b>تم اختيار اللغة.</b>\n\n🔍 يرجى الآن إدخال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:':'✅ <b>Langue sélectionnée.</b>\n\n🔍 Veuillez maintenant entrer le <b>nom</b> ou <b>matricule</b> de l\'employé :');
     }

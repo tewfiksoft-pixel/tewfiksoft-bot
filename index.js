@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v4.2 - Koyeb Edition (Polling + HTTP Health Check)
+// TewfikSoft Cloud Bot v4.3 - Render.com Edition (Polling + HTTP Health Check)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -546,7 +546,7 @@ http.createServer((req,res)=>{
   }
   res.writeHead(200);
   res.end('OK'); 
-}).listen(process.env.PORT||8080);
+}).listen(process.env.PORT||10000);
 
 // Polling
 let offset = 0;
@@ -568,8 +568,8 @@ async function poll() {
 
 // Boot
 (async () => {
-  log('=== TewfikSoft HR Bot v4.2 (Koyeb) Starting... ===');
-  log(`PORT: ${process.env.PORT || 8080}`);
+  log('=== TewfikSoft HR Bot v4.3 (Render) Starting... ===');
+  log(`PORT: ${process.env.PORT || 10000}`);
   log(`ADMIN_CHAT_ID: ${ADMIN_ID || '(not set)'}`);
   const syncResult = await syncDB();
   log('Initial sync: ' + syncResult);

@@ -36,7 +36,8 @@
       "scope": "all",
       "allowed_departments": [],
       "allowed_company": "all",
-      "allowed_employees": []
+      "allowed_employees": [],
+      "clockingId": "60258"
     }
   ]
 }

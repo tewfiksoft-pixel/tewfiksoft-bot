@@ -517,7 +517,7 @@ function showLeave(chatId, empId, ar, user) {
   let msg = ar ? `🏖️ <b>رصيد العطل</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_ar)}\n\n` : `🏖️ <b>SOLDE CONGÉS</b>\n━━━━━━━━━━━━━━\n👤 ${T(e.lastName_fr)}\n\n`;
   
   // Look up in hr_leave_balances table
-  const bals = (db.hr_leave_balances || []).filter(b => b.employeeId === e.id);
+  const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(e.id));
   
   if (bals.length) { 
     bals.sort((a, b) => String(b.exercice).localeCompare(String(a.exercice))).forEach(b=>{ 

@@ -139,20 +139,11 @@ function sendInfoWelcome(chatId, user) {
   const jobAr = emp ? T(emp.jobTitle_ar) : systemRole;
   const jobFr = emp ? T(emp.jobTitle_fr) : systemRole;
 
-  const msg = `🛠️ <b>[VER V4 CLOUD]</b>
-🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>
-
-🌟 <b>Bonjour, comment puis-je vous aider ? Je suis à votre service.</b>
-
-✨ يسرنا مساعدتك في الوصول إلى البيانات.
-✨ Nous sommes ravis de vous servir.
-
-👉 لو سمحت، اختر لغة العرض:
-👉 S'il vous plaît, choisissez la langue:`;
-  return send(chatId, msg, {inline_keyboard:[[
-    {text:'العربية 🇩🇿', callback_data:'infolang:ar'},
-    {text:'Français 🇫🇷', callback_data:'infolang:fr'}
-  ]]});
+function sendInfoWelcome(chatId, user, ar) {
+  // This function is no longer used for the initial prompt, 
+  // but kept for compatibility if needed elsewhere.
+  const msg = `🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>\n\n🔍 يرجى إدخال <b>الرقم التسلسلي</b> أو <b>الاسم واللقب</b>:`;
+  return send(chatId, msg);
 }
 
 // State
@@ -345,24 +336,38 @@ async function handle(u) {
     let info = emp ? `\n👤 Found in DB: <b>${emp.firstName_fr} ${emp.lastName_fr}</b>\n🔑 DB Role: <b>${emp.role}</b>` : `\n⚠️ No match found in DB for name: ${user.name}`;
     return send(chatId, `🔄 Sync Result: ${res}${info}\n\n<i>Note: Use /me to see active role.</i>`);
   }
-  if (txt==='/start') {
-    const db = loadDB();
-    const emp = db.hr_employees?.find(e=>String(e.clockingId)===String(user.clockingId));
+  if (txt==='/start' || txt==='/info' || txt.toLowerCase().startsWith('/info')) {
+    states.delete(chatId);
     
-    if (!emp && user.role !== 'admin' && user.role !== 'general_manager') {
-      return send(chatId, ar?'❌ لم يتم العثور على ملفك في القاعدة.':'❌ Votre profil n\'a pas été trouvé.');
+    // Default to Arabic
+    langs.set(chatId, 'ar');
+    const isAr = true;
+
+    if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
+
+    // Try to find the user's personal profile first for EVERYONE
+    const db = loadDB();
+    let e = db.hr_employees?.find(x => String(x.clockingId) === String(user.clockingId));
+    if (!e) {
+       const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+       const target = clean(user.name);
+       e = db.hr_employees?.find(x => {
+          const names = [clean(`${x.firstName_fr} ${x.lastName_fr}`), clean(`${x.lastName_fr} ${x.firstName_fr}`)];
+          return names.includes(target);
+       });
     }
 
-    const displayName = user.name || (emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : 'User');
-    const welcome = ar ? `🌟 مرحباً، كيف أخدمك؟ إنني في خدمتك.\nيرجى اختيار اللغة للمتابعة:` : `🌟 Bonjour, comment puis-je vous aider ? Je suis à votre service.\nVeuillez choisir la langue :`;
-    
-    return send(chatId, welcome, {inline_keyboard:[[
-      {text:'العربية 🇩🇿',callback_data:'infolang:ar'},
-      {text:'Français 🇫🇷',callback_data:'infolang:fr'}
-    ]]});
-  }
-  if (txt==='/info' || txt.toLowerCase().startsWith('/info')) {
-    return sendInfoWelcome(chatId, user);
+    // If personal profile found, show it directly!
+    if (e) return showCard(chatId, e.id, isAr, user);
+
+    if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
+       return showMenu(chatId, user, isAr);
+    }
+
+    // Unidentified user -> ask for ID
+    states.set(chatId, {step:'search'});
+    const msg = `🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>\n\n🔍 يرجى إدخال <b>الرقم التسلسلي</b> أو <b>الاسم واللقب</b>:`;
+    return send(chatId, msg);
   }
   if (txt==='/me') {
     const db = loadDB();

@@ -460,8 +460,8 @@ function showMenu(chatId, user, ar) {
     kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
   }
 
-  // Managers, Supervisors, and Admin see Team List
-  if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
+  // Supervisors and Admin see Team List
+  if (user.role === 'supervisor' || user.role === 'admin') {
     kbd.push([{text:ar?'👥 موظفي فريقي':'👥 Mon Équipe',callback_data:'team'}]);
   }
 
@@ -470,8 +470,8 @@ function showMenu(chatId, user, ar) {
     kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
   }
 
-  // Personal Profile button for Employee and RH
-  if (user.role === 'employee' || user.role === 'gestionnaire_rh') {
+  // Personal Profile button
+  if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.role === 'manager') {
     kbd.push([{text:ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'infolang:'+(ar?'ar':'fr')}]);
   }
   

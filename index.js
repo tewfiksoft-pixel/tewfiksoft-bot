@@ -447,20 +447,26 @@ function getVisibleEmployees(user, db) {
 
 function showMenu(chatId, user, ar) {
   let kbd = [];
-  
-  // General Manager ONLY sees stats
+  let txt = ar ? '📌 <b>القائمة الرئيسية</b>\n━━━━━━━━━━━━━━\nالرجاء اختيار الإجراء المطلوب:' : '📌 <b>Menu Principal</b>\n━━━━━━━━━━━━━━\nVeuillez choisir une action :';
+
+  if (user.role === 'general_manager') {
+    txt = ar ? '📊 <b>القائمة الرئيسية لمدير العام</b>\n━━━━━━━━━━━━━━\nيرجى اختيار القسم:' : '📊 <b>Menu Principal DG</b>\n━━━━━━━━━━━━━━\nVeuillez choisir:';
+  } else if (user.role === 'admin') {
+    txt = ar ? '🛠️ <b>لوحة تحكم المشرف (Admin)</b>\n━━━━━━━━━━━━━━\nالرجاء اختيار الإجراء المطلوب:' : '🛠️ <b>Panneau Admin</b>\n━━━━━━━━━━━━━━\nVeuillez choisir une action :';
+  }
+
+  // Stats for GM and Admin
   if (user.role === 'general_manager' || user.role === 'admin') {
     kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
   }
 
-  // Managers and Supervisors see Team List AND Search
-  if (user.role === 'manager' || user.role === 'supervisor') {
+  // Managers, Supervisors, and Admin see Team List
+  if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
     kbd.push([{text:ar?'👥 موظفي فريقي':'👥 Mon Équipe',callback_data:'team'}]);
-    kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
   }
 
-  // Others see search
-  if (user.role !== 'general_manager' && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'supervisor') {
+  // Everyone except GM can search
+  if (user.role !== 'general_manager') {
     kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
   }
 
@@ -470,11 +476,11 @@ function showMenu(chatId, user, ar) {
   }
   
   // Only technical manager or RH see sync
-  if (user.role === 'gestionnaire_rh') {
+  if (user.role === 'gestionnaire_rh' || user.role === 'admin') {
     kbd.push([{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]);
   }
 
-  return send(chatId, ar?'📋 القائمة الرئيسية لمدير العام':'📋 Menu Direction', {inline_keyboard: kbd});
+  return send(chatId, txt, {inline_keyboard: kbd});
 }
 
 function showCard(chatId, empId, ar, user) {

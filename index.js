@@ -252,7 +252,12 @@ async function handle(u) {
     if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
     if (d==='stats') {
       if (user.role === 'admin' || user.role === 'general_manager') {
-        return adminRole.handleStats(chatId, ar);
+        try {
+          return await adminRole.handleStats(chatId, ar);
+        } catch (e) {
+          log("Stats Error: " + e.message);
+          return send(chatId, ar ? '❌ حدث خطأ أثناء استخراج الإحصائيات. تأكد من مزامنة البيانات.' : '❌ Erreur stats. Vérifiez la sync.');
+        }
       }
       return send(chatId, ar?'❌ لا تملك صلاحية الوصول للإحصائيات.':'❌ Accès refusé.');
     }
@@ -603,7 +608,7 @@ async function poll() {
   const syncResult = await syncDB();
   log('Initial sync: ' + syncResult);
   if (ADMIN_ID) {
-    await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل! (Koyeb)</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`).catch(e => log('Boot msg error: ' + e.message));
+    await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل! (Render)</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`).catch(e => log('Boot msg error: ' + e.message));
   }
   poll();
 })();

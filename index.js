@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v4.1 - /info /me commands active
+// TewfikSoft Cloud Bot v4.2 - Koyeb Edition (Polling + HTTP Health Check)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -14,8 +14,9 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 const OFFSET_PATH = path.join(DATA_DIR, 'offset.json');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w';
-const ADMIN_ID = '8626592284';
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) { console.error('❌ FATAL: BOT_TOKEN environment variable is not set!'); process.exit(1); }
+const ADMIN_ID = process.env.ADMIN_CHAT_ID || '';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
 const ENC_KEY = 'nouar2026';
 const SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
@@ -567,9 +568,13 @@ async function poll() {
 
 // Boot
 (async () => {
-  log('Cloud Bot Starting...');
+  log('=== TewfikSoft HR Bot v4.2 (Koyeb) Starting... ===');
+  log(`PORT: ${process.env.PORT || 8080}`);
+  log(`ADMIN_CHAT_ID: ${ADMIN_ID || '(not set)'}`);
   const syncResult = await syncDB();
   log('Initial sync: ' + syncResult);
-  await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل!</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`);
+  if (ADMIN_ID) {
+    await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل! (Koyeb)</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`).catch(e => log('Boot msg error: ' + e.message));
+  }
   poll();
 })();

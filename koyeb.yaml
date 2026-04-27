@@ -1,0 +1,34 @@
+name: tewfiksoft-hr-bot
+services:
+  - name: bot
+    type: web
+    git:
+      branch: main
+    build:
+      buildpack:
+        build-command: npm install
+    run:
+      command: node index.js
+    ports:
+      - port: 8080
+        protocol: http
+    health-checks:
+      - grace-period: 10s
+        http:
+          path: /
+          port: 8080
+    env:
+      - key: BOT_TOKEN
+        secret: true
+      - key: ADMIN_CHAT_ID
+        secret: true
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+    instance-type: free
+    regions:
+      - fra
+    scaling:
+      min: 1
+      max: 1

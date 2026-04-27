@@ -2,3 +2,6 @@ node_modules/
 data/
 *.log
 .env
+google_drive_key.json
+*.key.json
+.DS_Store

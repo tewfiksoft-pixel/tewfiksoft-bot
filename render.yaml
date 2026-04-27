@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: tewfiksoft-telegram-bot
+    name: tewfiksoft-hr-bot
     env: node
     plan: free
     buildCommand: npm install
@@ -8,5 +8,9 @@ services:
     envVars:
       - key: BOT_TOKEN
         value: 8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w
+      - key: ADMIN_CHAT_ID
+        value: 8626592284
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000

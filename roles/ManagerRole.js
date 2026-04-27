@@ -1,4 +1,4 @@
-const BaseRole = require('./BaseRole.js');
+import BaseRole from './BaseRole.js';
 
 class ManagerRole extends BaseRole {
     constructor(ctx) {
@@ -65,4 +65,4 @@ class ManagerRole extends BaseRole {
     }
 }
 
-module.exports = ManagerRole;
+export default ManagerRole;

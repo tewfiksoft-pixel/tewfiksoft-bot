@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import AdminRole from './roles/AdminRole.js';
+import ManagerRole from './roles/ManagerRole.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -165,7 +166,7 @@ const botCtx = {
     T
 };
 
-const adminRole = new AdminRole(botCtx);
+// Role instances will be created inside handle() to ensure fresh context
 
 async function handle(u) {
   const cbq = u.callback_query;
@@ -177,6 +178,9 @@ async function handle(u) {
   const fromId = String(from.id);
   const txt = (msg.text||'').trim();
   const ar = (langs.get(chatId)||'ar') === 'ar';
+  
+  const adminRole = new AdminRole(botCtx);
+  const managerRole = new ManagerRole(botCtx);
 
   if (cbq) await tg('answerCallbackQuery',{callback_query_id:cbq.id});
 

@@ -136,10 +136,10 @@ function sendInfoWelcome(chatId, user) {
   };
   const roleLabel = roleLabels[user.role] || user.role;
   const msg = `🛠️ <b>[VER V4 CLOUD]</b>
-🌟 <b>${greetAr}، ${user.name}</b>
+🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>
 💼 المنصب: <b>${roleLabel}</b>
 
-🌟 <b>${greetFr}, M. ${user.name}</b>
+🌟 <b>Bonjour, comment puis-je vous aider ? Je suis à votre service.</b>
 💼 Poste: <b>${roleLabel}</b>
 
 ✨ يسرنا مساعدتك في الوصول إلى البيانات.
@@ -337,7 +337,7 @@ async function handle(u) {
     }
 
     const displayName = emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : user.name;
-    const welcome = ar ? `🌟 مرحباً <b>${displayName}</b>\nيرجى اختيار اللغة للمتابعة:` : `🌟 Bienvenue <b>${displayName}</b>\nChoisissez la langue :`;
+    const welcome = ar ? `🌟 مرحباً، كيف أخدمك؟ إنني في خدمتك.\nيرجى اختيار اللغة للمتابعة:` : `🌟 Bonjour, comment puis-je vous aider ? Je suis à votre service.\nVeuillez choisir la langue :`;
     
     return send(chatId, welcome, {inline_keyboard:[[
       {text:'العربية 🇩🇿',callback_data:'infolang:ar'},

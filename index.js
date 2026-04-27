@@ -335,9 +335,12 @@ async function handle(u) {
     langs.set(chatId, 'ar');
     const isAr = true;
 
-    if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
+    // Management roles go straight to the MENU
+    if (user.role === 'general_manager' || user.role === 'admin' || user.role === 'manager' || user.role === 'supervisor' || user.role === 'gestionnaire_rh') {
+       return showMenu(chatId, user, isAr);
+    }
 
-    // Try to find the user's personal profile first for EVERYONE
+    // Employees try to see their own CARD directly
     const db = loadDB();
     let e = db.hr_employees?.find(x => String(x.clockingId) === String(user.clockingId));
     if (!e) {
@@ -349,12 +352,7 @@ async function handle(u) {
        });
     }
 
-    // If personal profile found, show it directly!
     if (e) return showCard(chatId, e.id, isAr, user);
-
-    if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
-       return showMenu(chatId, user, isAr);
-    }
 
     // Unidentified user -> ask for ID
     states.set(chatId, {step:'search'});

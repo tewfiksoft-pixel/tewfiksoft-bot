@@ -197,6 +197,27 @@ async function handle(u) {
       return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>\n<i>Please provide this ID to your administrator.</i>`);
   }
 
+  // --- LIVE ROLE SYNC FROM DATABASE ---
+  let activeRole = user.role;
+  const db = loadDB();
+  const dbEmp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
+  if (dbEmp && dbEmp.role) {
+      // Map DB roles to Bot roles if necessary
+      const dbRole = dbEmp.role.toLowerCase();
+      if (dbRole === 'user') activeRole = 'employee';
+      else if (dbRole === 'admin') activeRole = 'admin';
+      else if (dbRole === 'rh') activeRole = 'gestionnaire_rh';
+      else if (dbRole === 'manager') activeRole = 'manager';
+      else if (dbRole === 'dg') activeRole = 'general_manager';
+      else activeRole = dbRole; // Fallback for other roles like supervisor, etc.
+      
+      if (activeRole !== user.role) {
+          log(`🔄 Role Sync: User ${user.name} role updated from ${user.role} to ${activeRole} via DB`);
+          user.role = activeRole; // Update the in-memory user object for this session
+      }
+  }
+  // --- END ROLE SYNC ---
+
   log(`Msg from ${user.name} (@${fromUser}) [Role: ${user.role}]: ${txt||'callback:'+cbq?.data}`);
 
 // --- AUTO-SYNC DATABASE FROM DRIVE ---

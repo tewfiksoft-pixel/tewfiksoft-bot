@@ -230,8 +230,16 @@ async function handle(u) {
       if (user.role === 'general_manager') return showMenu(chatId, user, isAr);
       if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
         const db = loadDB();
-        const myId = user.allowed_employees?.[0] || user.id;
-        const e = db.hr_employees?.find(x=>String(x.clockingId) === String(myId));
+        let e = db.hr_employees?.find(x => String(x.clockingId) === String(user.clockingId));
+        if (!e) {
+           // Fallback to name match
+           const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+           const target = clean(user.name);
+           e = db.hr_employees?.find(x => {
+              const names = [clean(`${x.firstName_fr} ${x.lastName_fr}`), clean(`${x.lastName_fr} ${x.firstName_fr}`)];
+              return names.includes(target);
+           });
+        }
         if (e) return showCard(chatId, e.id, isAr, user);
         return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص.':'❌ Votre profil n\'a pas été trouvé.');
       }
@@ -447,9 +455,14 @@ function showMenu(chatId, user, ar) {
     kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
   }
 
-  // Others see search (if not handled above and not GM)
+  // Others see search
   if (user.role !== 'general_manager' && user.role !== 'admin' && user.role !== 'manager' && user.role !== 'supervisor') {
     kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
+  }
+
+  // Personal Profile button for Employee and RH
+  if (user.role === 'employee' || user.role === 'gestionnaire_rh') {
+    kbd.push([{text:ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'infolang:'+(ar?'ar':'fr')}]);
   }
   
   // Only technical manager or RH see sync

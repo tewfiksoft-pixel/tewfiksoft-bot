@@ -644,6 +644,25 @@ http.createServer((req,res)=>{
     return;
   }
 
+  // 🟡 DIRECT DATABASE UPLOAD
+  if (req.method === 'POST' && req.url === '/api/database') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        // Just write it as is (should be JSON)
+        if (body.length > 100) {
+          fs.writeFileSync(DB_PATH, body);
+          log('✅ Received direct DB update. Size: ' + body.length);
+          res.writeHead(200, {'Content-Type': 'application/json'});
+          return res.end(JSON.stringify({success: true}));
+        }
+      } catch(e) { log('❌ DB Upload Err: ' + e.message); }
+      res.writeHead(400); res.end('Fail');
+    });
+    return;
+  }
+
   // 🔵 CONFIG SYNC
   if (req.method === 'POST' && req.url === '/api/config') {
     let body = '';

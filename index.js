@@ -497,15 +497,15 @@ function showCard(chatId, empId, ar, user) {
   kbd.inline_keyboard.push([{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}]);
   kbd.inline_keyboard.push([{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}]);
 
-  // Hide Request buttons for RH role
+  // Hide Request buttons and Questionnaire for RH role
   if (user.role !== 'gestionnaire_rh') {
     kbd.inline_keyboard.push([
       {text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId},
       {text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}
     ]);
+    kbd.inline_keyboard.push([{text:'📊 Questionnaire',callback_data:'survey:'+empId}]);
   }
 
-  kbd.inline_keyboard.push([{text:'📊 Questionnaire',callback_data:'survey:'+empId}]);
   kbd.inline_keyboard.push([{text:ar?'🏠 القائمة':'🏠 Menu',callback_data:'menu'}]);
   return send(chatId, msg, kbd);
 }
@@ -638,7 +638,8 @@ function saveReq(data) {
       notifMsg += `\n📊 استبيان مخالفة\nالمخالفة: ${data.faute}\nالتاريخ: ${data.date}`;
     }
 
-    const notifiers = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'gestionnaire_rh');
+    // Only Admin receives notifications now
+    const notifiers = cfg.authorized_users?.filter(u => u.role === 'admin');
     if (notifiers && notifiers.length) {
       notifiers.forEach(admin => {
         send(admin.id, notifMsg).catch(()=>{});

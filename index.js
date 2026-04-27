@@ -186,30 +186,29 @@ async function handle(u) {
 
     const db = loadDB();
     if (db && db.hr_employees) {
-    // Improved matching (handles spaces, casing, and reverse names)
-    const matchName = (emp) => {
-        const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
-        const dbNames = [
-            clean(`${T(emp.firstName_fr)} ${T(emp.lastName_fr)}`),
-            clean(`${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`),
-            clean(`${T(emp.firstName_ar)} ${T(emp.lastName_ar)}`),
-            clean(`${T(emp.lastName_ar)} ${T(emp.firstName_ar)}`)
-        ];
-        const target = clean(user.name);
-        return dbNames.includes(target);
-    };
+      const matchName = (emp) => {
+          const clean = (s) => String(s||'').trim().toLowerCase().replace(/\s+/g, ' ');
+          const dbNames = [
+              clean(`${T(emp.firstName_fr)} ${T(emp.lastName_fr)}`),
+              clean(`${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`),
+              clean(`${T(emp.firstName_ar)} ${T(emp.lastName_ar)}`),
+              clean(`${T(emp.lastName_ar)} ${T(emp.firstName_ar)}`)
+          ];
+          const target = clean(user.name);
+          return dbNames.includes(target);
+      };
 
-    const employee = db.hr_employees.find(e => 
-        (e.clockingId && String(e.clockingId) === String(user.clockingId)) || 
-        (e.phone && e.phone === user.phone) ||
-        matchName(e)
-    );
+      const employee = db.hr_employees.find(e => 
+          (e.clockingId && String(e.clockingId) === String(user.clockingId)) || 
+          (e.phone && e.phone === user.phone) ||
+          matchName(e)
+      );
 
-        if (employee) {
-            log(`👤 User ${user.name} matched in DB as ${employee.clockingId}`);
-        } else {
-            log(`⚠️ No employee match found in database for ${user.name}`);
-        }
+      if (employee) {
+          log(`👤 User ${user.name} matched in DB as ${employee.clockingId}`);
+      } else {
+          log(`⚠️ No employee match found in database for ${user.name} (Role: ${user.role})`);
+      }
     }
   } catch (e) {
     log("Role Sync Error: " + e.message);
@@ -329,7 +328,20 @@ async function handle(u) {
     return send(chatId, `🔄 Sync Result: ${res}${info}\n\n<i>Note: Use /me to see active role.</i>`);
   }
   if (txt==='/start') {
-    return send(chatId, ar?`🌟 مرحباً ${user.name}\nاختر اللغة:`:`🌟 Bienvenue ${user.name}\nChoisissez la langue:`, {inline_keyboard:[[{text:'العربية 🇩🇿',callback_data:'lang:ar'},{text:'Français 🇫🇷',callback_data:'lang:fr'}]]});
+    const db = loadDB();
+    const emp = db.hr_employees?.find(e=>String(e.clockingId)===String(user.clockingId));
+    
+    if (!emp && user.role !== 'admin' && user.role !== 'general_manager') {
+      return send(chatId, ar?'❌ لم يتم العثور على ملفك في القاعدة.':'❌ Votre profil n\'a pas été trouvé.');
+    }
+
+    const displayName = emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : user.name;
+    const welcome = ar ? `🌟 مرحباً <b>${displayName}</b>\nيرجى اختيار اللغة للمتابعة:` : `🌟 Bienvenue <b>${displayName}</b>\nChoisissez la langue :`;
+    
+    return send(chatId, welcome, {inline_keyboard:[[
+      {text:'العربية 🇩🇿',callback_data:'infolang:ar'},
+      {text:'Français 🇫🇷',callback_data:'infolang:fr'}
+    ]]});
   }
   if (txt==='/info' || txt.toLowerCase().startsWith('/info')) {
     return sendInfoWelcome(chatId, user);
@@ -337,10 +349,9 @@ async function handle(u) {
   if (txt==='/me') {
     const db = loadDB();
     const emp = db.hr_employees?.find(e=>String(e.clockingId)===String(user.clockingId));
-    const hour = new Date().getHours();
-    const greeting = hour<12?'صباح الخير':'مساء الخير';
-    let msg = `👤 <b>بطاقة التعريف</b>\n━━━━━━━━━━━━━━\n🆔 الرمز: <code>${fromId}</code>\n👑 الدور: <b>${user.role}</b>`;
-    if (emp) msg += `\n👤 الموظف: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🏢 القسم: <i>${T(emp.department_ar)}</i>`;
+    const displayName = emp ? (ar ? `${T(emp.lastName_ar)} ${T(emp.firstName_ar)}` : `${T(emp.lastName_fr)} ${T(emp.firstName_fr)}`) : user.name;
+    let msg = `👤 <b>بطاقة التعريف</b>\n━━━━━━━━━━━━━━\n🆔 الرمز: <code>${fromId}</code>\n👑 الدور: <b>${user.role}</b>\n👤 الاسم: <b>${displayName}</b>`;
+    if (emp) msg += `\n🏢 القسم: <i>${ar ? T(emp.department_ar) : T(emp.department_fr)}</i>`;
     return send(chatId, msg);
   }
   if (txt==='/menu') return showMenu(chatId, user, ar);
@@ -397,8 +408,7 @@ async function handle(u) {
 
 
 function getVisibleEmployees(user, db) {
-  if (user.role === 'general_manager') return [];
-  if (user.role === 'admin') return (db.hr_employees||[]).filter(e=>e.status==='active');
+  if (user.role === 'general_manager' || user.role === 'admin') return (db.hr_employees||[]).filter(e=>e.status==='active');
   const myId = user.allowed_employees?.[0] || user.id;
   if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
     return (db.hr_employees||[]).filter(e=>e.status==='active' && String(e.clockingId) === String(myId));

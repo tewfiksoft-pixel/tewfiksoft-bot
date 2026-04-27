@@ -234,16 +234,8 @@ async function handle(u) {
       // If personal profile found, show it directly!
       if (e) return showCard(chatId, e.id, isAr, user);
 
-      // If not found, fall back to default role behavior
-      if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
-        return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص.':'❌ Votre profil n\'a pas été trouvé.');
-      }
-      if (user.role === 'manager' || user.role === 'supervisor' || user.role === 'admin') {
-         return showMenu(chatId, user, isAr);
-      }
-
-      states.set(chatId, {step:'search'});
-      return send(chatId, isAr?'✅ <b>تم اختيار اللغة.</b>\n\n🔍 يرجى الآن إدخال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:':'✅ <b>Langue sélectionnée.</b>\n\n🔍 Veuillez maintenant entrer le <b>nom</b> ou <b>matricule</b> de l\'employé :');
+      // If not found, tell the user clearly
+      return send(chatId, isAr?'❌ لم يتم العثور على ملفك الخاص. يرجى التأكد من تطابق اسمك في الإعدادات مع اسمك في قاعدة البيانات، أو إضافة رقم الموظف (clockingId) لإعداداتك.':'❌ Votre profil personnel n\'a pas été trouvé.');
     }
     if (d==='menu') return showMenu(chatId, user, ar);
     if (d==='team') return managerRole.handleTeamList(chatId, ar, user);

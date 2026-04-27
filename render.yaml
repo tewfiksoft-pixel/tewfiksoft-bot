@@ -7,7 +7,7 @@ services:
     startCommand: node index.js
     envVars:
       - key: BOT_TOKEN
-        value: 8675308284:AAHqzorG0t-JxwPhdc6Iy-Tk0heEemyMu1w
+        value: 8675308284:AAF1LCwdFKZZdD6lQXcyJJImXwRz8ColvBM
       - key: ADMIN_CHAT_ID
         value: 8626592284
       - key: NODE_ENV

@@ -2,39 +2,21 @@
     "is_enabled": true,
     "authorized_users": [
           {
+                  "id": "8626592284",
+                  "name": "General Manager",
+                  "role": "admin",
+                  "scope": "all",
+                  "allowed_departments": [],
+                  "allowed_company": "all",
+                  "allowed_employees": []
+          },
+          {
                   "id": "7035116029",
                   "name": "REFFAS Farida",
                   "role": "supervisor",
                   "scope": "custom_employees",
                   "allowed_departments": null,
                   "allowed_company": null,
-                  "allowed_employees": []
-          },
-          {
-                  "id": "6480391203",
-                  "name": "Utilisateur",
-                  "role": "supervisor",
-                  "scope": null,
-                  "allowed_departments": null,
-                  "allowed_company": null,
-                  "allowed_employees": null
-          },
-          {
-                  "id": "965443735",
-                  "name": "Test User",
-                  "role": "supervisor",
-                  "scope": "custom_employees",
-                  "allowed_departments": [],
-                  "allowed_company": "all",
-                  "allowed_employees": ["70041"]
-          },
-          {
-                  "id": "8626592284",
-                  "name": "zogir",
-                  "role": "general_manager",
-                  "scope": "custom_employees",
-                  "allowed_departments": [],
-                  "allowed_company": "all",
                   "allowed_employees": []
           }
     ],

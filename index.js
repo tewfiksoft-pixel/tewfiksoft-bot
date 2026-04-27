@@ -377,19 +377,19 @@ async function handle(u) {
       saveReq({type:'document',doc:st.doc,motif:txt,fromId,empId:st.empId});
       states.delete(chatId);
       send(chatId, ar?'✅ تم استلام طلبك بنجاح. سيتم دراسته وإشعارك.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Demande reçue avec succès.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
-      return showCard(chatId, st.empId, ar, user);
+      return;
     }
     if (st.step==='abs_date') {
       saveReq({type:'absence',absType:st.absType,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
       send(chatId, ar?'✅ تم تسجيل الغياب.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Absence enregistrée.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
-      return showCard(chatId, st.empId, ar, user);
+      return;
     }
     if (st.step==='survey_date') {
       saveReq({type:'survey',faute:st.faute,date:txt,fromId,empId:st.empId});
       states.delete(chatId);
       send(chatId, ar?'✅ تم تسجيل الاستبيان.\n🌸 يومكم مبارك، وصلّوا على أشرف الخلق. 🌸':'✅ Questionnaire enregistré.\n🌸 Passez une journée bénie, et priez sur le plus noble des créatures. 🌸');
-      return showCard(chatId, st.empId, ar, user);
+      return;
     }
   }
 

@@ -436,10 +436,23 @@ function getVisibleEmployees(user, db) {
 
 function showMenu(chatId, user, ar) {
   let kbd = [];
-  if (user.role === 'general_manager' || user.role === 'admin') kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
-  if (user.role !== 'general_manager') kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
-  if (user.role === 'admin' || user.role === 'gestionnaire_rh') kbd.push([{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]);
-  return send(chatId, ar?'📋 القائمة الرئيسية':'📋 Menu Principal', {inline_keyboard: kbd});
+  
+  // General Manager ONLY sees stats
+  if (user.role === 'general_manager' || user.role === 'admin') {
+    kbd.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
+  }
+
+  // Others see search (and GM is excluded from search)
+  if (user.role !== 'general_manager' && user.role !== 'admin') {
+    kbd.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
+  }
+  
+  // Only technical manager or RH see sync
+  if (user.role === 'gestionnaire_rh') {
+    kbd.push([{text:ar?'🔄 تحديث قاعدة البيانات':'🔄 Sync DB',callback_data:'sync'}]);
+  }
+
+  return send(chatId, ar?'📋 القائمة الرئيسية لمدير العام':'📋 Menu Direction', {inline_keyboard: kbd});
 }
 
 function showCard(chatId, empId, ar, user) {

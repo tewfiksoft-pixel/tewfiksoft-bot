@@ -44,7 +44,7 @@ class ManagerRole extends BaseRole {
     }
 
     getVisibleEmployees(user, db) {
-        if (user.role === 'general_manager' || user.role === 'admin') return (db.hr_employees||[]).filter(e=>e.status==='active');
+        if (user.role === 'general_manager' || user.role === 'admin' || user.role === 'manager') return (db.hr_employees||[]).filter(e=>e.status==='active');
         const myId = user.allowed_employees?.[0] || user.id;
         if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.scope === 'self') {
             return (db.hr_employees||[]).filter(e=>e.status==='active' && String(e.clockingId) === String(myId));

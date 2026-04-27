@@ -611,12 +611,27 @@ function saveReq(data) {
   } catch(e) { log('Notif error: ' + e.message); }
 }
 
-// HTTP server for Render health check and remote config updates
+// HTTP server for Render health check, Webhooks, and remote config updates
 http.createServer((req,res)=>{ 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
   
+  // 🟢 TELEGRAM WEBHOOK
+  if (req.method === 'POST' && req.url === '/api/webhook') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const u = JSON.parse(body);
+        if (u.update_id) await handle(u).catch(e => log('Webhook Handle Err: ' + e.message));
+      } catch(e) { log('Webhook JSON Err: ' + e.message); }
+      res.writeHead(200); res.end('OK');
+    });
+    return;
+  }
+
+  // 🔵 CONFIG SYNC
   if (req.method === 'POST' && req.url === '/api/config') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -630,45 +645,33 @@ http.createServer((req,res)=>{
           res.writeHead(200, {'Content-Type': 'application/json'});
           return res.end(JSON.stringify({success: true}));
         }
-      } catch(e) {
-        log('❌ Failed to parse remote config: ' + e.message);
-      }
+      } catch(e) { log('❌ Failed to parse remote config: ' + e.message); }
       res.writeHead(400, {'Content-Type': 'application/json'});
       res.end(JSON.stringify({success: false, error: 'Invalid config'}));
     });
     return;
   }
+
   res.writeHead(200);
   res.end('OK'); 
 }).listen(process.env.PORT||10000);
 
-// Polling
-let offset = 0;
-try { offset = JSON.parse(fs.readFileSync(OFFSET_PATH,'utf8')).offset||0; } catch {}
-
-async function poll() {
-  try {
-    const res = await tg('getUpdates',{offset,timeout:25,allowed_updates:['message','callback_query']});
-    if (res.ok && res.result) {
-      for (const u of res.result) {
-        offset = u.update_id+1;
-        fs.writeFileSync(OFFSET_PATH, JSON.stringify({offset}));
-        await handle(u).catch(e=>log('Handle error: '+e.message));
-      }
-    }
-  } catch(e) { log('Poll error: '+e.message); }
-  setTimeout(poll, 500);
+// Webhook setup
+async function setupWebhook() {
+  const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
+  log(`Setting webhook to: ${url}`);
+  const r = await tg('setWebhook', {url});
+  log('Webhook set result: ' + JSON.stringify(r));
 }
 
 // Boot
 (async () => {
-  log('=== TewfikSoft HR Bot v4.3 (Render) Starting... ===');
+  log('=== TewfikSoft HR Bot v4.4 (Render Webhook Edition) Starting... ===');
   log(`PORT: ${process.env.PORT || 10000}`);
-  log(`ADMIN_CHAT_ID: ${ADMIN_ID || '(not set)'}`);
   const syncResult = await syncDB();
   log('Initial sync: ' + syncResult);
+  await setupWebhook();
   if (ADMIN_ID) {
-    await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل! (Render)</b>\n📊 ${syncResult}\n\nأرسل أي رقم للبحث عن موظف.`).catch(e => log('Boot msg error: ' + e.message));
+    await send(ADMIN_ID, `✅ <b>البوت السحابي يعمل بنظام Webhook!</b>\n📊 ${syncResult}`).catch(e => log('Boot msg error: ' + e.message));
   }
-  poll();
 })();

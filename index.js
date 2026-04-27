@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import http from 'http';
+import AdminRole from './roles/AdminRole.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -156,6 +157,16 @@ const langs = new Map();
 const states = new Map();
 let lastSync = 0;
 
+// Context for roles
+const botCtx = {
+    send,
+    loadDB,
+    loadConfig,
+    T
+};
+
+const adminRole = new AdminRole(botCtx);
+
 async function handle(u) {
   const cbq = u.callback_query;
   const msg = u.message || cbq?.message;
@@ -240,15 +251,10 @@ async function handle(u) {
     if (d==='menu') return showMenu(chatId, user, ar);
     if (d==='sync') { const r=await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
     if (d==='stats') {
-      const db = loadDB();
-      const emps = db.hr_employees || [];
-      const active = emps.filter(e=>e.status==='active').length;
-      const total = emps.length;
-      const isAr = (langs.get(chatId)||'ar')==='ar';
-      const msg = isAr ? 
-        `📊 <b>الإحصائيات العامة</b>\n━━━━━━━━━━━━━━\n👥 إجمالي الموظفين: <b>${total}</b>\n✅ النشطين: <b>${active}</b>` :
-        `📊 <b>Statistiques</b>\n━━━━━━━━━━━━━━\n👥 Total Employés: <b>${total}</b>\n✅ Actifs: <b>${active}</b>`;
-      return send(chatId, msg);
+      if (user.role === 'admin' || user.role === 'general_manager') {
+        return adminRole.handleStats(chatId, ar);
+      }
+      return send(chatId, ar?'❌ لا تملك صلاحية الوصول للإحصائيات.':'❌ Accès refusé.');
     }
     if (d==='search') { states.set(chatId,{step:'search'}); return send(chatId, ar?'🔍 أدخل اسم الموظف أو رقمه:':'🔍 Nom ou matricule :'); }
     if (d.startsWith('emp:')) return showCard(chatId, d.slice(4), ar, user);

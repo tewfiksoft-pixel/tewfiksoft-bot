@@ -468,13 +468,22 @@ function showCard(chatId, empId, ar, user) {
   const msg = ar
     ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(e.lastName_ar)} ${T(e.firstName_ar)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 الوظيفة: <i>${T(e.jobTitle_ar)}</i>\n⏳ نهاية العقد: ${e.contractEndDate||'—'}\n\nيرجى اختيار الإجراء:`
     : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(e.lastName_fr)} ${T(e.firstName_fr)}</b>\n🆔 ID: <code>${e.clockingId}</code>\n💼 Poste: <i>${T(e.jobTitle_fr)}</i>\n⏳ Fin: ${e.contractEndDate||'—'}\n\nVeuillez choisir:`;
-  const kbd = {inline_keyboard:[
-    [{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}],
-    [{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}],
-    [{text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId},{text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}],
-    [{text:'📊 Questionnaire',callback_data:'survey:'+empId}],
-    [{text:ar?'🏠 القائمة':'🏠 Menu',callback_data:'menu'}]
-  ]};
+  const kbd = {inline_keyboard: []};
+  
+  // Basic info always visible
+  kbd.inline_keyboard.push([{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}]);
+  kbd.inline_keyboard.push([{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}]);
+
+  // Hide Request buttons for RH role
+  if (user.role !== 'gestionnaire_rh') {
+    kbd.inline_keyboard.push([
+      {text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId},
+      {text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}
+    ]);
+  }
+
+  kbd.inline_keyboard.push([{text:'📊 Questionnaire',callback_data:'survey:'+empId}]);
+  kbd.inline_keyboard.push([{text:ar?'🏠 القائمة':'🏠 Menu',callback_data:'menu'}]);
   return send(chatId, msg, kbd);
 }
 

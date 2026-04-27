@@ -304,15 +304,21 @@ async function handle(u) {
     let info = emp ? `\n👤 Found in DB: <b>${emp.firstName_fr} ${emp.lastName_fr}</b>\n🔑 DB Role: <b>${emp.role}</b>` : `\n⚠️ No match found in DB for name: ${user.name}`;
     return send(chatId, `🔄 Sync Result: ${res}${info}\n\n<i>Note: Use /me to see active role.</i>`);
   }
+
   if (txt==='/start' || txt==='/info' || txt.toLowerCase().startsWith('/info')) {
     states.delete(chatId);
-    
-    // Default to Arabic
     langs.set(chatId, 'ar');
     const isAr = true;
 
-    // Management roles go straight to the MENU
-    if (user.role === 'general_manager' || user.role === 'admin' || user.role === 'manager' || user.role === 'supervisor' || user.role === 'gestionnaire_rh') {
+    // Manager role special handling: ignore /start, /info goes to search
+    if (user.role === 'manager') {
+      if (txt === '/start') return send(chatId, '⚠️ يرجى استخدام أمر /info للبحث عن الموظفين.');
+      states.set(chatId, {step:'search'});
+      return send(chatId, `🌟 <b>مرحباً أيها المدير، كيف أخدمك؟</b>\n\n🔍 يرجى إدخال <b>الرقم التسلسلي</b> أو <b>الاسم واللقب</b> للموظف:`);
+    }
+
+    // Management roles (except Manager) go straight to the MENU
+    if (user.role === 'general_manager' || user.role === 'admin' || user.role === 'supervisor' || user.role === 'gestionnaire_rh') {
        return showMenu(chatId, user, isAr);
     }
 
@@ -468,12 +474,21 @@ function showCard(chatId, empId, ar, user) {
   kbd.inline_keyboard.push([{text:ar?'📄 ملف الموظف':'📄 Fiche Employé',callback_data:'full:'+empId}]);
   kbd.inline_keyboard.push([{text:ar?'🏖️ رصيد العطل':'🏖️ Solde Congés',callback_data:'leave:'+empId}]);
 
-  // Hide Request buttons and Questionnaire for RH role
-  if (user.role !== 'gestionnaire_rh') {
-    kbd.inline_keyboard.push([
-      {text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId},
-      {text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}
-    ]);
+  // Permissions check
+  const isRH = user.role === 'gestionnaire_rh';
+  const isEmp = user.role === 'employee';
+  const isAdminOrManager = user.role === 'admin' || user.role === 'manager';
+
+  // Request Document - available for everyone
+  kbd.inline_keyboard.push([{text:ar?'📝 قسم الطلبيات':'📝 Demander Doc',callback_data:'docs:'+empId}]);
+
+  // Absence Reporting - hide for normal employees
+  if (!isEmp) {
+    kbd.inline_keyboard.push([{text:ar?'🚨 إعلام غياب':'🚨 Absence',callback_data:'abs:'+empId}]);
+  }
+
+  // Questionnaire - hide for normal employees AND RH
+  if (isAdminOrManager) {
     kbd.inline_keyboard.push([{text:'📊 Questionnaire',callback_data:'survey:'+empId}]);
   }
 

@@ -204,12 +204,13 @@ async function handle(u) {
   if (dbEmp && dbEmp.role) {
       // Map DB roles to Bot roles if necessary
       const dbRole = dbEmp.role.toLowerCase();
-      if (dbRole === 'user') activeRole = 'employee';
-      else if (dbRole === 'admin') activeRole = 'admin';
-      else if (dbRole === 'rh') activeRole = 'gestionnaire_rh';
-      else if (dbRole === 'manager') activeRole = 'manager';
-      else if (dbRole === 'dg') activeRole = 'general_manager';
-      else activeRole = dbRole; // Fallback for other roles like supervisor, etc.
+      if (dbRole === 'user' || dbRole === 'employee' || dbRole === 'employé') activeRole = 'employee';
+      else if (dbRole === 'admin' || dbRole === 'administrateur') activeRole = 'admin';
+      else if (dbRole === 'rh' || dbRole === 'gestionnaire' || dbRole === 'gestionnaire_rh') activeRole = 'gestionnaire_rh';
+      else if (dbRole === 'manager' || dbRole === 'chef') activeRole = 'manager';
+      else if (dbRole === 'dg' || dbRole === 'general_manager' || dbRole === 'directeur') activeRole = 'general_manager';
+      else if (dbRole === 'supervisor' || dbRole === 'superviseur' || dbRole === 'chef_equipe') activeRole = 'supervisor';
+      else activeRole = dbRole; 
       
       if (activeRole !== user.role) {
           log(`🔄 Role Sync: User ${user.name} role updated from ${user.role} to ${activeRole} via DB`);

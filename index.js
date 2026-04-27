@@ -123,9 +123,9 @@ const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text
 
 // Role-based welcome for /info
 function sendInfoWelcome(chatId, user) {
-  const hour = new Date().getHours();
-  const greetAr = hour < 12 ? 'صباح الخير' : 'مساء الخير';
-  const greetFr = hour < 12 ? 'Bonjour' : 'Bonsoir';
+  const db = loadDB();
+  const emp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
+  
   const roleLabels = {
     admin: 'مسؤول / Admin',
     general_manager: 'مدير عام / DG',
@@ -134,13 +134,17 @@ function sendInfoWelcome(chatId, user) {
     supervisor: 'مشرف / Superviseur',
     employee: 'موظف / Employé'
   };
-  const roleLabel = roleLabels[user.role] || user.role;
+
+  const systemRole = roleLabels[user.role] || user.role;
+  const jobAr = emp ? T(emp.jobTitle_ar) : systemRole;
+  const jobFr = emp ? T(emp.jobTitle_fr) : systemRole;
+
   const msg = `🛠️ <b>[VER V4 CLOUD]</b>
 🌟 <b>مرحباً، كيف أخدمك؟ إنني في خدمتك.</b>
-💼 المنصب: <b>${roleLabel}</b>
+💼 المنصب: <b>${jobAr}</b>
 
 🌟 <b>Bonjour, comment puis-je vous aider ? Je suis à votre service.</b>
-💼 Poste: <b>${roleLabel}</b>
+💼 Poste: <b>${jobFr}</b>
 
 ✨ يسرنا مساعدتك في الوصول إلى البيانات.
 ✨ Nous sommes ravis de vous servir.

@@ -86,7 +86,7 @@ const syncFromDrive = async () => {
 };
 
 const loadDatabase = () => {
-          try { return JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8')); } catch { return { employees: [] }; }
+          try { return JSON.parse(fs.readFileSync(DB_LOCAL_PATH, 'utf8')); } catch { return { hr_employees: [] }; }
 };
 
 // -- Telegram API ------------------------------------------
@@ -246,12 +246,24 @@ const handleMenu = async (chatId, user, lang) => {
 const handleInfoSearch = async (chatId, user, lang, query) => {
           const ar = lang === 'ar';
           const db = loadDatabase();
-          const q = query.toLowerCase();
-          const results = (db.employees || []).filter(e => String(e.id).includes(q) || String(e.name).toLowerCase().includes(q)).slice(0, 5);
-          if (!results.length) return send(chatId, ar ? "\u274C \u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0623\u064a \u0645\u0648\u0638\u0641." : "\u274C Aucun employ\u00E9.");
+          const q = query.toLowerCase().trim();
+          const emps = db.hr_employees || db.employees || [];
+          const results = emps.filter(e => {
+                      const id = String(e.clockingId || e.id || '').toLowerCase();
+                      const nameFr = (String(e.lastName_fr || '') + ' ' + String(e.firstName_fr || '')).toLowerCase();
+                      const nameAr = (String(e.lastName_ar || '') + ' ' + String(e.firstName_ar || '')).toLowerCase();
+                      const job = String(e.jobTitle_fr || e.jobTitle_ar || e.job || '').toLowerCase();
+                      return id.includes(q) || nameFr.includes(q) || nameAr.includes(q) || job.includes(q);
+          }).slice(0, 5);
+          if (!results.length) return send(chatId, ar ? '\u274C \u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0623\u064a \u0645\u0648\u0638\u0641.' : '\u274C Aucun employ\u00E9 trouv\u00E9.');
           for (const emp of results) {
-                      const msg = ar ? `\uD83D\uDC64 <b>\u0646\u062A\u0627\u0626\u062C \u0627\u0644\u0628\u062D\u062B</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>\u0627\u0644\u0631\u0642\u0645:</b> <code>${emp.id}</code>\n\uD83D\uDC51 <b>\u0627\u0644\u0627\u0633\u0645:</b> ${emp.name}\n\uD83D\uDCBC <b>\u0627\u0644\u0645\u0646\u0635\u0628:</b> ${emp.job || '-'}\n\u2705 <b>\u0627\u0644\u062D\u0627\u0644\u0629:</b> \u0646\u0634\u0637` :
-                                    `\uD83D\uDC64 <b>R\u00E9sultats</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>ID:</b> <code>${emp.id}</code>\n\uD83D\uDC51 <b>Nom:</b> ${emp.name}\n\uD83D\uDCBC <b>Poste:</b> ${emp.job || '-'}\n\u2705 <b>Statut:</b> Actif`;
+                      const nomAr = (emp.lastName_ar || '') + ' ' + (emp.firstName_ar || '');
+                      const nomFr = (emp.lastName_fr || '') + ' ' + (emp.firstName_fr || '');
+                      const poste = ar ? (emp.jobTitle_ar || '-') : (emp.jobTitle_fr || '-');
+                      const dept = ar ? (emp.department_ar || '-') : (emp.department_fr || '-');
+                      const msg = ar
+                                    ? `\uD83D\uDC64 <b>\u0646\u062A\u0627\u0626\u062C \u0627\u0644\u0628\u062D\u062B</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>\u0627\u0644\u0631\u0642\u0645:</b> <code>${emp.clockingId || emp.id}</code>\n\uD83D\uDC51 <b>\u0627\u0644\u0627\u0633\u0645:</b> ${nomAr.trim() || nomFr.trim()}\n\uD83D\uDCBC <b>\u0627\u0644\u0645\u0646\u0635\u0628:</b> ${poste}\n\uD83C\uDFE2 <b>\u0627\u0644\u0642\u0633\u0645:</b> ${dept}\n\uD83C\uDFE2 <b>\u0627\u0644\u0634\u0631\u0643\u0629:</b> ${emp.companyId || '-'}\n\u2705 <b>\u0627\u0644\u062D\u0627\u0644\u0629:</b> \u0646\u0634\u0637`
+                                    : `\uD83D\uDC64 <b>R\u00E9sultat</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\uD83C\uDD94 <b>ID:</b> <code>${emp.clockingId || emp.id}</code>\n\uD83D\uDC51 <b>Nom:</b> ${nomFr.trim() || nomAr.trim()}\n\uD83D\uDCBC <b>Poste:</b> ${poste}\n\uD83C\uDFE2 <b>D\u00E9pt:</b> ${dept}\n\uD83C\uDFE2 <b>Soci\u00E9t\u00E9:</b> ${emp.companyId || '-'}\n\u2705 <b>Statut:</b> Actif`;
                       await send(chatId, msg);
           }
 };
@@ -335,5 +347,31 @@ const poll = async () => {
           } catch (e) { setTimeout(poll, 5000); }
 };
 
-http.createServer((req, res) => { res.writeHead(200); res.end("OK"); }).listen(process.env.PORT || 3000);
+// -- HTTP Server with API endpoints for data push ----------
+http.createServer((req, res) => {
+          if (req.method === 'GET') { res.writeHead(200); return res.end('TewfikSoft Bot OK'); }
+          if (req.method === 'POST' && (req.url === '/api/database' || req.url === '/api/config')) {
+                      let body = [];
+                      req.on('data', chunk => body.push(chunk));
+                      req.on('end', () => {
+                                    try {
+                                                  ensureDataDir();
+                                                  const raw = Buffer.concat(body).toString('utf8');
+                                                  JSON.parse(raw); // validate JSON
+                                                  const filePath = req.url === '/api/database' ? DB_LOCAL_PATH : CONFIG_PATH;
+                                                  fs.writeFileSync(filePath, raw, 'utf8');
+                                                  const label = req.url === '/api/database' ? 'database' : 'config';
+                                                  log('[API] ' + label + ' updated via POST (' + raw.length + ' bytes)');
+                                                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                                                  res.end(JSON.stringify({ ok: true, label }));
+                                    } catch (e) {
+                                                  log('[API] Error saving: ' + e.message);
+                                                  res.writeHead(400); res.end(JSON.stringify({ ok: false, error: e.message }));
+                                    }
+                      });
+                      return;
+          }
+          res.writeHead(404); res.end('Not Found');
+}).listen(process.env.PORT || 3000, () => log('HTTP server on port ' + (process.env.PORT || 3000)));
+
 syncFromDrive().then(() => poll());

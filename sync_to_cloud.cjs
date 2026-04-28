@@ -26,17 +26,16 @@ function decrypt(ciphertext64, password) {
 function postData(urlPath, body) {
     return new Promise((resolve, reject) => {
         const data = Buffer.from(body, 'utf8');
-        const compressed = zlib.gzipSync(data);
-        console.log(`  Sending to ${urlPath}: ${data.length} bytes -> ${compressed.length} bytes (gzipped)`);
+        console.log(`  Sending to ${urlPath}: ${data.length} bytes (plain JSON)`);
         const req = https.request({
             hostname: CLOUD_URL, path: urlPath, method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream', 'Content-Encoding': 'gzip', 'Content-Length': compressed.length }
+            headers: { 'Content-Type': 'application/json', 'Content-Length': data.length }
         }, (res) => {
             let d = ''; res.on('data', c => d += c);
             res.on('end', () => { console.log(`  Response: ${res.statusCode} ${d}`); resolve(res.statusCode); });
         });
         req.on('error', reject);
-        req.write(compressed);
+        req.write(data);
         req.end();
     });
 }

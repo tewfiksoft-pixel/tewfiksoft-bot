@@ -40,9 +40,12 @@ const tg = (method, body) => new Promise((res) => {
 const send = (chatId, text, kbd = null) => tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...(kbd ? { reply_markup: kbd } : {}) });
 
 async function notifyStaff(txt, cfg) {
-  if (ADMIN_ID) await send(ADMIN_ID, `🔔 <b>إشعار جديد:</b>\n${txt}`);
+  const admins = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'general_manager') || [];
+  for (const a of admins) { if (a.id) await send(a.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`); }
   const rh = cfg.authorized_users?.filter(u => u.role === 'gestionnaire_rh') || [];
-  for (const r of rh) { if (r.id) await send(r.id, `🔔 <b>إشعار:</b>\n${txt}`); }
+  for (const r of rh) { if (r.id) await send(r.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`); }
+  // Fallback if env ADMIN_ID exists and is not in admins
+  if (ADMIN_ID && !admins.find(a => String(a.id) === String(ADMIN_ID))) await send(ADMIN_ID, `🔔 <b>إشعار جديد:</b>\n${txt}`);
 }
 
 const app = express();
@@ -62,6 +65,19 @@ const DOC_TYPES = [
   { id: 'carte_chifa', fr: 'Activation Carte Chifa', ar: 'تفعيل بطاقة الشفاء' },
   { id: 'accident', fr: 'Déclaration Accident de Travail', ar: 'تصريح حادث عمل' },
   { id: 'fiche_paie', fr: 'Fiche de Paie', ar: 'كشف الراتب' },
+];
+
+const DOSSIER_REASONS = [
+  { id: 'ass_auto', fr: 'Assurance Automobile', ar: 'تأمين السيارة' },
+  { id: 'cpt_banc', fr: 'Ouverture Compte Bancaire', ar: 'فتح حساب بنكي' },
+  { id: 'cpt_ccp', fr: 'Ouverture Compte CCP', ar: 'فتح حساب CCP' },
+  { id: 'dos_bourse', fr: 'Dossier Bourse', ar: 'ملف المنحة' },
+  { id: 'dos_visa', fr: 'Dossier Visa', ar: 'ملف التأشيرة' },
+  { id: 'dos_passeport', fr: 'Dossier Passeport', ar: 'ملف جواز السفر' },
+  { id: 'achat_fac', fr: 'Achat par Facilité', ar: 'شراء بالتسهيل' },
+  { id: 'dos_famille', fr: 'Dossier Soutien de Famille', ar: 'ملف إعالة العائلة' },
+  { id: 'dos_logement', fr: 'Dossier Logement', ar: 'ملف السكن' },
+  { id: 'credit_banc', fr: 'Crédit Bancaire', ar: 'القرض البنكي' }
 ];
 
 // ─────── UI ───────
@@ -216,16 +232,49 @@ async function handle(u) {
       return send(chatId, ar ? '📄 <b>اختر الوثيقة المطلوبة:</b>' : '📄 <b>Choisissez le document :</b>', { inline_keyboard: rows });
     }
 
-    // ── Document selected → ask reason ──
+    // ── Document selected → ask reason or show menu ──
     if (d.startsWith('rdoc:')) {
       const parts = d.split(':');
       const docId = parts[1], empId = parts[2];
       const doc = DOC_TYPES.find(dt => dt.id === docId);
       if (!doc) return;
+
+      if (docId === 'att_travail' || docId === 'releve_emol') {
+        const rows = [];
+        for (let i = 0; i < DOSSIER_REASONS.length; i += 2) {
+          const row = [{ text: ar ? DOSSIER_REASONS[i].ar : DOSSIER_REASONS[i].fr, callback_data: `drsn:${docId}:${DOSSIER_REASONS[i].id}:${empId}` }];
+          if (DOSSIER_REASONS[i + 1]) row.push({ text: ar ? DOSSIER_REASONS[i + 1].ar : DOSSIER_REASONS[i + 1].fr, callback_data: `drsn:${docId}:${DOSSIER_REASONS[i + 1].id}:${empId}` });
+          rows.push(row);
+        }
+        rows.push([{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'reqmenu:' + empId }]);
+        return send(chatId, ar ? `📄 اختر سبب طلب <b>${doc.ar}</b>:` : `📄 Motif pour <b>${doc.fr}</b> :`, { inline_keyboard: rows });
+      }
+
       states.set(chatId, { step: 'doc_reason', docId, empId, docName: ar ? doc?.ar : doc?.fr });
       return send(chatId, ar
-        ? `📄 لقد اخترت: <b>${doc?.ar}</b>\n\n✍️ <b>ماذا تريد بهذه الوثيقة؟</b>\n(اكتب السبب أو الملاحظة)`
-        : `📄 Vous avez choisi: <b>${doc?.fr}</b>\n\n✍️ <b>Quel est le motif de cette demande ?</b>\n(Écrivez la raison)`);
+        ? `📄 لقد اخترت: <b>${doc?.ar}</b>\n\n✍️ <b>اكتب ملاحظة أو تأكيد الطلب:</b>`
+        : `📄 Vous avez choisi: <b>${doc?.fr}</b>\n\n✍️ <b>Écrivez une remarque pour confirmer:</b>`);
+    }
+
+    // ── Document Reason Selected from Menu ──
+    if (d.startsWith('drsn:')) {
+      const parts = d.split(':');
+      const docId = parts[1], rsnId = parts[2], empId = parts[3];
+      const doc = DOC_TYPES.find(dt => dt.id === docId);
+      const rsn = DOSSIER_REASONS.find(r => r.id === rsnId);
+      const docName = doc ? (ar ? doc.ar : doc.fr) : 'Document';
+      const rsnName = rsn ? (ar ? rsn.ar : rsn.fr) : 'Autre';
+
+      const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : empId;
+      const role = String(user.role).toLowerCase();
+      const isManager = role === 'manager';
+
+      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${docName}</b>\n✍️ السبب: ${rsnName}\n👤 من طرف: ${user.name}`, cfg);
+      
+      return send(chatId, isManager
+        ? (ar ? `✅ تم إرسال طلبك.\n📄 ${docName}\n✍️ السبب: ${rsnName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Demande envoyée.\n📄 ${docName}\n✍️ Motif: ${rsnName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
+        : (ar ? `✅ <b>تم إرسال الطلب!</b>\n📄 ${docName}\n✍️ ${rsnName}` : `✅ <b>Demande envoyée!</b>\n📄 ${docName}\n✍️ ${rsnName}`));
     }
 
     // ── Back to employee card ──

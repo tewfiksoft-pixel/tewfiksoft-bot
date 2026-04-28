@@ -202,9 +202,10 @@ async function handle(u) {
 
     if (d === 'my_profile') {
       const role = String(user.role).toLowerCase();
-      const emp = db.hr_employees?.find(e => String(e.clockingId).trim() === String(user.clockingId).trim());
+      const targetId = String(user.clockingId || (user.allowed_employees && user.allowed_employees[0]) || '').trim();
+      const emp = db.hr_employees?.find(e => String(e.clockingId).trim() === targetId);
       if (emp) return showEmployeeCard(chatId, emp, ar, role);
-      return send(chatId, ar ? '❌ لم يتم العثور على ملفك.' : '❌ Profil introuvable.');
+      return send(chatId, ar ? '❌ لم يتم العثور على ملفك. يرجى إعداد رقم الموظف.' : '❌ Profil introuvable. Veuillez configurer votre ID.');
     }
 
     if (d.startsWith('full:')) {

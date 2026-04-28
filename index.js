@@ -1,10 +1,11 @@
-// TewfikSoft Cloud Bot v7.0 - THE FINAL MASTERPIECE (Express + Premium UI)
+// TewfikSoft Cloud Bot v7.1 - THE FINAL MASTERPIECE (Fixed Sync)
 import express from 'express';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import bodyParser from 'body-parser';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -60,7 +61,7 @@ const tg = (method, body) => new Promise((res) => {
 const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text:'💎 '+text, parse_mode:'HTML', ...(kbd?{reply_markup:kbd}:{})});
 
 const app = express();
-app.use(express.json({limit: '50mb'}));
+app.use(bodyParser.text({limit: '50mb', type: '*/*'})); // RECEIVE EVERYTHING AS RAW TEXT
 
 const langs = new Map();
 const states = new Map();
@@ -68,17 +69,11 @@ const states = new Map();
 function showMenu(chatId, user, ar) {
   const role = String(user.role).toLowerCase();
   const isMgmt = ['admin', 'general_manager', 'manager'].includes(role);
-  
-  let msg = ar 
-    ? `💎 <b>أهلاً بك في نظام الإدارة العليا</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${user.name}</b>\n🛡️ الرتبة: <code>${role.toUpperCase()}</code>\n━━━━━━━━━━━━━━` 
-    : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${user.name}</b>\n🛡️ Rôle: <code>${role.toUpperCase()}</code>\n━━━━━━━━━━━━━━`;
-
   let kbd = {inline_keyboard: []};
   if (role === 'admin' || role === 'general_manager') kbd.inline_keyboard.push([{text: ar ? '📊 إحصائيات ALVER & ALVERTEK' : '📊 Stats ALVER & ALVERTEK', callback_data: 'stats'}]);
   if (isMgmt) kbd.inline_keyboard.push([{text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search'}]);
   kbd.inline_keyboard.push([{text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile'}], [{text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang'}]);
-
-  return send(chatId, msg, kbd);
+  return send(chatId, ar ? `💎 <b>لوحة تحكم المدير العام</b>` : `💎 <b>PANNEAU DE DIRECTION</b>`, kbd);
 }
 
 function showFullEmployeeCard(chatId, emp, ar) {
@@ -104,7 +99,6 @@ async function handle(u) {
       return adId === fromId || (from.username && adId === from.username.toLowerCase());
   });
   if (!user) return;
-
   const ar = (langs.get(chatId) || 'ar') === 'ar';
 
   if (cbq) {
@@ -113,13 +107,12 @@ async function handle(u) {
       if (d.startsWith('lang:')) { 
           langs.set(chatId, d.split(':')[1]); 
           const isAr = d.split(':')[1] === 'ar';
-          await send(chatId, isAr ? '🔍 اكتب الآن <b>رقم العامل</b> وأنا في خدمتك :' : '🔍 Entrez le <b>numéro d\'employé</b> :');
+          await send(chatId, isAr ? '🔍 اكتب الآن <b>رقم الموظف</b> وسأعرض لك ملفه الشامل :' : '🔍 Entrez le <b>numéro d\'employé</b> :');
           states.set(chatId, {step: 'search'});
           return;
       }
       if (d === 'menu') return showMenu(chatId, user, ar);
       if (d === 'search') { states.set(chatId, {step: 'search'}); return send(chatId, ar ? '🔍 أرسل رقم الموظف:' : '🔍 Entrez ID :'); }
-      if (d === 'choose_lang') return send(chatId, '🌐 Language?', {inline_keyboard: [[{text:'العربية',callback_data:'lang:ar'},{text:'Français',callback_data:'lang:fr'}]]});
       
       const db = loadDB();
       if (d === 'my_profile') {
@@ -129,24 +122,24 @@ async function handle(u) {
       }
       if (d.startsWith('full:')) {
           const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-          if (emp) return send(chatId, ar ? `📄 <b>التفاصيل:</b>\n👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n📅 البداية: ${emp.startDate}\n🏢 القسم: ${T(emp.department_ar)}` : `📄 <b>DETAILS:</b>\n👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n📅 Début: ${emp.startDate}\n🏢 Dept: ${T(emp.department_fr)}`);
+          if (emp) return send(chatId, ar ? `📄 <b>تفاصيل الموظف:</b>\n━━━━━━━━━━━━━━\n👤 الاسم: ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n🎂 الميلاد: ${emp.birthDate}\n📍 العنوان: ${T(emp.address_ar)}\n🏢 القسم: ${T(emp.department_ar)}\n📅 البداية: ${emp.startDate}` : `📄 <b>DETAILS EMPLOYE:</b>\n━━━━━━━━━━━━━━\n👤 Nom: ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n🎂 Naissance: ${emp.birthDate}\n📍 Adresse: ${T(emp.address_fr)}\n🏢 Dept: ${T(emp.department_fr)}\n📅 Début: ${emp.startDate}`);
       }
       if (d.startsWith('leave:')) {
           const bal = (db.hr_leave_balances || []).find(b => String(b.employeeId) === d.split(':')[1]);
-          return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n✅ المتبقي: <b>${bal?.remainingDays||0}</b> يوم` : `🏖️ <b>SOLDE CONGÉS:</b>\n✅ Restant: <b>${bal?.remainingDays||0}</b> jours`);
+          return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n📅 السنة: ${bal?.exercice||'2024'}\n✅ المتبقي: <b>${bal?.remainingDays||0}</b> يوم` : `🏖️ <b>SOLDE CONGÉS:</b>\n📅 Année: ${bal?.exercice||'2024'}\n✅ Restant: <b>${bal?.remainingDays||0}</b> jours`);
       }
       if (d === 'stats') {
           const emps = db.hr_employees || [];
           let alver=0, alvertek=0;
-          emps.forEach(e => { if (String(e.companyId).toLowerCase().includes('tek')) alvertek++; else alver++; });
-          return send(chatId, ar ? `📊 <b>الإحصائيات الحالية:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 المجموع: <b>${emps.length}</b>` : `📊 <b>STATISTIQUES:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 Total: <b>${emps.length}</b>`);
+          emps.forEach(e => { if (String(e.companyId || '').toLowerCase().includes('tek')) alvertek++; else alver++; });
+          return send(chatId, ar ? `📊 <b>إحصائيات ALVER & ALVERTEK:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 المجموع: <b>${emps.length}</b>` : `📊 <b>STATISTIQUES:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 Total: <b>${emps.length}</b>`);
       }
   }
 
   const txt = (msg.text||'').trim().toLowerCase();
   if (txt === '/start' || txt === '/m' || txt === 'check') {
       const db = loadDB();
-      if (txt === 'check') return send(chatId, `📊 Status: ${db.hr_employees?.length || 0} employees found.`);
+      if (txt === 'check') return send(chatId, `📊 Status: ${db.hr_employees?.length || 0} employees loaded.`);
       return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Langue</b>', {inline_keyboard: [[{text:'العربية 🇩🇿',callback_data:'lang:ar'},{text:'Français 🇫🇷',callback_data:'lang:fr'}]]});
   }
 
@@ -165,10 +158,10 @@ async function handle(u) {
   }
 }
 
-app.post('/api/webhook', async (req, res) => { try { await handle(req.body); } catch(e) {} res.sendStatus(200); });
-app.post('/api/config', (req, res) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(req.body)); res.sendStatus(200); });
-app.post('/api/database', (req, res) => { fs.writeFileSync(DB_PATH, JSON.stringify(req.body)); res.sendStatus(200); });
-app.get('/', (req, res) => res.send('TewfikSoft HR Bot v7.0 Final Masterpiece Active'));
+app.post('/api/webhook', (req, res) => { try { handle(JSON.parse(req.body)); } catch(e) {} res.sendStatus(200); });
+app.post('/api/config', (req, res) => { fs.writeFileSync(CONFIG_PATH, req.body); res.sendStatus(200); });
+app.post('/api/database', (req, res) => { fs.writeFileSync(DB_PATH, req.body); res.sendStatus(200); });
+app.get('/', (req, res) => res.send('TewfikSoft HR Bot v7.1 Masterpiece Fixed Active'));
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {

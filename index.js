@@ -94,6 +94,7 @@ function showEmployeeCard(chatId, emp, ar) {
   const kbd = { inline_keyboard: [
     [{ text: ar ? '📄 الملف الكامل' : '📄 Fiche Complète', callback_data: 'full:' + emp.id }],
     [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }],
+    [{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ الاستبيان' : '🗳️ Sondage', callback_data: 'survey:' + emp.id }],
     [{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Document', callback_data: 'reqmenu:' + emp.id }],
     [{ text: ar ? '🔍 بحث جديد' : '🔍 Nouvelle Recherche', callback_data: 'search' }]
   ]};
@@ -161,16 +162,36 @@ async function handle(u) {
         : `📜 <b>INFOS CONTRAT:</b>\n━━━━━━━━━━━━━━\n📜 Type: <b>${T(emp.contractType)}</b>\n📅 Début: ${T(emp.startDate)}\n🔚 Fin: ${T(emp.contractEndDate)}\n🏢 Société: ${T(emp.companyId).toUpperCase()}\n💼 CSP: ${T(emp.csp)}`);
     }
 
+    // ── Absences ──
+    if (d.startsWith('abs:')) {
+      const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
+      if (!emp) return;
+      return send(chatId, ar
+        ? `🚨 <b>سجل الغيابات:</b>\n━━━━━━━━━━━━━━\n👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n📊 الحالة: <b>${emp.status === 'active' ? '✅ نشط' : '⛔ غير نشط'}</b>\n━━━━━━━━━━━━━━\n📝 لعرض تفاصيل الغيابات، يرجى الرجوع للنظام.`
+        : `🚨 <b>Registre Absences:</b>\n━━━━━━━━━━━━━━\n👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n📊 Statut: <b>${emp.status === 'active' ? '✅ Actif' : '⛔ Inactif'}</b>\n━━━━━━━━━━━━━━\n📝 Pour le détail, consultez le système.`);
+    }
+
+    // ── Survey ──
+    if (d.startsWith('survey:')) {
+      return send(chatId, ar
+        ? `🗳️ <b>الاستبيان:</b>\n━━━━━━━━━━━━━━\n📝 لم يتم إرسال استبيانات حالياً.\n⏳ سيتم إشعارك عند توفر استبيان جديد.`
+        : `🗳️ <b>Sondage:</b>\n━━━━━━━━━━━━━━\n📝 Aucun sondage en cours.\n⏳ Vous serez notifié quand un nouveau sondage sera disponible.`);
+    }
+
     // ── Document Request Menu ──
     if (d.startsWith('reqmenu:')) {
       const empId = d.split(':')[1];
-      const rows = [];
-      for (let i = 0; i < DOC_TYPES.length; i += 2) {
-        const row = [{ text: ar ? DOC_TYPES[i].ar : DOC_TYPES[i].fr, callback_data: 'rdoc:' + DOC_TYPES[i].id + ':' + empId }];
-        if (DOC_TYPES[i + 1]) row.push({ text: ar ? DOC_TYPES[i + 1].ar : DOC_TYPES[i + 1].fr, callback_data: 'rdoc:' + DOC_TYPES[i + 1].id + ':' + empId });
-        rows.push(row);
-      }
-      rows.push([{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'back:' + empId }]);
+      const rows = [
+        [{ text: ar ? '📋 شهادة العمل' : '📋 Attestation de Travail', callback_data: 'rdoc:att_travail:' + empId }],
+        [{ text: ar ? '💰 كشف الرواتب' : '💰 Relevé des Émoluments', callback_data: 'rdoc:releve_emol:' + empId }],
+        [{ text: ar ? '━━ الملف الإداري ━━' : '━━ Dossier Administratif ━━', callback_data: 'noop' }],
+        [{ text: ar ? '🚗 تأمين السيارة' : '🚗 Assurance Auto', callback_data: 'rdoc:ass_auto:' + empId }, { text: ar ? '🏦 حساب بنكي' : '🏦 Compte Bancaire', callback_data: 'rdoc:cpt_banc:' + empId }],
+        [{ text: ar ? '📮 حساب CCP' : '📮 Compte CCP', callback_data: 'rdoc:cpt_ccp:' + empId }, { text: ar ? '🎓 ملف المنحة' : '🎓 Dossier Bourse', callback_data: 'rdoc:dos_bourse:' + empId }],
+        [{ text: ar ? '✈️ ملف التأشيرة' : '✈️ Dossier Visa', callback_data: 'rdoc:dos_visa:' + empId }, { text: ar ? '🛂 جواز السفر' : '🛂 Dossier Passeport', callback_data: 'rdoc:dos_passeport:' + empId }],
+        [{ text: ar ? '🛒 شراء بالتسهيل' : '🛒 Achat par Facilité', callback_data: 'rdoc:achat_fac:' + empId }, { text: ar ? '👨‍👩‍👧 إعالة العائلة' : '👨‍👩‍👧 Soutien Famille', callback_data: 'rdoc:dos_famille:' + empId }],
+        [{ text: ar ? '🏠 ملف السكن' : '🏠 Dossier Logement', callback_data: 'rdoc:dos_logement:' + empId }, { text: ar ? '💳 القرض البنكي' : '💳 Crédit Bancaire', callback_data: 'rdoc:credit_banc:' + empId }],
+        [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'back:' + empId }]
+      ];
       return send(chatId, ar ? '📄 <b>اختر نوع الوثيقة المطلوبة:</b>' : '📄 <b>Choisissez le document :</b>', { inline_keyboard: rows });
     }
 
@@ -179,6 +200,7 @@ async function handle(u) {
       const parts = d.split(':');
       const docId = parts[1], empId = parts[2];
       const doc = DOC_TYPES.find(dt => dt.id === docId);
+      if (!doc) return;
       states.set(chatId, { step: 'doc_reason', docId, empId, docName: ar ? doc?.ar : doc?.fr });
       return send(chatId, ar
         ? `📄 لقد اخترت: <b>${doc?.ar}</b>\n\n✍️ <b>ماذا تريد بهذه الوثيقة؟</b>\n(اكتب السبب أو الملاحظة)`

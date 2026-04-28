@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v4.5 - Render.com Edition (Webhook Mode)
+// TewfikSoft Cloud Bot v4.6 - Render.com Edition (Full Feature Mode)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -17,8 +17,6 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) { console.error('❌ FATAL: BOT_TOKEN environment variable is not set!'); process.exit(1); }
 const ADMIN_ID = process.env.ADMIN_CHAT_ID || '';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
-const ENC_KEY = 'nouar2026';
-const SALT = Buffer.from('tewfiksoft_hr_salt_2026', 'utf8');
 
 const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
 const T = (s) => { try { return String(s||'').trim() || '—'; } catch { return '—'; } };
@@ -52,8 +50,31 @@ async function syncDB() {
     if (!raw || raw.length < 100) return 'Error: Data too small';
     let data = raw.charCodeAt(0)===0xFEFF ? raw.slice(1) : raw;
     fs.writeFileSync(DB_PATH, data); 
-    return `OK: Sync successful`;
+    return `OK`;
   } catch(e) { return 'Error: '+e.message; }
+}
+
+function getVisibleEmployees(user, db) {
+  const emps = db.hr_employees || [];
+  if (user.role === 'admin' || user.role === 'general_manager') return emps.filter(e=>e.status==='active');
+  
+  // For others, filter by scope (if implemented) or just return active for now
+  // For safety, employees only see themselves
+  if (user.role === 'employee') {
+      return emps.filter(e => String(e.clockingId) === String(user.clockingId));
+  }
+  return emps.filter(e=>e.status==='active');
+}
+
+function showCard(chatId, emp, ar) {
+  const msg = ar 
+    ? `👤 <b>ملف الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 القسم: ${T(emp.department_ar)}\n📅 نهاية العقد: ${emp.contractEndDate || '—'}`
+    : `👤 <b>PROFIL EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Fin Contrat: ${emp.contractEndDate || '—'}`;
+  
+  const kbd = {inline_keyboard: [
+      [{text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu'}]
+  ]};
+  return send(chatId, msg, kbd);
 }
 
 async function handle(u) {
@@ -65,33 +86,66 @@ async function handle(u) {
   const chatId = msg.chat.id;
   const fromId = String(from.id);
   const txt = (msg.text||'').trim();
+  const ar = (langs.get(chatId) || 'ar') === 'ar';
   
-  // --- Role identification from config ---
   const cfg = loadConfig();
   const fromUser = (from.username || '').toLowerCase().trim();
-  const fromIdStr = String(fromId).trim();
-  
   const user = cfg.authorized_users?.find(u => {
       const adId = String(u.id || '').replace('@', '').toLowerCase().trim();
-      return adId === fromIdStr || (fromUser && adId === fromUser);
+      return adId === String(fromId) || (fromUser && adId === fromUser);
   });
 
-  if (!user) {
-      log(`❌ Unauthorized: ID ${fromIdStr}, User @${fromUser}`);
-      return send(chatId, `❌ Unauthorized ID: <code>${fromIdStr}</code>\n<i>Please add this ID to settings and Sync.</i>`);
+  if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
+
+  if (cbq) {
+      const d = cbq.data;
+      if (d === 'menu') {
+          return send(chatId, ar ? '📋 <b>القائمة الرئيسية</b>' : '📋 <b>Menu Principal</b>', {inline_keyboard: [
+              [{text: ar ? '🔍 بحث عن موظف' : '🔍 Chercher employé', callback_data: 'search'}]
+          ]});
+      }
+      if (d === 'search') {
+          states.set(chatId, {step: 'search'});
+          return send(chatId, ar ? '🔍 أرسل اسم الموظف أو رقمه للبحث:' : '🔍 Entrez le nom ou l\'ID :');
+      }
   }
 
-  log(`👤 Access: ${user.name} [Role: ${user.role}]`);
+  if (states.get(chatId)?.step === 'search' && txt) {
+      states.delete(chatId);
+      const db = loadDB();
+      const query = txt.toLowerCase();
+      const visible = getVisibleEmployees(user, db);
+      const results = visible.filter(e => 
+          String(e.clockingId).includes(query) || 
+          T(e.lastName_fr).toLowerCase().includes(query) || 
+          T(e.firstName_fr).toLowerCase().includes(query) ||
+          T(e.lastName_ar).includes(query) ||
+          T(e.firstName_ar).includes(query)
+      ).slice(0, 5);
 
-  if (txt === '/start') {
-      return send(chatId, `🌟 <b>أهلاً بك ${user.name}</b>\n\nأنا البوت السحابي الخاص بشركة TewfikSoft.\nاستخدم القائمة أدناه للوصول للخدمات.`);
-  }
-  
-  if (txt === '/me') {
-      return send(chatId, `👤 <b>معلوماتك:</b>\n🆔 ID: <code>${fromIdStr}</code>\n👑 الدور: <b>${user.role}</b>`);
+      if (results.length === 0) return send(chatId, ar ? '❌ لم يتم العثور على نتائج.' : '❌ Aucun résultat.');
+      
+      for (const emp of results) {
+          await showCard(chatId, emp, ar);
+      }
+      return;
   }
 
-  return send(chatId, `✅ البوت يعمل بنجاح.\nدورك الحالي هو: <b>${user.role}</b>`);
+  if (txt === '/start' || txt === '/menu') {
+      return send(chatId, ar ? '🌟 <b>أهلاً بك في نظام TewfikSoft HR</b>' : '🌟 <b>Bienvenue sur TewfikSoft HR</b>', {inline_keyboard: [
+          [{text: ar ? '🔍 ابدأ البحث' : '🔍 Démarrer la recherche', callback_data: 'search'}]
+      ]});
+  }
+
+  if (txt === '/info') {
+      states.set(chatId, {step: 'search'});
+      return send(chatId, ar ? '🔍 أرسل اسم الموظف أو رقمه للبحث:' : '🔍 Entrez le nom ou l\'ID :');
+  }
+
+  if (txt === '/sync' && (user.role === 'admin')) {
+      const r = await syncDB();
+      return send(chatId, `🔄 Sync Result: ${r}`);
+  }
 }
 
 http.createServer(async (req, res) => {
@@ -116,7 +170,7 @@ http.createServer(async (req, res) => {
         const newConfig = JSON.parse(body);
         if (newConfig.authorized_users) {
           fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2), 'utf8');
-          log('✅ Config updated. Users: ' + newConfig.authorized_users.length);
+          log('✅ Config updated.');
           res.writeHead(200); res.end(JSON.stringify({success:true}));
           return;
         }
@@ -141,11 +195,12 @@ http.createServer(async (req, res) => {
     return;
   }
 
-  res.writeHead(200); res.end('Bot is running v4.5');
+  res.writeHead(200); res.end('TewfikSoft HR Bot v4.6 Full Feature Mode');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v4.5 (Render Webhook Edition) Starting... ===');
+  log('=== TewfikSoft HR Bot v4.6 Starting... ===');
+  await syncDB();
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});
   log('Webhook set to: ' + url);

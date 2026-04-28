@@ -1,210 +1,63 @@
-// TewfikSoft Cloud Bot v7.4 - Document Request Edition
 import express from 'express';
-import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
+import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
+import { loadDB, loadConfig, T, log } from './utils/database.js';
+import { getStatsMsg } from './utils/ui.js';
+import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
+import RoleFactory from './roles/RoleFactory.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
 const CONFIG_PATH = path.join(__dirname, 'config.json');
+const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_ID = process.env.ADMIN_CHAT_ID;
-
-const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
-const T = (s) => String(s || '').trim() || '—';
-
-function loadDB() {
-  try { return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
-  catch { return { hr_employees: [], hr_leave_balances: [] }; }
-}
-function loadConfig() {
-  try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); }
-  catch { return { authorized_users: [] }; }
-}
-
-const tg = (method, body) => new Promise((res) => {
-  const p = JSON.stringify(body);
-  const req = https.request({ hostname: 'api.telegram.org', path: `/bot${BOT_TOKEN}/${method}`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(p) } }, (r) => {
-    let d = ''; r.on('data', c => d += c);
-    r.on('end', () => { try { res(JSON.parse(d)); } catch { res({ ok: false }); } });
-  });
-  req.on('error', () => res({ ok: false }));
-  req.write(p); req.end();
-});
-
-const send = (chatId, text, kbd = null) => tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...(kbd ? { reply_markup: kbd } : {}) });
-
-async function notifyStaff(txt, cfg) {
-  const admins = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'general_manager') || [];
-  for (const a of admins) { if (a.id) await send(a.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`); }
-  const rh = cfg.authorized_users?.filter(u => u.role === 'gestionnaire_rh') || [];
-  for (const r of rh) { if (r.id) await send(r.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`); }
-  // Fallback if env ADMIN_ID exists and is not in admins
-  if (ADMIN_ID && !admins.find(a => String(a.id) === String(ADMIN_ID))) await send(ADMIN_ID, `🔔 <b>إشعار جديد:</b>\n${txt}`);
-}
-
-const app = express();
-app.use((req, res, next) => {
-  if (req.method !== 'POST') return next();
-  let chunks = [];
-  req.on('data', c => chunks.push(c));
-  req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });
-});
 
 const langs = new Map();
 const states = new Map();
-
-// ── Document types list ──
-const DOC_TYPES = [
-  { id: 'releve_emol', fr: 'Relevé des Émoluments', ar: 'كشف الرواتب' },
-  { id: 'att_travail', fr: 'Attestation de Travail', ar: 'شهادة العمل' },
-  { id: 'carte_chifa', fr: 'Activation Carte Chifa', ar: 'تفعيل بطاقة الشفاء' },
-  { id: 'accident', fr: 'Déclaration Accident de Travail', ar: 'تصريح حادث عمل' },
-  { id: 'fiche_paie', fr: 'Fiche de Paie', ar: 'كشف الراتب' },
-];
-
-const DOSSIER_REASONS = [
-  { id: 'ass_auto', fr: 'Assurance Automobile', ar: 'تأمين السيارة' },
-  { id: 'cpt_banc', fr: 'Ouverture Compte Bancaire', ar: 'فتح حساب بنكي' },
-  { id: 'cpt_ccp', fr: 'Ouverture Compte CCP', ar: 'فتح حساب CCP' },
-  { id: 'dos_bourse', fr: 'Dossier Bourse', ar: 'ملف المنحة' },
-  { id: 'dos_visa', fr: 'Dossier Visa', ar: 'ملف التأشيرة' },
-  { id: 'dos_passeport', fr: 'Dossier Passeport', ar: 'ملف جواز السفر' },
-  { id: 'achat_fac', fr: 'Achat par Facilité', ar: 'شراء بالتسهيل' },
-  { id: 'dos_famille', fr: 'Dossier Soutien de Famille', ar: 'ملف إعالة العائلة' },
-  { id: 'dos_logement', fr: 'Dossier Logement', ar: 'ملف السكن' },
-  { id: 'credit_banc', fr: 'Crédit Bancaire', ar: 'القرض البنكي' }
-];
-
-// ─────── UI ───────
-
-function getStatsMsg(db, ar) {
-  const emps = db.hr_employees || [];
-  const leaves = db.hr_leave_balances || [];
-  
-  let alver = 0, verre_tech = 0, male = 0, female = 0, cdi = 0, cdd = 0;
-  let totalAge = 0, ageCount = 0;
-  
-  emps.forEach(e => {
-    const comp = String(e.companyId || '').toLowerCase();
-    if (comp.includes('verre') || comp.includes('tech')) verre_tech++; else alver++;
-    if (String(e.gender || '').toUpperCase() === 'M') male++; else female++;
-    const ct = String(e.contractType || '').toLowerCase();
-    if (ct.includes('tit') || ct === 'cdi') cdi++; else cdd++;
-    
-    if (e.birthDate) {
-      const parts = e.birthDate.split(/[-/]/);
-      let year = null;
-      if (parts.length === 3) { year = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]); }
-      else if (parts.length === 1 && parts[0].length === 4) { year = parseInt(parts[0]); }
-      if (year && year > 1900 && year <= new Date().getFullYear()) {
-        totalAge += (new Date().getFullYear() - year);
-        ageCount++;
-      }
-    }
-  });
-  
-  const avgAge = ageCount > 0 ? Math.round(totalAge / ageCount) : 0;
-  
-  let totalLeaveDays = 0;
-  leaves.forEach(l => {
-    const r = parseFloat(l.remainingDays);
-    if (!isNaN(r)) totalLeaveDays += r;
-  });
-
-  return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n🏖️ إجمالي العطل المتبقية: <b>${totalLeaveDays} يوم</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n🏖️ Total Congés Restants: <b>${totalLeaveDays} jours</b>\n━━━━━━━━━━━━━━`;
-}
-
-function showMenu(chatId, user, ar) {
-  const role = String(user.role).toLowerCase();
-  if (role === 'general_manager') {
-    const db = loadDB();
-    const kbd = { inline_keyboard: [
-      [{ text: ar ? '🔄 تحديث الإحصائيات' : '🔄 Actualiser', callback_data: 'stats' }],
-      [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]
-    ]};
-    return send(chatId, getStatsMsg(db, ar), kbd);
-  }
-
-  const isHighMgmt = ['admin'].includes(role);
-  const isMgmt = ['admin', 'manager'].includes(role);
-  let kbd = { inline_keyboard: [] };
-  if (isHighMgmt) kbd.inline_keyboard.push([{ text: ar ? '📊 إحصائيات ALVER & VERRE TECH' : '📊 Stats ALVER & VERRE TECH', callback_data: 'stats' }]);
-  if (isMgmt) kbd.inline_keyboard.push([{ text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search' }]);
-  kbd.inline_keyboard.push([{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }]);
-  kbd.inline_keyboard.push([{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]);
-  return send(chatId, ar
-    ? `💎 <b>أهلاً بك في نظام الإدارة العليا</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${user.name}</b>\n🛡️ الرتبة: <code>${String(user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
-    : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${user.name}</b>\n🛡️ Rôle: <code>${String(user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
-}
-
-function showEmployeeCard(chatId, emp, ar, role) {
-  const msg = ar
-    ? `👤 <b>الملف الشامل للموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 الشركة: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 القسم: ${T(emp.department_ar)}\n📅 تاريخ البداية: ${T(emp.startDate)}\n📜 نوع العقد: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`
-    : `👤 <b>DOSSIER COMPLET</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Société: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Début: ${T(emp.startDate)}\n📜 Contrat: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`;
-  const kbd = { inline_keyboard: [
-    [{ text: ar ? '📄 الملف الكامل' : '📄 Fiche Complète', callback_data: 'full:' + emp.id }],
-    [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }]
-  ]};
-  
-  if (role !== 'employee' && role !== 'gestionnaire_rh') {
-    kbd.inline_keyboard.push([{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ الاستبيان' : '🗳️ Sondage', callback_data: 'survey:' + emp.id }]);
-  }
-  
-  kbd.inline_keyboard.push([{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Document', callback_data: 'reqmenu:' + emp.id }]);
-  
-  if (role === 'admin' || role === 'manager') {
-    kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Nouvelle Recherche', callback_data: 'search' }]);
-  }
-  return send(chatId, msg, kbd);
-}
-
-// ─────── HANDLER ───────
 
 async function handle(u) {
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig();
-  const user = cfg.authorized_users?.find(u => {
+  const userData = cfg.authorized_users?.find(u => {
     const adId = String(u.id || '').replace('@', '').toLowerCase().trim();
     return adId === fromId || (from.username && adId === from.username.toLowerCase());
   });
-  if (!user) return;
+  if (!userData) return;
+
+  const roleObj = RoleFactory.create(userData);
+  if (!roleObj) return;
+
   const ar = (langs.get(chatId) || 'ar') === 'ar';
 
   if (cbq) {
-    await tg('answerCallbackQuery', { callback_query_id: cbq.id });
+    await answerCallbackQuery(cbq.id);
     const d = cbq.data;
 
     if (d.startsWith('lang:')) {
       const lang = d.split(':')[1]; langs.set(chatId, lang);
-      const role = String(user.role).toLowerCase();
-      if (role === 'general_manager' || role === 'employee' || role === 'gestionnaire_rh') {
-        return showMenu(chatId, user, lang === 'ar');
-      }
-      states.set(chatId, { step: 'search' });
-      return send(chatId, lang === 'ar'
-        ? '✅ تم ضبط اللغة.\n\n🔍 اكتب الآن <b>رقم الموظف</b> وسأعرض لك ملفه الشامل :'
-        : '✅ Langue configurée.\n\n🔍 Entrez le <b>numéro d\'employé</b> :');
+      return roleObj.showMenu(chatId, lang === 'ar', getStatsMsg);
     }
     if (d === 'choose_lang') return send(chatId, '🌐', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
-    if (d === 'menu') return showMenu(chatId, user, ar);
-    if (d === 'search') { states.set(chatId, { step: 'search' }); return send(chatId, ar ? '🔍 أرسل <b>رقم الموظف</b> أو <b>اسمه</b> :' : '🔍 Entrez <b>ID</b> ou <b>Nom</b> :'); }
+    if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
+    if (d === 'search') { 
+      const role = String(userData.role).toLowerCase();
+      if (role === 'admin' || role === 'manager') {
+        states.set(chatId, { step: 'search' }); 
+        return send(chatId, ar ? '🔍 أرسل <b>رقم الموظف</b> أو <b>اسمه</b> :' : '🔍 Entrez <b>ID</b> ou <b>Nom</b> :');
+      }
+      return;
+    }
 
     const db = loadDB();
 
     if (d === 'my_profile') {
-      const role = String(user.role).toLowerCase();
-      const targetId = String(user.clockingId || (user.allowed_employees && user.allowed_employees[0]) || '').trim();
+      const targetId = String(userData.clockingId || (userData.allowed_employees && userData.allowed_employees[0]) || '').trim();
       const emp = db.hr_employees?.find(e => String(e.clockingId).trim() === targetId);
-      if (emp) return showEmployeeCard(chatId, emp, ar, role);
+      if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
       return send(chatId, ar ? '❌ لم يتم العثور على ملفك. يرجى إعداد رقم الموظف.' : '❌ Profil introuvable. Veuillez configurer votre ID.');
     }
 
@@ -233,7 +86,6 @@ async function handle(u) {
         : `📜 <b>INFOS CONTRAT:</b>\n━━━━━━━━━━━━━━\n📜 Type: <b>${T(emp.contractType)}</b>\n📅 Début: ${T(emp.startDate)}\n🔚 Fin: ${T(emp.contractEndDate)}\n🏢 Société: ${T(emp.companyId).toUpperCase()}\n💼 CSP: ${T(emp.csp)}`);
     }
 
-    // ── Absences Menu ──
     if (d.startsWith('abs:') && !d.startsWith('abs_type:')) {
       const empId = d.split(':')[1];
       const kbd = { inline_keyboard: [
@@ -254,7 +106,6 @@ async function handle(u) {
         : `🚨 Type: <b>${typeName}</b>\n\n📅 <b>Écrivez la date d'absence</b> (ex: 2026-04-28):`);
     }
 
-    // ── Survey / Report Menu ──
     if (d.startsWith('survey:') && !d.startsWith('survey_r:')) {
       const empId = d.split(':')[1];
       const kbd = { inline_keyboard: [
@@ -280,7 +131,6 @@ async function handle(u) {
         : `🗳️ Motif: <b>${reasons[reasonId]}</b>\n\n✍️ <b>Écrivez les détails</b> (date et remarques):`);
     }
 
-    // ── Document Request Menu ──
     if (d.startsWith('reqmenu:')) {
       const empId = d.split(':')[1];
       const rows = [
@@ -294,7 +144,6 @@ async function handle(u) {
       return send(chatId, ar ? '📄 <b>اختر الوثيقة المطلوبة:</b>' : '📄 <b>Choisissez le document :</b>', { inline_keyboard: rows });
     }
 
-    // ── Document selected → ask reason or show menu ──
     if (d.startsWith('rdoc:')) {
       const parts = d.split(':');
       const docId = parts[1], empId = parts[2];
@@ -318,7 +167,6 @@ async function handle(u) {
         : `📄 Vous avez choisi: <b>${doc?.fr}</b>\n\n✍️ <b>Écrivez une remarque pour confirmer:</b>`);
     }
 
-    // ── Document Reason Selected from Menu ──
     if (d.startsWith('drsn:')) {
       const parts = d.split(':');
       const docId = parts[1], rsnId = parts[2], empId = parts[3];
@@ -329,24 +177,21 @@ async function handle(u) {
 
       const emp = db.hr_employees?.find(e => String(e.id) === empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : empId;
-      const role = String(user.role).toLowerCase();
+      const role = String(userData.role).toLowerCase();
       const isManager = role === 'manager';
 
-      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${docName}</b>\n✍️ السبب: ${rsnName}\n👤 من طرف: ${user.name}`, cfg);
+      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${docName}</b>\n✍️ السبب: ${rsnName}\n👤 من طرف: ${userData.name}`, cfg, send);
       
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال طلبك.\n📄 ${docName}\n✍️ السبب: ${rsnName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Demande envoyée.\n📄 ${docName}\n✍️ Motif: ${rsnName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم إرسال الطلب!</b>\n📄 ${docName}\n✍️ ${rsnName}` : `✅ <b>Demande envoyée!</b>\n📄 ${docName}\n✍️ ${rsnName}`));
     }
 
-    // ── Back to employee card ──
     if (d.startsWith('back:')) {
-      const role = String(user.role).toLowerCase();
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-      if (emp) return showEmployeeCard(chatId, emp, ar, role);
+      if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
     }
 
-    // ── Stats ──
     if (d === 'stats') {
       const db = loadDB();
       return send(chatId, getStatsMsg(db, ar), { inline_keyboard: [
@@ -356,7 +201,6 @@ async function handle(u) {
     return;
   }
 
-  // ── Text messages ──
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
   if (txtLow === '/start' || txtLow === '/m') {
@@ -365,48 +209,43 @@ async function handle(u) {
 
   if (txtLow === '/me') {
     const db = loadDB();
-    return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${user.name}\n🛡️ ${user.role}\n👥 DB: <b>${db.hr_employees?.length || 0}</b>`);
+    return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${userData.name}\n🛡️ ${userData.role}\n👥 DB: <b>${db.hr_employees?.length || 0}</b>`);
   }
 
-  // ── Text input handlers ──
   const st = states.get(chatId);
   if (st && txt && !txt.startsWith('/')) {
     states.delete(chatId);
     const db = loadDB();
     const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
-    const role = String(user.role).toLowerCase();
+    const role = String(userData.role).toLowerCase();
     const isManager = role === 'manager';
 
-    // ── Document reason ──
     if (st.step === 'doc_reason') {
-      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${st.docName}</b>\n✍️ السبب: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${st.docName}</b>\n✍️ السبب: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال طلبك.\n📄 ${st.docName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Demande envoyée.\n📄 ${st.docName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم إرسال الطلب!</b>\n📄 ${st.docName}\n✍️ ${txt}` : `✅ <b>Demande envoyée!</b>\n📄 ${st.docName}\n✍️ ${txt}`));
     }
 
-    // ── Absence date ──
     if (st.step === 'abs_date') {
-      await notifyStaff(`🚨 <b>إعلام عن غياب</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 النوع: <b>${st.typeName}</b>\n📅 التاريخ: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      await notifyStaff(`🚨 <b>إعلام عن غياب</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 النوع: <b>${st.typeName}</b>\n📅 التاريخ: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
       return send(chatId, isManager
         ? (ar ? `✅ تم تسجيل الغياب.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Absence enregistrée.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم تسجيل الغياب!</b>\n📊 ${st.typeName} | 📅 ${txt}` : `✅ <b>Absence enregistrée!</b>\n📊 ${st.typeName} | 📅 ${txt}`));
     }
 
-    // ── Survey detail ──
     if (st.step === 'survey_detail') {
-      await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم إرسال البلاغ!</b>\n📊 ${st.reasonName}\n✍️ ${txt}` : `✅ <b>Rapport envoyé!</b>\n📊 ${st.reasonName}\n✍️ ${txt}`));
     }
   }
 
-  // ── Search: any non-command text ──
   if (txt && !txt.startsWith('/')) {
-    const role = String(user.role).toLowerCase();
-    if (role === 'general_manager' || role === 'employee' || role === 'gestionnaire_rh') return; // Cannot search
+    const role = String(userData.role).toLowerCase();
+    if (role === 'general_manager' || role === 'employee' || role === 'gestionnaire_rh') return;
 
     const db = loadDB(), q = txtLow.trim();
     const results = (db.hr_employees || []).filter(e => {
@@ -418,15 +257,21 @@ async function handle(u) {
     }).slice(0, 5);
 
     if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الرقم: <b>${txt}</b>\n\n🔍 حاول مجدداً:` : `❌ Aucun employé trouvé: <b>${txt}</b>\n\n🔍 Réessayez:`);
-    for (const emp of results) await showEmployeeCard(chatId, emp, ar, role);
+    for (const emp of results) await roleObj.showEmployeeCard(chatId, emp, ar);
   }
 }
 
-// ─────── ROUTES ───────
+const app = express();
+app.use((req, res, next) => {
+  if (req.method !== 'POST') return next();
+  let chunks = [];
+  req.on('data', c => chunks.push(c));
+  req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });
+});
 
 app.get('/', (req, res) => {
   const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v7.16 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
+  res.status(200).send(`TewfikSoft HR Bot v8.0 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
 });
 
 app.post('/api/webhook', (req, res) => {
@@ -455,13 +300,8 @@ app.post('/api/database', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
-app.get('/', (req, res) => {
-  const db = loadDB();
-  res.send(`TewfikSoft HR Bot v7.4 | ${db.hr_employees?.length || 0} employees`);
-});
-
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v7.4 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.0 on port ${port} ===`);
   tg('setWebhook', { url: 'https://tewfiksoft-hr-bot.onrender.com/api/webhook' });
 });

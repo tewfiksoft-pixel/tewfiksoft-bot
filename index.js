@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v4.6 - Render.com Edition (Full Feature Mode)
+// TewfikSoft Cloud Bot v4.7 - Render.com Edition (Legacy Menus Restored)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -14,8 +14,6 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) { console.error('❌ FATAL: BOT_TOKEN environment variable is not set!'); process.exit(1); }
-const ADMIN_ID = process.env.ADMIN_CHAT_ID || '';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
 
 const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
@@ -45,33 +43,50 @@ const states = new Map();
 async function syncDB() {
   try {
     const response = await fetch(SCRIPT_URL);
-    if (!response.ok) return `Error: HTTP ${response.status}`;
     const raw = await response.text();
-    if (!raw || raw.length < 100) return 'Error: Data too small';
     let data = raw.charCodeAt(0)===0xFEFF ? raw.slice(1) : raw;
     fs.writeFileSync(DB_PATH, data); 
     return `OK`;
-  } catch(e) { return 'Error: '+e.message; }
+  } catch(e) { return 'Error'; }
 }
 
-function getVisibleEmployees(user, db) {
-  const emps = db.hr_employees || [];
-  if (user.role === 'admin' || user.role === 'general_manager') return emps.filter(e=>e.status==='active');
-  
-  // For others, filter by scope (if implemented) or just return active for now
-  // For safety, employees only see themselves
-  if (user.role === 'employee') {
-      return emps.filter(e => String(e.clockingId) === String(user.clockingId));
+function showMenu(chatId, user, ar) {
+  let kbd = {inline_keyboard: []};
+  let txt = ar ? '📌 <b>القائمة الرئيسية</b>\n━━━━━━━━━━━━━━\nالرجاء اختيار الإجراء المطلوب:' : '📌 <b>Menu Principal</b>\n━━━━━━━━━━━━━━\nVeuillez choisir une action :';
+
+  if (user.role === 'admin' || user.role === 'general_manager') {
+    kbd.inline_keyboard.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
   }
-  return emps.filter(e=>e.status==='active');
+
+  if (user.role === 'supervisor' || user.role === 'admin' || user.role === 'manager') {
+    kbd.inline_keyboard.push([{text:ar?'👥 فريقي':'👥 Mon Équipe',callback_data:'team'}]);
+  }
+
+  kbd.inline_keyboard.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
+  
+  if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.role === 'manager') {
+    kbd.inline_keyboard.push([{text:ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'my_profile'}]);
+  }
+  
+  if (user.role === 'admin') {
+    kbd.inline_keyboard.push([{text:ar?'🔄 تحديث البيانات':'🔄 Sync DB',callback_data:'sync'}]);
+  }
+
+  kbd.inline_keyboard.push([{text:ar?'🌐 تغيير اللغة':'🌐 Changer Langue',callback_data:'choose_lang'}]);
+
+  return send(chatId, txt, kbd);
 }
 
-function showCard(chatId, emp, ar) {
+function showCard(chatId, emp, ar, user) {
   const msg = ar 
-    ? `👤 <b>ملف الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 القسم: ${T(emp.department_ar)}\n📅 نهاية العقد: ${emp.contractEndDate || '—'}`
-    : `👤 <b>PROFIL EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Fin Contrat: ${emp.contractEndDate || '—'}`;
+    ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 القسم: ${T(emp.department_ar)}\n\nيرجى اختيار الإجراء:`
+    : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Dept: ${T(emp.department_fr)}\n\nVeuillez choisir:`;
   
   const kbd = {inline_keyboard: [
+      [{text: ar ? '📄 ملف الموظف' : '📄 Fiche Employé', callback_data: 'full:'+emp.id}],
+      [{text: ar ? '🏖️ رصيد العطل' : '🏖️ Solde Congés', callback_data: 'leave:'+emp.id}],
+      [{text: ar ? '📝 قسم الطلبات' : '📝 Demander Doc', callback_data: 'docs:'+emp.id}],
+      [{text: ar ? '🚨 إعلام غياب' : '🚨 Absence', callback_data: 'abs:'+emp.id}],
       [{text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu'}]
   ]};
   return send(chatId, msg, kbd);
@@ -99,14 +114,16 @@ async function handle(u) {
 
   if (cbq) {
       const d = cbq.data;
-      if (d === 'menu') {
-          return send(chatId, ar ? '📋 <b>القائمة الرئيسية</b>' : '📋 <b>Menu Principal</b>', {inline_keyboard: [
-              [{text: ar ? '🔍 بحث عن موظف' : '🔍 Chercher employé', callback_data: 'search'}]
-          ]});
-      }
-      if (d === 'search') {
-          states.set(chatId, {step: 'search'});
-          return send(chatId, ar ? '🔍 أرسل اسم الموظف أو رقمه للبحث:' : '🔍 Entrez le nom ou l\'ID :');
+      if (d === 'menu') return showMenu(chatId, user, ar);
+      if (d === 'search') { states.set(chatId, {step: 'search'}); return send(chatId, ar ? '🔍 أدخل اسم الموظف أو رقمه:' : '🔍 Entrez nom ou ID:'); }
+      if (d === 'choose_lang') return send(chatId, 'Language?', {inline_keyboard: [[{text:'AR',callback_data:'lang:ar'},{text:'FR',callback_data:'lang:fr'}]]});
+      if (d.startsWith('lang:')) { langs.set(chatId, d.split(':')[1]); return showMenu(chatId, user, d.split(':')[1]==='ar'); }
+      if (d === 'sync') { const r = await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
+      if (d === 'my_profile') {
+          const db = loadDB();
+          const emp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
+          if (emp) return showCard(chatId, emp, ar, user);
+          return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي.' : '❌ Profil introuvable.');
       }
   }
 
@@ -114,37 +131,19 @@ async function handle(u) {
       states.delete(chatId);
       const db = loadDB();
       const query = txt.toLowerCase();
-      const visible = getVisibleEmployees(user, db);
-      const results = visible.filter(e => 
+      const results = (db.hr_employees || []).filter(e => 
           String(e.clockingId).includes(query) || 
           T(e.lastName_fr).toLowerCase().includes(query) || 
-          T(e.firstName_fr).toLowerCase().includes(query) ||
-          T(e.lastName_ar).includes(query) ||
-          T(e.firstName_ar).includes(query)
+          T(e.firstName_fr).toLowerCase().includes(query)
       ).slice(0, 5);
 
-      if (results.length === 0) return send(chatId, ar ? '❌ لم يتم العثور على نتائج.' : '❌ Aucun résultat.');
-      
-      for (const emp of results) {
-          await showCard(chatId, emp, ar);
-      }
+      if (results.length === 0) return send(chatId, ar ? '❌ لا توجد نتائج.' : '❌ Aucun résultat.');
+      for (const emp of results) await showCard(chatId, emp, ar, user);
       return;
   }
 
-  if (txt === '/start' || txt === '/menu') {
-      return send(chatId, ar ? '🌟 <b>أهلاً بك في نظام TewfikSoft HR</b>' : '🌟 <b>Bienvenue sur TewfikSoft HR</b>', {inline_keyboard: [
-          [{text: ar ? '🔍 ابدأ البحث' : '🔍 Démarrer la recherche', callback_data: 'search'}]
-      ]});
-  }
-
-  if (txt === '/info') {
-      states.set(chatId, {step: 'search'});
-      return send(chatId, ar ? '🔍 أرسل اسم الموظف أو رقمه للبحث:' : '🔍 Entrez le nom ou l\'ID :');
-  }
-
-  if (txt === '/sync' && (user.role === 'admin')) {
-      const r = await syncDB();
-      return send(chatId, `🔄 Sync Result: ${r}`);
+  if (txt === '/start' || txt === '/menu' || txt === '/start ar' || txt === '/start fr') {
+      return showMenu(chatId, user, ar);
   }
 }
 
@@ -161,45 +160,33 @@ http.createServer(async (req, res) => {
     });
     return;
   }
-
   if (req.method === 'POST' && req.url === '/api/config') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const newConfig = JSON.parse(body);
-        if (newConfig.authorized_users) {
-          fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2), 'utf8');
-          log('✅ Config updated.');
-          res.writeHead(200); res.end(JSON.stringify({success:true}));
-          return;
-        }
-      } catch(e) {}
-      res.writeHead(400); res.end('Fail');
+        fs.writeFileSync(CONFIG_PATH, body);
+        res.writeHead(200); res.end(JSON.stringify({success:true}));
+      } catch(e) { res.writeHead(400); res.end('Fail'); }
     });
     return;
   }
-
   if (req.method === 'POST' && req.url === '/api/database') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
         fs.writeFileSync(DB_PATH, body);
-        log('✅ Database updated.');
         res.writeHead(200); res.end(JSON.stringify({success:true}));
-        return;
-      } catch(e) {}
-      res.writeHead(400); res.end('Fail');
+      } catch(e) { res.writeHead(400); res.end('Fail'); }
     });
     return;
   }
-
-  res.writeHead(200); res.end('TewfikSoft HR Bot v4.6 Full Feature Mode');
+  res.writeHead(200); res.end('TewfikSoft HR Bot v4.7 Menus Restored');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v4.6 Starting... ===');
+  log('=== TewfikSoft HR Bot v4.7 Menus Restored Starting... ===');
   await syncDB();
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});

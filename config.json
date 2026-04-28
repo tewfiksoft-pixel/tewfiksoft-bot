@@ -1,4 +1,5 @@
 {
+  "bot_token": "8675308284:AAGKyy40trDM5RGeRv2NjmKPfZv_Pi0fvr0",
   "authorized_users": [
     {
       "id": "7035116029",
@@ -7,7 +8,9 @@
       "scope": "custom_employees",
       "allowed_departments": null,
       "allowed_company": null,
-      "allowed_employees": []
+      "allowed_employees": [],
+      "clockingId": null,
+      "phone": null
     },
     {
       "id": "6480391203",
@@ -16,28 +19,55 @@
       "scope": null,
       "allowed_departments": null,
       "allowed_company": null,
-      "allowed_employees": null
-    },
-    {
-      "id": "965443735",
-      "name": "222",
-      "role": "manager",
-      "scope": "custom_employees",
-      "allowed_departments": [],
-      "allowed_company": "all",
-      "allowed_employees": [
-        "70041"
-      ]
+      "allowed_employees": null,
+      "clockingId": null,
+      "phone": null
     },
     {
       "id": "8626592284",
-      "name": "NOUAR Tewfik",
+      "name": "NOUAR Soft",
       "role": "admin",
       "scope": "all",
       "allowed_departments": [],
       "allowed_company": "all",
       "allowed_employees": [],
-      "clockingId": "60258"
+      "clockingId": null,
+      "phone": null
+    },
+    {
+      "id": "965443735",
+      "name": "REFFAS FARIDA",
+      "role": "admin",
+      "scope": "all",
+      "allowed_departments": [],
+      "allowed_company": "all",
+      "allowed_employees": [],
+      "clockingId": null,
+      "phone": null
     }
-  ]
+  ],
+  "is_enabled": true,
+  "proxy_enabled": false,
+  "proxy_host": null,
+  "proxy_port": null,
+  "proxy_user": null,
+  "proxy_pass": null,
+  "proxy_protocol": "socks5",
+  "display_settings": {
+    "show_department": true,
+    "show_probation_end": true,
+    "show_job_title": true,
+    "show_bank_account": false,
+    "show_contract_type": true,
+    "show_address": false,
+    "show_hiring_date": true,
+    "show_social_number": false,
+    "show_phone": true,
+    "show_photo": true,
+    "show_contract_end": true
+  },
+  "allowed_documents": {
+    "doc_0": true,
+    "doc_1": true
+  }
 }

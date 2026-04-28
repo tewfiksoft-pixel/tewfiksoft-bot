@@ -57,18 +57,11 @@ const states = new Map();
 
 // ── Document types list ──
 const DOC_TYPES = [
-  { id: 'att_travail', fr: 'Attestation de Travail', ar: 'شهادة العمل' },
   { id: 'releve_emol', fr: 'Relevé des Émoluments', ar: 'كشف الرواتب' },
-  { id: 'ass_auto', fr: 'Assurance Automobile', ar: 'تأمين السيارة' },
-  { id: 'cpt_banc', fr: 'Ouverture Compte Bancaire', ar: 'فتح حساب بنكي' },
-  { id: 'cpt_ccp', fr: 'Ouverture Compte CCP', ar: 'فتح حساب CCP' },
-  { id: 'dos_bourse', fr: 'Dossier Bourse', ar: 'ملف المنحة' },
-  { id: 'dos_visa', fr: 'Dossier Visa', ar: 'ملف التأشيرة' },
-  { id: 'dos_passeport', fr: 'Dossier Passeport', ar: 'ملف جواز السفر' },
-  { id: 'achat_fac', fr: 'Achat par Facilité', ar: 'شراء بالتسهيل' },
-  { id: 'dos_famille', fr: 'Dossier Soutien de Famille', ar: 'ملف إعالة العائلة' },
-  { id: 'dos_logement', fr: 'Dossier Logement', ar: 'ملف السكن' },
-  { id: 'credit_banc', fr: 'Crédit Bancaire', ar: 'القرض البنكي' },
+  { id: 'att_travail', fr: 'Attestation de Travail', ar: 'شهادة العمل' },
+  { id: 'carte_chifa', fr: 'Activation Carte Chifa', ar: 'تفعيل بطاقة الشفاء' },
+  { id: 'accident', fr: 'Déclaration Accident de Travail', ar: 'تصريح حادث عمل' },
+  { id: 'fiche_paie', fr: 'Fiche de Paie', ar: 'كشف الراتب' },
 ];
 
 // ─────── UI ───────
@@ -182,17 +175,14 @@ async function handle(u) {
     if (d.startsWith('reqmenu:')) {
       const empId = d.split(':')[1];
       const rows = [
-        [{ text: ar ? '📋 شهادة العمل' : '📋 Attestation de Travail', callback_data: 'rdoc:att_travail:' + empId }],
         [{ text: ar ? '💰 كشف الرواتب' : '💰 Relevé des Émoluments', callback_data: 'rdoc:releve_emol:' + empId }],
-        [{ text: ar ? '━━ الملف الإداري ━━' : '━━ Dossier Administratif ━━', callback_data: 'noop' }],
-        [{ text: ar ? '🚗 تأمين السيارة' : '🚗 Assurance Auto', callback_data: 'rdoc:ass_auto:' + empId }, { text: ar ? '🏦 حساب بنكي' : '🏦 Compte Bancaire', callback_data: 'rdoc:cpt_banc:' + empId }],
-        [{ text: ar ? '📮 حساب CCP' : '📮 Compte CCP', callback_data: 'rdoc:cpt_ccp:' + empId }, { text: ar ? '🎓 ملف المنحة' : '🎓 Dossier Bourse', callback_data: 'rdoc:dos_bourse:' + empId }],
-        [{ text: ar ? '✈️ ملف التأشيرة' : '✈️ Dossier Visa', callback_data: 'rdoc:dos_visa:' + empId }, { text: ar ? '🛂 جواز السفر' : '🛂 Dossier Passeport', callback_data: 'rdoc:dos_passeport:' + empId }],
-        [{ text: ar ? '🛒 شراء بالتسهيل' : '🛒 Achat par Facilité', callback_data: 'rdoc:achat_fac:' + empId }, { text: ar ? '👨‍👩‍👧 إعالة العائلة' : '👨‍👩‍👧 Soutien Famille', callback_data: 'rdoc:dos_famille:' + empId }],
-        [{ text: ar ? '🏠 ملف السكن' : '🏠 Dossier Logement', callback_data: 'rdoc:dos_logement:' + empId }, { text: ar ? '💳 القرض البنكي' : '💳 Crédit Bancaire', callback_data: 'rdoc:credit_banc:' + empId }],
+        [{ text: ar ? '📋 شهادة العمل' : '📋 Attestation de Travail', callback_data: 'rdoc:att_travail:' + empId }],
+        [{ text: ar ? '💳 تفعيل بطاقة الشفاء' : '💳 Activation Carte Chifa', callback_data: 'rdoc:carte_chifa:' + empId }],
+        [{ text: ar ? '🚨 تصريح حادث عمل' : '🚨 Déclaration Accident de Travail', callback_data: 'rdoc:accident:' + empId }],
+        [{ text: ar ? '📄 كشف الراتب' : '📄 Fiche de Paie', callback_data: 'rdoc:fiche_paie:' + empId }],
         [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'back:' + empId }]
       ];
-      return send(chatId, ar ? '📄 <b>اختر نوع الوثيقة المطلوبة:</b>' : '📄 <b>Choisissez le document :</b>', { inline_keyboard: rows });
+      return send(chatId, ar ? '📄 <b>اختر الوثيقة المطلوبة:</b>' : '📄 <b>Choisissez le document :</b>', { inline_keyboard: rows });
     }
 
     // ── Document selected → ask reason ──

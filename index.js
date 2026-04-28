@@ -1,8 +1,7 @@
-// TewfikSoft Cloud Bot v4.8 - Render.com Edition (Full Button Logic Restored)
+// TewfikSoft Cloud Bot v4.9 - Ultimate Stability Edition
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import http from 'http';
 
@@ -67,7 +66,7 @@ function showMenu(chatId, user, ar) {
   if (user.role === 'admin') {
     kbd.inline_keyboard.push([{text:ar?'🔄 تحديث البيانات':'🔄 Sync DB',callback_data:'sync'}]);
   }
-  kbd.inline_keyboard.push([{text:ar?'🌐 تغيير اللغة':'🌐 Changer Langue',callback_data:'choose_lang'}]);
+  kbd.inline_keyboard.push([{text:ar?'🌐 تغيير اللغة':'🌐 Changer اللغة',callback_data:'choose_lang'}]);
   return send(chatId, txt, kbd);
 }
 
@@ -85,6 +84,7 @@ function showCard(chatId, emp, ar) {
 }
 
 async function handle(u) {
+  if (!u) return;
   const cbq = u.callback_query;
   const msg = u.message || cbq?.message;
   const from = u.message?.from || cbq?.from;
@@ -99,10 +99,13 @@ async function handle(u) {
   const fromUser = (from.username || '').toLowerCase().trim();
   const user = cfg.authorized_users?.find(u => {
       const adId = String(u.id || '').replace('@', '').toLowerCase().trim();
-      return adId === String(fromId) || (fromUser && adId === fromUser);
+      return adId === fromId || (fromUser && adId === fromUser);
   });
 
-  if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
+  if (!user) {
+      log(`❌ Unauthorized: ${fromId} (@${fromUser})`);
+      return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
+  }
 
   if (cbq) {
       await tg('answerCallbackQuery', {callback_query_id: cbq.id});
@@ -119,19 +122,17 @@ async function handle(u) {
           if (emp) return showCard(chatId, emp, ar);
           return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي.' : '❌ Profil introuvable.');
       }
-      if (d === 'stats') return send(chatId, ar ? '📊 ميزة الإحصائيات ستتوفر قريباً في الإصدار السحابي.' : '📊 Les statistiques seront bient\u00F4t disponibles.');
-      if (d === 'team') return send(chatId, ar ? '👥 ميزة الفريق ستتوفر قريباً.' : '👥 La liste d\'\u00E9quipe sera bient\u00F4t disponible.');
       
       if (d.startsWith('full:')) {
           const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-          if (!emp) return send(chatId, 'Error');
+          if (!emp) return;
           const res = ar ? `📋 <b>الملف الكامل:</b>\n👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n💼 ${T(emp.jobTitle_ar)}\n🏢 ${T(emp.department_ar)}\n📅 البداية: ${emp.startDate||'—'}\n🔚 النهاية: ${emp.contractEndDate||'—'}` :
                            `📋 <b>FICHE COMPL\u00C8TE:</b>\n👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n💼 ${T(emp.jobTitle_fr)}\n🏢 ${T(emp.department_fr)}\n📅 D\u00E9but: ${emp.startDate||'—'}\n🔚 Fin: ${emp.contractEndDate||'—'}`;
           return send(chatId, res, {inline_keyboard: [[{text: ar?'🔙 رجوع':'🔙 Retour', callback_data:'emp:'+emp.id}]]});
       }
       if (d.startsWith('leave:')) {
           const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-          if (!emp) return send(chatId, 'Error');
+          if (!emp) return;
           return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n👤 ${T(emp.lastName_ar)}\n📅 رصيد 2024: <b>${emp.leaveBalance||0}</b> يوم` : 
                                   `🏖️ <b>SOLDE CONG\u00C9S:</b>\n👤 ${T(emp.lastName_fr)}\n📅 Solde 2024: <b>${emp.leaveBalance||0}</b> j`, {inline_keyboard: [[{text: ar?'🔙 رجوع':'🔙 Retour', callback_data:'emp:'+emp.id}]]});
       }
@@ -166,7 +167,7 @@ http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const u = JSON.parse(body);
-        if (u.update_id) await handle(u).catch(e => log('Err: ' + e.message));
+        if (u.update_id) await handle(u).catch(e => log('Webhook Err: ' + e.message));
       } catch(e) {}
       res.writeHead(200); res.end('OK');
     });
@@ -196,11 +197,11 @@ http.createServer(async (req, res) => {
     });
     return;
   }
-  res.writeHead(200); res.end('TewfikSoft HR Bot v4.8 Full Button Logic');
+  res.writeHead(200); res.end('TewfikSoft HR Bot v4.9 Active');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v4.8 Starting... ===');
+  log('=== TewfikSoft HR Bot v4.9 Starting... ===');
   await syncDB();
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});

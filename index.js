@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v4.7 - Render.com Edition (Legacy Menus Restored)
+// TewfikSoft Cloud Bot v4.8 - Render.com Edition (Full Button Logic Restored)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -57,36 +57,28 @@ function showMenu(chatId, user, ar) {
   if (user.role === 'admin' || user.role === 'general_manager') {
     kbd.inline_keyboard.push([{text:ar?'📊 إحصائيات الشركة':'📊 Statistiques',callback_data:'stats'}]);
   }
-
   if (user.role === 'supervisor' || user.role === 'admin' || user.role === 'manager') {
     kbd.inline_keyboard.push([{text:ar?'👥 فريقي':'👥 Mon Équipe',callback_data:'team'}]);
   }
-
   kbd.inline_keyboard.push([{text:ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
-  
-  if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.role === 'manager') {
+  if (user.role === 'employee' || user.role === 'gestionnaire_rh' || user.role === 'manager' || user.role === 'admin') {
     kbd.inline_keyboard.push([{text:ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'my_profile'}]);
   }
-  
   if (user.role === 'admin') {
     kbd.inline_keyboard.push([{text:ar?'🔄 تحديث البيانات':'🔄 Sync DB',callback_data:'sync'}]);
   }
-
   kbd.inline_keyboard.push([{text:ar?'🌐 تغيير اللغة':'🌐 Changer Langue',callback_data:'choose_lang'}]);
-
   return send(chatId, txt, kbd);
 }
 
-function showCard(chatId, emp, ar, user) {
+function showCard(chatId, emp, ar) {
   const msg = ar 
-    ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 القسم: ${T(emp.department_ar)}\n\nيرجى اختيار الإجراء:`
-    : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Dept: ${T(emp.department_fr)}\n\nVeuillez choisir:`;
+    ? `📂 <b>خيارات الموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 القسم: ${T(emp.department_ar)}`
+    : `📂 <b>OPTIONS EMPLOYÉ</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Dept: ${T(emp.department_fr)}`;
   
   const kbd = {inline_keyboard: [
       [{text: ar ? '📄 ملف الموظف' : '📄 Fiche Employé', callback_data: 'full:'+emp.id}],
       [{text: ar ? '🏖️ رصيد العطل' : '🏖️ Solde Congés', callback_data: 'leave:'+emp.id}],
-      [{text: ar ? '📝 قسم الطلبات' : '📝 Demander Doc', callback_data: 'docs:'+emp.id}],
-      [{text: ar ? '🚨 إعلام غياب' : '🚨 Absence', callback_data: 'abs:'+emp.id}],
       [{text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu'}]
   ]};
   return send(chatId, msg, kbd);
@@ -113,17 +105,39 @@ async function handle(u) {
   if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
 
   if (cbq) {
+      await tg('answerCallbackQuery', {callback_query_id: cbq.id});
       const d = cbq.data;
       if (d === 'menu') return showMenu(chatId, user, ar);
       if (d === 'search') { states.set(chatId, {step: 'search'}); return send(chatId, ar ? '🔍 أدخل اسم الموظف أو رقمه:' : '🔍 Entrez nom ou ID:'); }
       if (d === 'choose_lang') return send(chatId, 'Language?', {inline_keyboard: [[{text:'AR',callback_data:'lang:ar'},{text:'FR',callback_data:'lang:fr'}]]});
       if (d.startsWith('lang:')) { langs.set(chatId, d.split(':')[1]); return showMenu(chatId, user, d.split(':')[1]==='ar'); }
       if (d === 'sync') { const r = await syncDB(); return send(chatId, `🔄 Sync: ${r}`); }
+      
+      const db = loadDB();
       if (d === 'my_profile') {
-          const db = loadDB();
           const emp = db.hr_employees?.find(e => String(e.clockingId) === String(user.clockingId));
-          if (emp) return showCard(chatId, emp, ar, user);
+          if (emp) return showCard(chatId, emp, ar);
           return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي.' : '❌ Profil introuvable.');
+      }
+      if (d === 'stats') return send(chatId, ar ? '📊 ميزة الإحصائيات ستتوفر قريباً في الإصدار السحابي.' : '📊 Les statistiques seront bient\u00F4t disponibles.');
+      if (d === 'team') return send(chatId, ar ? '👥 ميزة الفريق ستتوفر قريباً.' : '👥 La liste d\'\u00E9quipe sera bient\u00F4t disponible.');
+      
+      if (d.startsWith('full:')) {
+          const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
+          if (!emp) return send(chatId, 'Error');
+          const res = ar ? `📋 <b>الملف الكامل:</b>\n👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n💼 ${T(emp.jobTitle_ar)}\n🏢 ${T(emp.department_ar)}\n📅 البداية: ${emp.startDate||'—'}\n🔚 النهاية: ${emp.contractEndDate||'—'}` :
+                           `📋 <b>FICHE COMPL\u00C8TE:</b>\n👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n💼 ${T(emp.jobTitle_fr)}\n🏢 ${T(emp.department_fr)}\n📅 D\u00E9but: ${emp.startDate||'—'}\n🔚 Fin: ${emp.contractEndDate||'—'}`;
+          return send(chatId, res, {inline_keyboard: [[{text: ar?'🔙 رجوع':'🔙 Retour', callback_data:'emp:'+emp.id}]]});
+      }
+      if (d.startsWith('leave:')) {
+          const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
+          if (!emp) return send(chatId, 'Error');
+          return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n👤 ${T(emp.lastName_ar)}\n📅 رصيد 2024: <b>${emp.leaveBalance||0}</b> يوم` : 
+                                  `🏖️ <b>SOLDE CONG\u00C9S:</b>\n👤 ${T(emp.lastName_fr)}\n📅 Solde 2024: <b>${emp.leaveBalance||0}</b> j`, {inline_keyboard: [[{text: ar?'🔙 رجوع':'🔙 Retour', callback_data:'emp:'+emp.id}]]});
+      }
+      if (d.startsWith('emp:')) {
+          const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
+          if (emp) return showCard(chatId, emp, ar);
       }
   }
 
@@ -138,13 +152,11 @@ async function handle(u) {
       ).slice(0, 5);
 
       if (results.length === 0) return send(chatId, ar ? '❌ لا توجد نتائج.' : '❌ Aucun résultat.');
-      for (const emp of results) await showCard(chatId, emp, ar, user);
+      for (const emp of results) await showCard(chatId, emp, ar);
       return;
   }
 
-  if (txt === '/start' || txt === '/menu' || txt === '/start ar' || txt === '/start fr') {
-      return showMenu(chatId, user, ar);
-  }
+  if (txt === '/start' || txt === '/menu') return showMenu(chatId, user, ar);
 }
 
 http.createServer(async (req, res) => {
@@ -166,7 +178,8 @@ http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         fs.writeFileSync(CONFIG_PATH, body);
-        res.writeHead(200); res.end(JSON.stringify({success:true}));
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({success:true}));
       } catch(e) { res.writeHead(400); res.end('Fail'); }
     });
     return;
@@ -177,16 +190,17 @@ http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         fs.writeFileSync(DB_PATH, body);
-        res.writeHead(200); res.end(JSON.stringify({success:true}));
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({success:true}));
       } catch(e) { res.writeHead(400); res.end('Fail'); }
     });
     return;
   }
-  res.writeHead(200); res.end('TewfikSoft HR Bot v4.7 Menus Restored');
+  res.writeHead(200); res.end('TewfikSoft HR Bot v4.8 Full Button Logic');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v4.7 Menus Restored Starting... ===');
+  log('=== TewfikSoft HR Bot v4.8 Starting... ===');
   await syncDB();
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});

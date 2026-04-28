@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v5.0 - Admin Custom Edition
+// TewfikSoft Cloud Bot v5.1 - Admin Pro Edition (Notifications + Smart Flow)
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -11,8 +11,10 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
+const REQS_PATH = path.join(DATA_DIR, 'requests.json');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const ADMIN_ID = process.env.ADMIN_CHAT_ID; // معرف الأدمن لاستلام الإشعارات
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
 
 const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
@@ -58,32 +60,13 @@ function showMainMenu(chatId, user, ar) {
 
 function showInfoPage(chatId, user, ar) {
   let kbd = {inline_keyboard: []};
-  const isManagement = ['admin', 'general_manager', 'gestionnaire_rh'].includes(user.role);
-
-  kbd.inline_keyboard.push([
-      {text: ar ? '📁 ملفاتي' : '📁 Mes Fichiers', callback_data: 'my_files'},
-      {text: ar ? '👤 الملف الشخصي' : '👤 Profil', callback_data: 'my_profile'}
-  ]);
-  kbd.inline_keyboard.push([
-      {text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave_balance'},
-      {text: ar ? '📈 الإحصائيات' : '📈 Stats', callback_data: 'stats'}
-  ]);
-  kbd.inline_keyboard.push([
-      {text: ar ? '🔍 البحث عن عامل' : '🔍 Recherche', callback_data: 'search'},
-      {text: ar ? '📄 طلب وثائق' : '📄 Documents', callback_data: 'docs'}
-  ]);
-  kbd.inline_keyboard.push([
-      {text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'contracts'},
-      {text: ar ? '🚨 إعلام غياب' : '🚨 Absence', callback_data: 'absence'}
-  ]);
-  kbd.inline_keyboard.push([
-      {text: ar ? '🗳️ استبيان' : '🗳️ Survey', callback_data: 'survey'}
-  ]);
-  kbd.inline_keyboard.push([
-      {text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu'}
-  ]);
-
-  const txt = ar ? '🛠️ <b>لوحة التحكم والمعلومات</b>\n━━━━━━━━━━━━━━\nيرجى اختيار القسم:' : '🛠️ <b>PANNEAU DE CONTRÔLE</b>\n━━━━━━━━━━━━━━\nSections disponibles:';
+  kbd.inline_keyboard.push([{text: ar ? '📁 ملفاتي' : '📁 Mes Fichiers', callback_data: 'my_files'}, {text: ar ? '👤 الملف الشخصي' : '👤 Profil', callback_data: 'my_profile'}]);
+  kbd.inline_keyboard.push([{text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave_balance'}, {text: ar ? '📈 الإحصائيات' : '📈 Stats', callback_data: 'stats'}]);
+  kbd.inline_keyboard.push([{text: ar ? '🔍 البحث عن عامل' : '🔍 Recherche', callback_data: 'search'}, {text: ar ? '📄 طلب وثائق' : '📄 Documents', callback_data: 'docs'}]);
+  kbd.inline_keyboard.push([{text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'contracts'}, {text: ar ? '🚨 إعلام غياب' : '🚨 Absence', callback_data: 'absence'}]);
+  kbd.inline_keyboard.push([{text: ar ? '🗳️ استبيان' : '🗳️ Survey', callback_data: 'survey'}]);
+  kbd.inline_keyboard.push([{text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu'}]);
+  const txt = ar ? '🛠️ <b>لوحة التحكم والمعلومات</b>' : '🛠️ <b>PANNEAU DE CONTRÔLE</b>';
   return send(chatId, txt, kbd);
 }
 
@@ -98,7 +81,6 @@ async function handle(u) {
   const fromId = String(from.id);
   const txt = (msg.text||'').trim().toLowerCase();
   
-  // 1. Check if user is authorized
   const cfg = loadConfig();
   const fromUser = (from.username || '').toLowerCase().trim();
   const user = cfg.authorized_users?.find(u => {
@@ -107,29 +89,39 @@ async function handle(u) {
   });
   if (!user) return send(chatId, `❌ Unauthorized ID: <code>${fromId}</code>`);
 
-  // 2. FORCE Language selection first
-  if (!langs.has(chatId) && !cbq?.data?.startsWith('lang:')) {
-      return showLanguageSelect(chatId);
-  }
-
+  if (!langs.has(chatId) && !cbq?.data?.startsWith('lang:')) return showLanguageSelect(chatId);
   const ar = (langs.get(chatId) || 'ar') === 'ar';
 
   if (cbq) {
       await tg('answerCallbackQuery', {callback_query_id: cbq.id});
       const d = cbq.data;
-      if (d.startsWith('lang:')) { langs.set(chatId, d.split(':')[1]); return showMainMenu(chatId, user, d.split(':')[1]==='ar'); }
+      if (d.startsWith('lang:')) { 
+          const l = d.split(':')[1];
+          langs.set(chatId, l);
+          const isAr = l === 'ar';
+          await send(chatId, isAr ? '✅ <b>تم تغيير اللغة بنجاح!</b>' : '✅ <b>Langue changée avec succès !</b>');
+          await send(chatId, isAr ? `🌟 <b>مرحباً بك ${user.name}، أنا في خدمتك.</b>\n\n🔍 اكتب الآن <b>رقم العامل</b> أو اسمه للبحث عنه:` : `🌟 <b>Bienvenue ${user.name}, à votre service.</b>\n\n🔍 Entrez maintenant le <b>numéro d'employé</b> ou son nom :`);
+          states.set(chatId, {step: 'search'});
+          return;
+      }
       if (d === 'choose_lang') return showLanguageSelect(chatId);
       if (d === 'menu') return showMainMenu(chatId, user, ar);
       if (d === 'info_page') return showInfoPage(chatId, user, ar);
-      if (d === 'search') { states.set(chatId, {step: 'search'}); return send(chatId, ar ? '🔍 أدخل اسم الموظف أو رقمه:' : '🔍 Entrez nom ou ID:'); }
+      if (d === 'search') { 
+          states.set(chatId, {step: 'search'}); 
+          return send(chatId, ar ? '🔍 اكتب الآن <b>رقم العامل</b> أو اسمه للبحث عنه:' : '🔍 Entrez le <b>numéro d\'employé</b> أو son nom :'); 
+      }
       
-      // Feature Placeholders
-      if (['stats', 'contracts', 'survey', 'absence', 'docs', 'my_files', 'leave_balance', 'my_profile'].includes(d)) {
-          return send(chatId, ar ? '🚧 هذه الميزة قيد التفعيل في الإصدار السحابي الجديد.' : '🚧 Cette fonction sera bientôt disponible.');
+      // Placeholder for Doc Request with Admin Notification
+      if (d === 'docs') {
+          if (ADMIN_ID) {
+              await send(ADMIN_ID, `🔔 <b>إشعار طلب وثيقة:</b>\n👤 الموظف: ${user.name}\n🆔 المعرف: ${fromId}\n📂 القسم: طلب وثائق`);
+          }
+          return send(chatId, ar ? '📄 تم إرسال طلبك للمدير بنجاح.' : '📄 Votre demande a été envoyée au directeur.');
       }
   }
 
-  if (states.get(chatId)?.step === 'search' && txt) {
+  if (states.get(chatId)?.step === 'search' && txt && txt !== '/start' && txt !== '/m' && txt !== '/info') {
       states.delete(chatId);
       const db = loadDB();
       const query = txt.toLowerCase();
@@ -139,12 +131,12 @@ async function handle(u) {
           T(e.firstName_fr).toLowerCase().includes(query)
       ).slice(0, 5);
 
-      if (results.length === 0) return send(chatId, ar ? '❌ لا توجد نتائج.' : '❌ Aucun résultat.');
+      if (results.length === 0) return send(chatId, ar ? '❌ لم يتم العثور على نتائج.' : '❌ Aucun résultat.');
       for (const emp of results) {
           const card = ar ? `👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n🆔 ${emp.clockingId}\n💼 ${T(emp.jobTitle_ar)}` : `👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n🆔 ${emp.clockingId}\n💼 ${T(emp.jobTitle_fr)}`;
           await send(chatId, card);
       }
-      return;
+      return send(chatId, ar ? '🔍 هل تود البحث عن عامل آخر؟' : '🔍 Chercher un autre ?');
   }
 
   if (txt === '/start' || txt === '/m') return showMainMenu(chatId, user, ar);
@@ -153,46 +145,28 @@ async function handle(u) {
 
 http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/webhook') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
+    let body = ''; req.on('data', chunk => body += chunk);
     req.on('end', async () => {
-      try {
-        const u = JSON.parse(body);
-        if (u.update_id) await handle(u).catch(e => log('Err: ' + e.message));
-      } catch(e) {}
+      try { const u = JSON.parse(body); if (u.update_id) await handle(u).catch(e => log('Err: ' + e.message)); } catch(e) {}
       res.writeHead(200); res.end('OK');
     });
     return;
   }
   if (req.method === 'POST' && req.url === '/api/config') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        fs.writeFileSync(CONFIG_PATH, body);
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify({success:true}));
-      } catch(e) { res.writeHead(400); res.end('Fail'); }
-    });
+    let body = ''; req.on('data', chunk => body += chunk);
+    req.on('end', () => { try { fs.writeFileSync(CONFIG_PATH, body); res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({success:true})); } catch(e) { res.writeHead(400); res.end('Fail'); } });
     return;
   }
   if (req.method === 'POST' && req.url === '/api/database') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        fs.writeFileSync(DB_PATH, body);
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify({success:true}));
-      } catch(e) { res.writeHead(400); res.end('Fail'); }
-    });
+    let body = ''; req.on('data', chunk => body += chunk);
+    req.on('end', () => { try { fs.writeFileSync(DB_PATH, body); res.writeHead(200, {'Content-Type': 'application/json'}); res.end(JSON.stringify({success:true})); } catch(e) { res.writeHead(400); res.end('Fail'); } });
     return;
   }
-  res.writeHead(200); res.end('Bot v5.0 Admin Edition Active');
+  res.writeHead(200); res.end('Bot v5.1 Smart Flow Active');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v5.0 Starting... ===');
+  log('=== TewfikSoft HR Bot v5.1 Starting... ===');
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});
   log('Webhook set to: ' + url);

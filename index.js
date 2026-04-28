@@ -153,7 +153,7 @@ function showEmployeeCard(chatId, emp, ar, role) {
     [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }]
   ]};
   
-  if (role !== 'employee') {
+  if (role !== 'employee' && role !== 'gestionnaire_rh') {
     kbd.inline_keyboard.push([{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ الاستبيان' : '🗳️ Sondage', callback_data: 'survey:' + emp.id }]);
   }
   

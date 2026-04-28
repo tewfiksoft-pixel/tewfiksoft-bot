@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v7.1 - THE FINAL MASTERPIECE (Fixed Sync)
+// TewfikSoft Cloud Bot v7.2 - Heavy Data Edition (Compression Support)
 import express from 'express';
 import https from 'https';
 import fs from 'fs';
@@ -6,6 +6,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
+import zlib from 'zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, 'data');
@@ -61,17 +62,16 @@ const tg = (method, body) => new Promise((res) => {
 const send = (chatId, text, kbd=null) => tg('sendMessage', {chat_id:chatId, text:'💎 '+text, parse_mode:'HTML', ...(kbd?{reply_markup:kbd}:{})});
 
 const app = express();
-app.use(bodyParser.text({limit: '50mb', type: '*/*'})); // RECEIVE EVERYTHING AS RAW TEXT
+app.use(bodyParser.raw({limit: '50mb', type: '*/*'})); // RECEIVE EVERYTHING AS RAW BINARY
 
 const langs = new Map();
 const states = new Map();
 
 function showMenu(chatId, user, ar) {
   const role = String(user.role).toLowerCase();
-  const isMgmt = ['admin', 'general_manager', 'manager'].includes(role);
   let kbd = {inline_keyboard: []};
-  if (role === 'admin' || role === 'general_manager') kbd.inline_keyboard.push([{text: ar ? '📊 إحصائيات ALVER & ALVERTEK' : '📊 Stats ALVER & ALVERTEK', callback_data: 'stats'}]);
-  if (isMgmt) kbd.inline_keyboard.push([{text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search'}]);
+  if (['admin', 'general_manager'].includes(role)) kbd.inline_keyboard.push([{text: ar ? '📊 إحصائيات ALVER & ALVERTEK' : '📊 Stats ALVER & ALVERTEK', callback_data: 'stats'}]);
+  kbd.inline_keyboard.push([{text: ar ? '🔍 البحث عن موظف' : '🔍 Recherche', callback_data: 'search'}]);
   kbd.inline_keyboard.push([{text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile'}], [{text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang'}]);
   return send(chatId, ar ? `💎 <b>لوحة تحكم المدير العام</b>` : `💎 <b>PANNEAU DE DIRECTION</b>`, kbd);
 }
@@ -126,13 +126,13 @@ async function handle(u) {
       }
       if (d.startsWith('leave:')) {
           const bal = (db.hr_leave_balances || []).find(b => String(b.employeeId) === d.split(':')[1]);
-          return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n📅 السنة: ${bal?.exercice||'2024'}\n✅ المتبقي: <b>${bal?.remainingDays||0}</b> يوم` : `🏖️ <b>SOLDE CONGÉS:</b>\n📅 Année: ${bal?.exercice||'2024'}\n✅ Restant: <b>${bal?.remainingDays||0}</b> jours`);
+          return send(chatId, ar ? `🏖️ <b>رصيد العطل:</b>\n✅ المتبقي: <b>${bal?.remainingDays||0}</b> يوم` : `🏖️ <b>SOLDE CONGÉS:</b>\n✅ Restant: <b>${bal?.remainingDays||0}</b> jours`);
       }
       if (d === 'stats') {
           const emps = db.hr_employees || [];
           let alver=0, alvertek=0;
           emps.forEach(e => { if (String(e.companyId || '').toLowerCase().includes('tek')) alvertek++; else alver++; });
-          return send(chatId, ar ? `📊 <b>إحصائيات ALVER & ALVERTEK:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 المجموع: <b>${emps.length}</b>` : `📊 <b>STATISTIQUES:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 Total: <b>${emps.length}</b>`);
+          return send(chatId, ar ? `📊 <b>الإحصائيات:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 المجموع: <b>${emps.length}</b>` : `📊 <b>STATS:</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b>\n🏢 ALVERTEK: <b>${alvertek}</b>\n👥 Total: <b>${emps.length}</b>`);
       }
   }
 
@@ -158,10 +158,30 @@ async function handle(u) {
   }
 }
 
-app.post('/api/webhook', (req, res) => { try { handle(JSON.parse(req.body)); } catch(e) {} res.sendStatus(200); });
-app.post('/api/config', (req, res) => { fs.writeFileSync(CONFIG_PATH, req.body); res.sendStatus(200); });
-app.post('/api/database', (req, res) => { fs.writeFileSync(DB_PATH, req.body); res.sendStatus(200); });
-app.get('/', (req, res) => res.send('TewfikSoft HR Bot v7.1 Masterpiece Fixed Active'));
+app.post('/api/webhook', (req, res) => { try { handle(JSON.parse(req.body.toString())); } catch(e) {} res.sendStatus(200); });
+
+app.post('/api/config', (req, res) => { 
+  try {
+    const data = req.body;
+    fs.writeFileSync(CONFIG_PATH, data);
+    res.sendStatus(200);
+  } catch(e) { res.status(500).send(e.message); }
+});
+
+app.post('/api/database', (req, res) => { 
+  try {
+    let data = req.body;
+    // Check if data is GZIP (starts with 1f 8b)
+    if (data[0] === 0x1f && data[1] === 0x8b) {
+        data = zlib.gunzipSync(data);
+    }
+    fs.writeFileSync(DB_PATH, data);
+    log(`Database updated. Size: ${data.length} bytes`);
+    res.sendStatus(200);
+  } catch(e) { res.status(500).send(e.message); }
+});
+
+app.get('/', (req, res) => res.send('TewfikSoft HR Bot v7.2 Heavy Data Edition Active'));
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {

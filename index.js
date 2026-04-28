@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v5.5 - Gestionnaire RH Notification Edition
+// TewfikSoft Cloud Bot v5.6 - Employee Privacy Edition
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -37,13 +37,9 @@ const langs = new Map();
 const states = new Map();
 
 async function notifyStaff(txt, cfg) {
-    // Notify Admin
     if (ADMIN_ID) await send(ADMIN_ID, `🔔 <b>إشعار جديد:</b>\n${txt}`);
-    // Notify all Gestionnaires RH
     const rhStaff = cfg.authorized_users?.filter(u => u.role === 'gestionnaire_rh') || [];
-    for (const rh of rhStaff) {
-        if (rh.id) await send(rh.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`);
-    }
+    for (const rh of rhStaff) { if (rh.id) await send(rh.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`); }
 }
 
 function showMenu(chatId, user, ar) {
@@ -51,24 +47,17 @@ function showMenu(chatId, user, ar) {
   const role = user.role;
   const isHighMgmt = ['admin', 'general_manager'].includes(role);
   const isManager = role === 'manager';
-  const isRH = role === 'gestionnaire_rh';
+  const isEmployee = role === 'employee';
 
   if (isHighMgmt) kbd.inline_keyboard.push([{text: ar?'📊 إحصائيات الشركة':'📊 Stats',callback_data:'stats'}]);
-  
-  // Managers and High Mgmt can search and filter
-  if (isManager || isHighMgmt) {
+  if (isHighMgmt || isManager) {
     kbd.inline_keyboard.push([{text: ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
     kbd.inline_keyboard.push([{text: ar?'📂 تصفية العمال':'📂 Filtrer employés',callback_data:'filter_menu'}]);
   }
 
-  // Everyone (including RH and Employee) can see their OWN profile
+  // ALL users see My Profile
   kbd.inline_keyboard.push([{text: ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'my_profile'}]);
   
-  // Only non-restricted roles can see Info Page (Dashboard)
-  if (!isRH && role !== 'employee') {
-      kbd.inline_keyboard.push([{text: ar?'📋 القائمة الشاملة':'📋 Global Menu',callback_data:'info_page'}]);
-  }
-
   kbd.inline_keyboard.push([{text: ar?'🌐 تغيير اللغة':'🌐 Changer Langue',callback_data:'choose_lang'}]);
   return send(chatId, ar ? '📌 <b>القائمة الرئيسية</b>' : '📌 <b>Menu Principal</b>', kbd);
 }
@@ -95,7 +84,6 @@ async function handle(u) {
       const d = cbq.data;
       if (d.startsWith('lang:')) { langs.set(chatId, d.split(':')[1]); return showMenu(chatId, user, d.split(':')[1]==='ar'); }
       if (d === 'menu') return showMenu(chatId, user, ar);
-      if (d === 'search') { states.set(chatId, {step: 'search'}); return send(chatId, ar ? '🔍 أرسل الرقم أو الاسم:' : '🔍 Entrez ID ou Nom:'); }
       
       const db = loadDB();
       if (d === 'my_profile') {
@@ -103,14 +91,23 @@ async function handle(u) {
           if (emp) return showCard(chatId, emp, ar);
           return send(chatId, ar ? '❌ لم يتم العثور على ملفك.' : '❌ Profil introuvable.');
       }
+      
+      // Strict role check for search
+      if (d === 'search' && user.role !== 'employee') {
+          states.set(chatId, {step: 'search'});
+          return send(chatId, ar ? '🔍 أرسل الرقم أو الاسم:' : '🔍 Entrez ID ou Nom:');
+      }
+
       if (d.startsWith('req_doc:')) {
           const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
+          // Employees can only request for themselves
+          if (user.role === 'employee' && String(emp?.clockingId) !== String(user.clockingId)) return;
           await notifyStaff(`📄 <b>طلب وثيقة جديد:</b>\n👤 الموظف: ${emp?.lastName_fr} ${emp?.firstName_fr}\n🆔 ID: ${emp?.clockingId}`, cfg);
           return send(chatId, ar ? '✅ تم إرسال طلبك بنجاح.' : '✅ Demande envoyée.');
       }
   }
 
-  if (states.get(chatId)?.step === 'search' && txt && !txt.startsWith('/')) {
+  if (states.get(chatId)?.step === 'search' && txt && user.role !== 'employee') {
       states.delete(chatId);
       const db = loadDB(), query = txt.toLowerCase();
       const results = (db.hr_employees || []).filter(e => String(e.clockingId).includes(query) || T(e.lastName_fr).toLowerCase().includes(query) || T(e.firstName_fr).toLowerCase().includes(query)).slice(0, 5);
@@ -137,11 +134,11 @@ http.createServer(async (req, res) => {
     req.on('end', () => { try { fs.writeFileSync(DB_PATH, body); res.writeHead(200); res.end('OK'); } catch(e) { res.writeHead(400); res.end('Fail'); } });
     return;
   }
-  res.writeHead(200); res.end('Bot v5.5 RH Notification Edition Active');
+  res.writeHead(200); res.end('Bot v5.6 Employee Privacy Edition Active');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v5.5 Starting... ===');
+  log('=== TewfikSoft HR Bot v5.6 Starting... ===');
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});
   log('Webhook set to: ' + url);

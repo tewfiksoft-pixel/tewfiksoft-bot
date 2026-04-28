@@ -1,4 +1,4 @@
-// TewfikSoft Cloud Bot v5.6 - Employee Privacy Edition
+// TewfikSoft Cloud Bot v5.7 - Visitor & Employee Privacy Edition
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -44,18 +44,18 @@ async function notifyStaff(txt, cfg) {
 
 function showMenu(chatId, user, ar) {
   let kbd = {inline_keyboard: []};
-  const role = user.role;
+  const role = String(user.role).toLowerCase();
   const isHighMgmt = ['admin', 'general_manager'].includes(role);
   const isManager = role === 'manager';
-  const isEmployee = role === 'employee';
+  const isRestricted = ['employee', 'visiteur'].includes(role);
 
   if (isHighMgmt) kbd.inline_keyboard.push([{text: ar?'📊 إحصائيات الشركة':'📊 Stats',callback_data:'stats'}]);
-  if (isHighMgmt || isManager) {
+  if (!isRestricted) {
     kbd.inline_keyboard.push([{text: ar?'🔍 بحث عن موظف':'🔍 Chercher employé',callback_data:'search'}]);
     kbd.inline_keyboard.push([{text: ar?'📂 تصفية العمال':'📂 Filtrer employés',callback_data:'filter_menu'}]);
   }
 
-  // ALL users see My Profile
+  // Restricted users (Employee/Visitor) see My Profile
   kbd.inline_keyboard.push([{text: ar?'👤 ملفي الشخصي':'👤 Mon Profil',callback_data:'my_profile'}]);
   
   kbd.inline_keyboard.push([{text: ar?'🌐 تغيير اللغة':'🌐 Changer Langue',callback_data:'choose_lang'}]);
@@ -92,22 +92,24 @@ async function handle(u) {
           return send(chatId, ar ? '❌ لم يتم العثور على ملفك.' : '❌ Profil introuvable.');
       }
       
-      // Strict role check for search
-      if (d === 'search' && user.role !== 'employee') {
+      const role = String(user.role).toLowerCase();
+      const isRestricted = ['employee', 'visiteur'].includes(role);
+      if (d === 'search' && !isRestricted) {
           states.set(chatId, {step: 'search'});
           return send(chatId, ar ? '🔍 أرسل الرقم أو الاسم:' : '🔍 Entrez ID ou Nom:');
       }
 
       if (d.startsWith('req_doc:')) {
           const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-          // Employees can only request for themselves
-          if (user.role === 'employee' && String(emp?.clockingId) !== String(user.clockingId)) return;
+          if (isRestricted && String(emp?.clockingId) !== String(user.clockingId)) return;
           await notifyStaff(`📄 <b>طلب وثيقة جديد:</b>\n👤 الموظف: ${emp?.lastName_fr} ${emp?.firstName_fr}\n🆔 ID: ${emp?.clockingId}`, cfg);
           return send(chatId, ar ? '✅ تم إرسال طلبك بنجاح.' : '✅ Demande envoyée.');
       }
   }
 
-  if (states.get(chatId)?.step === 'search' && txt && user.role !== 'employee') {
+  const role = String(user.role).toLowerCase();
+  const isRestricted = ['employee', 'visiteur'].includes(role);
+  if (states.get(chatId)?.step === 'search' && txt && !isRestricted) {
       states.delete(chatId);
       const db = loadDB(), query = txt.toLowerCase();
       const results = (db.hr_employees || []).filter(e => String(e.clockingId).includes(query) || T(e.lastName_fr).toLowerCase().includes(query) || T(e.firstName_fr).toLowerCase().includes(query)).slice(0, 5);
@@ -134,11 +136,11 @@ http.createServer(async (req, res) => {
     req.on('end', () => { try { fs.writeFileSync(DB_PATH, body); res.writeHead(200); res.end('OK'); } catch(e) { res.writeHead(400); res.end('Fail'); } });
     return;
   }
-  res.writeHead(200); res.end('Bot v5.6 Employee Privacy Edition Active');
+  res.writeHead(200); res.end('Bot v5.7 Visitor Privacy Edition Active');
 }).listen(process.env.PORT || 10000);
 
 (async () => {
-  log('=== TewfikSoft HR Bot v5.6 Starting... ===');
+  log('=== TewfikSoft HR Bot v5.7 Starting... ===');
   const url = `https://tewfiksoft-hr-bot.onrender.com/api/webhook`;
   await tg('setWebhook', {url});
   log('Webhook set to: ' + url);

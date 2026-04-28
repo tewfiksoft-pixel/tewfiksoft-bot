@@ -155,20 +155,51 @@ async function handle(u) {
         : `📜 <b>INFOS CONTRAT:</b>\n━━━━━━━━━━━━━━\n📜 Type: <b>${T(emp.contractType)}</b>\n📅 Début: ${T(emp.startDate)}\n🔚 Fin: ${T(emp.contractEndDate)}\n🏢 Société: ${T(emp.companyId).toUpperCase()}\n💼 CSP: ${T(emp.csp)}`);
     }
 
-    // ── Absences ──
-    if (d.startsWith('abs:')) {
-      const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-      if (!emp) return;
-      return send(chatId, ar
-        ? `🚨 <b>سجل الغيابات:</b>\n━━━━━━━━━━━━━━\n👤 ${T(emp.lastName_ar)} ${T(emp.firstName_ar)}\n📊 الحالة: <b>${emp.status === 'active' ? '✅ نشط' : '⛔ غير نشط'}</b>\n━━━━━━━━━━━━━━\n📝 لعرض تفاصيل الغيابات، يرجى الرجوع للنظام.`
-        : `🚨 <b>Registre Absences:</b>\n━━━━━━━━━━━━━━\n👤 ${T(emp.lastName_fr)} ${T(emp.firstName_fr)}\n📊 Statut: <b>${emp.status === 'active' ? '✅ Actif' : '⛔ Inactif'}</b>\n━━━━━━━━━━━━━━\n📝 Pour le détail, consultez le système.`);
+    // ── Absences Menu ──
+    if (d.startsWith('abs:') && !d.startsWith('abs_type:')) {
+      const empId = d.split(':')[1];
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ غياب مبرر' : '✅ Absence Justifiée', callback_data: 'abs_type:justified:' + empId }],
+        [{ text: ar ? '❌ غياب غير مبرر' : '❌ Absence Non Justifiée', callback_data: 'abs_type:unjustified:' + empId }],
+        [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'back:' + empId }]
+      ]};
+      return send(chatId, ar ? '🚨 <b>الإعلام عن غياب:</b>\n━━━━━━━━━━━━━━\nاختر نوع الغياب:' : '🚨 <b>Déclarer une Absence:</b>\n━━━━━━━━━━━━━━\nType d\'absence:', kbd);
     }
 
-    // ── Survey ──
-    if (d.startsWith('survey:')) {
+    if (d.startsWith('abs_type:')) {
+      const parts = d.split(':');
+      const absType = parts[1], empId = parts[2];
+      const typeName = absType === 'justified' ? (ar ? 'مبرر' : 'Justifiée') : (ar ? 'غير مبرر' : 'Non Justifiée');
+      states.set(chatId, { step: 'abs_date', absType, empId, typeName });
       return send(chatId, ar
-        ? `🗳️ <b>الاستبيان:</b>\n━━━━━━━━━━━━━━\n📝 لم يتم إرسال استبيانات حالياً.\n⏳ سيتم إشعارك عند توفر استبيان جديد.`
-        : `🗳️ <b>Sondage:</b>\n━━━━━━━━━━━━━━\n📝 Aucun sondage en cours.\n⏳ Vous serez notifié quand un nouveau sondage sera disponible.`);
+        ? `🚨 نوع الغياب: <b>${typeName}</b>\n\n📅 <b>اكتب الآن يوم الغياب</b> (مثلاً: 2026-04-28):`
+        : `🚨 Type: <b>${typeName}</b>\n\n📅 <b>Écrivez la date d'absence</b> (ex: 2026-04-28):`);
+    }
+
+    // ── Survey / Report Menu ──
+    if (d.startsWith('survey:') && !d.startsWith('survey_r:')) {
+      const empId = d.split(':')[1];
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '❌ غياب غير مبرر' : '❌ Absence Non Justifiée', callback_data: 'survey_r:abs_nj:' + empId }],
+        [{ text: ar ? '⚔️ مشاجرة' : '⚔️ Bagarre / Altercation', callback_data: 'survey_r:fight:' + empId }],
+        [{ text: ar ? '⏰ تأخر عن العمل' : '⏰ Retard au Travail', callback_data: 'survey_r:late:' + empId }],
+        [{ text: ar ? '🚪 مغادرة بدون إذن' : '🚪 Départ sans Autorisation', callback_data: 'survey_r:leave_noauth:' + empId }],
+        [{ text: ar ? '🚫 رفض العمل' : '🚫 Refus de Travail', callback_data: 'survey_r:refusal:' + empId }],
+        [{ text: ar ? '⚠️ سلوك غير مهني' : '⚠️ Comportement Non Professionnel', callback_data: 'survey_r:behavior:' + empId }],
+        [{ text: ar ? '📝 سبب آخر' : '📝 Autre Motif', callback_data: 'survey_r:other:' + empId }],
+        [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'back:' + empId }]
+      ]};
+      return send(chatId, ar ? '🗳️ <b>الإعلام عن مخالفة:</b>\n━━━━━━━━━━━━━━\nاختر السبب:' : '🗳️ <b>Déclaration d\'Incident:</b>\n━━━━━━━━━━━━━━\nMotif:', kbd);
+    }
+
+    if (d.startsWith('survey_r:')) {
+      const parts = d.split(':');
+      const reasonId = parts[1], empId = parts[2];
+      const reasons = { abs_nj: ar?'غياب غير مبرر':'Absence Non Justifiée', fight: ar?'مشاجرة':'Bagarre', late: ar?'تأخر عن العمل':'Retard', leave_noauth: ar?'مغادرة بدون إذن':'Départ sans Autorisation', refusal: ar?'رفض العمل':'Refus de Travail', behavior: ar?'سلوك غير مهني':'Comportement Non Pro', other: ar?'سبب آخر':'Autre' };
+      states.set(chatId, { step: 'survey_detail', reasonId, empId, reasonName: reasons[reasonId] || reasonId });
+      return send(chatId, ar
+        ? `🗳️ السبب: <b>${reasons[reasonId]}</b>\n\n✍️ <b>اكتب التفاصيل</b> (التاريخ والملاحظات):`
+        : `🗳️ Motif: <b>${reasons[reasonId]}</b>\n\n✍️ <b>Écrivez les détails</b> (date et remarques):`);
     }
 
     // ── Document Request Menu ──
@@ -232,17 +263,39 @@ async function handle(u) {
     return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${user.name}\n🛡️ ${user.role}\n👥 DB: <b>${db.hr_employees?.length || 0}</b>`);
   }
 
-  // ── Document reason submitted ──
+  // ── Text input handlers ──
   const st = states.get(chatId);
-  if (st?.step === 'doc_reason' && txt && !txt.startsWith('/')) {
+  if (st && txt && !txt.startsWith('/')) {
     states.delete(chatId);
     const db = loadDB();
     const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
-    await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${st.docName}</b>\n✍️ السبب: ${txt}`, cfg);
-    return send(chatId, ar
-      ? `✅ <b>تم إرسال طلبك بنجاح!</b>\n📄 ${st.docName}\n✍️ السبب: ${txt}\n\n⏳ سيتم معالجة طلبك في أقرب وقت.`
-      : `✅ <b>Demande envoyée avec succès!</b>\n📄 ${st.docName}\n✍️ Motif: ${txt}\n\n⏳ Votre demande sera traitée rapidement.`);
+    const role = String(user.role).toLowerCase();
+    const isManager = role === 'manager';
+
+    // ── Document reason ──
+    if (st.step === 'doc_reason') {
+      await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${st.docName}</b>\n✍️ السبب: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      return send(chatId, isManager
+        ? (ar ? `✅ تم إرسال طلبك.\n📄 ${st.docName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Demande envoyée.\n📄 ${st.docName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
+        : (ar ? `✅ <b>تم إرسال الطلب!</b>\n📄 ${st.docName}\n✍️ ${txt}` : `✅ <b>Demande envoyée!</b>\n📄 ${st.docName}\n✍️ ${txt}`));
+    }
+
+    // ── Absence date ──
+    if (st.step === 'abs_date') {
+      await notifyStaff(`🚨 <b>إعلام عن غياب</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 النوع: <b>${st.typeName}</b>\n📅 التاريخ: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      return send(chatId, isManager
+        ? (ar ? `✅ تم تسجيل الغياب.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Absence enregistrée.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
+        : (ar ? `✅ <b>تم تسجيل الغياب!</b>\n📊 ${st.typeName} | 📅 ${txt}` : `✅ <b>Absence enregistrée!</b>\n📊 ${st.typeName} | 📅 ${txt}`));
+    }
+
+    // ── Survey detail ──
+    if (st.step === 'survey_detail') {
+      await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${user.name}`, cfg);
+      return send(chatId, isManager
+        ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
+        : (ar ? `✅ <b>تم إرسال البلاغ!</b>\n📊 ${st.reasonName}\n✍️ ${txt}` : `✅ <b>Rapport envoyé!</b>\n📊 ${st.reasonName}\n✍️ ${txt}`));
+    }
   }
 
   // ── Search: any non-command text ──

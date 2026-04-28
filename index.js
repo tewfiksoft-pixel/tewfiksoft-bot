@@ -50,6 +50,7 @@ async function notifyStaff(txt, cfg) {
 
 const app = express();
 app.use((req, res, next) => {
+  if (req.method !== 'POST') return next();
   let chunks = [];
   req.on('data', c => chunks.push(c));
   req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });

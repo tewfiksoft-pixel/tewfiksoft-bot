@@ -424,6 +424,8 @@ async function handle(u) {
 
 // ─────── ROUTES ───────
 
+app.get('/', (req, res) => res.status(200).send('TewfikSoft HR Bot v7.15 | Server is running OK'));
+
 app.post('/api/webhook', (req, res) => {
   try { handle(JSON.parse(req.rawBody.toString('utf8'))).catch(e => log('Err: ' + e.message)); } catch (e) {}
   res.sendStatus(200);

@@ -86,11 +86,12 @@ function getStatsMsg(db, ar) {
   const emps = db.hr_employees || [];
   const leaves = db.hr_leave_balances || [];
   
-  let alver = 0, alvertek = 0, male = 0, female = 0, cdi = 0, cdd = 0;
+  let alver = 0, verre_tech = 0, male = 0, female = 0, cdi = 0, cdd = 0;
   let totalAge = 0, ageCount = 0;
   
   emps.forEach(e => {
-    if (String(e.companyId || '').toLowerCase().includes('tek')) alvertek++; else alver++;
+    const comp = String(e.companyId || '').toLowerCase();
+    if (comp.includes('verre') || comp.includes('tech')) verre_tech++; else alver++;
     if (String(e.gender || '').toUpperCase() === 'M') male++; else female++;
     const ct = String(e.contractType || '').toLowerCase();
     if (ct.includes('tit') || ct === 'cdi') cdi++; else cdd++;
@@ -116,8 +117,8 @@ function getStatsMsg(db, ar) {
   });
 
   return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & ALVERTEK</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 ALVERTEK: <b>${alvertek}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n🏖️ إجمالي العطل المتبقية: <b>${totalLeaveDays} يوم</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & ALVERTEK</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 ALVERTEK: <b>${alvertek}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n🏖️ Total Congés Restants: <b>${totalLeaveDays} jours</b>\n━━━━━━━━━━━━━━`;
+    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n🏖️ إجمالي العطل المتبقية: <b>${totalLeaveDays} يوم</b>\n━━━━━━━━━━━━━━`
+    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n🏖️ Total Congés Restants: <b>${totalLeaveDays} jours</b>\n━━━━━━━━━━━━━━`;
 }
 
 function showMenu(chatId, user, ar) {
@@ -134,7 +135,7 @@ function showMenu(chatId, user, ar) {
   const isHighMgmt = ['admin'].includes(role);
   const isMgmt = ['admin', 'manager'].includes(role);
   let kbd = { inline_keyboard: [] };
-  if (isHighMgmt) kbd.inline_keyboard.push([{ text: ar ? '📊 إحصائيات ALVER & ALVERTEK' : '📊 Stats ALVER & ALVERTEK', callback_data: 'stats' }]);
+  if (isHighMgmt) kbd.inline_keyboard.push([{ text: ar ? '📊 إحصائيات ALVER & VERRE TECH' : '📊 Stats ALVER & VERRE TECH', callback_data: 'stats' }]);
   if (isMgmt) kbd.inline_keyboard.push([{ text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search' }]);
   kbd.inline_keyboard.push([{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }]);
   kbd.inline_keyboard.push([{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]);

@@ -424,7 +424,10 @@ async function handle(u) {
 
 // ─────── ROUTES ───────
 
-app.get('/', (req, res) => res.status(200).send('TewfikSoft HR Bot v7.15 | Server is running OK'));
+app.get('/', (req, res) => {
+  const db = loadDB();
+  res.status(200).send(`TewfikSoft HR Bot v7.16 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
+});
 
 app.post('/api/webhook', (req, res) => {
   try { handle(JSON.parse(req.rawBody.toString('utf8'))).catch(e => log('Err: ' + e.message)); } catch (e) {}

@@ -143,17 +143,24 @@ function showMenu(chatId, user, ar) {
     : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${user.name}</b>\n🛡️ Rôle: <code>${String(user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
 }
 
-function showEmployeeCard(chatId, emp, ar) {
+function showEmployeeCard(chatId, emp, ar, role) {
   const msg = ar
     ? `👤 <b>الملف الشامل للموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 الشركة: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 القسم: ${T(emp.department_ar)}\n📅 تاريخ البداية: ${T(emp.startDate)}\n📜 نوع العقد: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`
     : `👤 <b>DOSSIER COMPLET</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Société: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Début: ${T(emp.startDate)}\n📜 Contrat: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`;
   const kbd = { inline_keyboard: [
     [{ text: ar ? '📄 الملف الكامل' : '📄 Fiche Complète', callback_data: 'full:' + emp.id }],
-    [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }],
-    [{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ الاستبيان' : '🗳️ Sondage', callback_data: 'survey:' + emp.id }],
-    [{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Document', callback_data: 'reqmenu:' + emp.id }],
-    [{ text: ar ? '🔍 بحث جديد' : '🔍 Nouvelle Recherche', callback_data: 'search' }]
+    [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }]
   ]};
+  
+  if (role !== 'employee') {
+    kbd.inline_keyboard.push([{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ الاستبيان' : '🗳️ Sondage', callback_data: 'survey:' + emp.id }]);
+  }
+  
+  kbd.inline_keyboard.push([{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Document', callback_data: 'reqmenu:' + emp.id }]);
+  
+  if (role === 'admin' || role === 'manager') {
+    kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Nouvelle Recherche', callback_data: 'search' }]);
+  }
   return send(chatId, msg, kbd);
 }
 
@@ -177,7 +184,7 @@ async function handle(u) {
     if (d.startsWith('lang:')) {
       const lang = d.split(':')[1]; langs.set(chatId, lang);
       const role = String(user.role).toLowerCase();
-      if (role === 'general_manager') {
+      if (role === 'general_manager' || role === 'employee' || role === 'gestionnaire_rh') {
         return showMenu(chatId, user, lang === 'ar');
       }
       states.set(chatId, { step: 'search' });
@@ -192,8 +199,9 @@ async function handle(u) {
     const db = loadDB();
 
     if (d === 'my_profile') {
+      const role = String(user.role).toLowerCase();
       const emp = db.hr_employees?.find(e => String(e.clockingId).trim() === String(user.clockingId).trim());
-      if (emp) return showEmployeeCard(chatId, emp, ar);
+      if (emp) return showEmployeeCard(chatId, emp, ar, role);
       return send(chatId, ar ? '❌ لم يتم العثور على ملفك.' : '❌ Profil introuvable.');
     }
 
@@ -330,8 +338,9 @@ async function handle(u) {
 
     // ── Back to employee card ──
     if (d.startsWith('back:')) {
+      const role = String(user.role).toLowerCase();
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
-      if (emp) return showEmployeeCard(chatId, emp, ar);
+      if (emp) return showEmployeeCard(chatId, emp, ar, role);
     }
 
     // ── Stats ──
@@ -394,7 +403,7 @@ async function handle(u) {
   // ── Search: any non-command text ──
   if (txt && !txt.startsWith('/')) {
     const role = String(user.role).toLowerCase();
-    if (role === 'general_manager') return; // GM cannot search
+    if (role === 'general_manager' || role === 'employee' || role === 'gestionnaire_rh') return; // Cannot search
 
     const db = loadDB(), q = txtLow.trim();
     const results = (db.hr_employees || []).filter(e => {
@@ -406,7 +415,7 @@ async function handle(u) {
     }).slice(0, 5);
 
     if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الرقم: <b>${txt}</b>\n\n🔍 حاول مجدداً:` : `❌ Aucun employé trouvé: <b>${txt}</b>\n\n🔍 Réessayez:`);
-    for (const emp of results) await showEmployeeCard(chatId, emp, ar);
+    for (const emp of results) await showEmployeeCard(chatId, emp, ar, role);
   }
 }
 

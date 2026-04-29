@@ -98,7 +98,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
         return roleObj.showEmployeeCard(chatId, emp, ar, bals);
       }
-      return send(chatId, ar ? '❌ لم يتم العثور على ملفك. يرجى إعداد رقم الموظف.' : '❌ Profil introuvable. Veuillez configurer votre ID.');
+      if (role === 'admin' || role === 'manager' || role === 'gestionnaire_rh') {
+        return send(chatId, ar ? 'ℹ️ <b>أنت مسجل كمسؤول.</b>\nليس لديك "رقم موظف" شخصي مرتبط بحسابك.\n\nاستخدم زر <b>البحث</b> للوصول لبيانات العمال.' : 'ℹ️ <b>Vous êtes Administrateur.</b>\nVous n\'avez pas de "Matricule" personnel lié.\n\nUtilisez le bouton <b>Recherche</b> pour accéder aux dossiers.');
+      }
+      return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي. يرجى مراجعة الإدارة.' : '❌ Profil introuvable. Veuillez contacter l\'administration.');
     }
 
     if (d.startsWith('full:')) {
@@ -307,6 +310,26 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     const db = loadDB(), q = txtLow.trim();
     const results = (db.hr_employees || []).filter(e => {
+      // 1. Scoping
+      let allowed = false;
+      const scope = userData.scope || 'all';
+      if (role === 'admin' || scope === 'all') {
+        allowed = true;
+      } else if (scope === 'department') {
+        const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
+        const empDeptFr = String(e.department_fr || '').toLowerCase().trim();
+        const empDirFr = String(e.direction_fr || '').toLowerCase().trim();
+        allowed = depts.some(d => empDeptFr.includes(d) || empDirFr.includes(d));
+      } else if (scope === 'custom_employees') {
+        const ids = (userData.allowed_employees || []).map(id => String(id));
+        allowed = ids.includes(String(e.clockingId));
+      } else if (scope === 'company') {
+        allowed = String(e.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
+      }
+
+      if (!allowed) return false;
+
+      // 2. Query match
       const cid = String(e.clockingId || '').toLowerCase().trim();
       const lnf = String(e.lastName_fr || '').toLowerCase();
       const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -363,6 +386,6 @@ app.post('/api/database', (req, res) => {
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.6 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.7 on port ${port} ===`);
   tg('setWebhook', { url: 'https://tewfiksoft-hr-bot.onrender.com/api/webhook' });
 });

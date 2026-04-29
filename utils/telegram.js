@@ -1,8 +1,22 @@
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
+
+const getBotToken = () => {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    return cfg.bot_token || process.env.BOT_TOKEN;
+  } catch (e) {
+    return process.env.BOT_TOKEN;
+  }
+};
 
 export const tg = (method, body) => new Promise((res) => {
+  const BOT_TOKEN = getBotToken();
   const p = JSON.stringify(body);
   const req = https.request({ 
     hostname: 'api.telegram.org', 

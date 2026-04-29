@@ -1,73 +1,25 @@
 {
   "bot_token": "8675308284:AAGKyy40trDM5RGeRv2NjmKPfZv_Pi0fvr0",
-  "authorized_users": [
-    {
-      "id": "7035116029",
-      "name": "REFFAS Farida",
-      "role": "supervisor",
-      "scope": "custom_employees",
-      "allowed_departments": null,
-      "allowed_company": null,
-      "allowed_employees": [],
-      "clockingId": null,
-      "phone": null
-    },
-    {
-      "id": "6480391203",
-      "name": null,
-      "role": "supervisor",
-      "scope": null,
-      "allowed_departments": null,
-      "allowed_company": null,
-      "allowed_employees": null,
-      "clockingId": null,
-      "phone": null
-    },
-    {
-      "id": "8626592284",
-      "name": "NOUAR Soft",
-      "role": "admin",
-      "scope": "all",
-      "allowed_departments": [],
-      "allowed_company": "all",
-      "allowed_employees": [],
-      "clockingId": null,
-      "phone": null
-    },
-    {
-      "id": "965443735",
-      "name": "REFFAS FARIDA",
-      "role": "admin",
-      "scope": "all",
-      "allowed_departments": [],
-      "allowed_company": "all",
-      "allowed_employees": [],
-      "clockingId": null,
-      "phone": null
-    }
-  ],
-  "is_enabled": true,
+  "authorized_users": [],
+  "is_enabled": false,
   "proxy_enabled": false,
   "proxy_host": null,
   "proxy_port": null,
   "proxy_user": null,
   "proxy_pass": null,
-  "proxy_protocol": "socks5",
+  "proxy_protocol": null,
   "display_settings": {
-    "show_social_number": false,
-    "show_contract_end": true,
-    "show_department": true,
     "show_photo": true,
+    "show_contract_end": true,
+    "show_phone": true,
+    "show_social_number": false,
+    "show_job_title": true,
     "show_address": false,
     "show_contract_type": true,
-    "show_bank_account": false,
-    "show_job_title": true,
-    "show_phone": true,
     "show_probation_end": true,
-    "show_hiring_date": true
+    "show_hiring_date": true,
+    "show_department": true,
+    "show_bank_account": false
   },
-  "allowed_documents": {
-    "doc_0": true,
-    "doc_1": true
-  }
+  "allowed_documents": null
 }

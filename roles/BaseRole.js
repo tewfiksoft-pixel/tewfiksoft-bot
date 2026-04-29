@@ -7,6 +7,8 @@ export default class BaseRole {
     this.langs = new Map(); // Note: in practice, we might need a global store or pass it
   }
 
+  isAdmin() { return false; }
+
   async notifyStaff(txt, cfg, sendFn) {
     const admins = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'general_manager') || [];
     for (const a of admins) { if (a.id) await sendFn(a.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`); }
@@ -18,6 +20,12 @@ export default class BaseRole {
     // Default menu logic (can be overridden)
     const kbd = { inline_keyboard: [] };
     kbd.inline_keyboard.push([{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }]);
+    
+    const role = String(this.user.role).toLowerCase();
+    if (this.isAdmin() || role === 'manager' || role === 'gestionnaire_rh' || role === 'general_manager') {
+      kbd.inline_keyboard.push([{ text: ar ? '📜 دليل نهاية العمل' : '📜 Guide Fin de Travail', callback_data: 'end_work_guide' }]);
+    }
+
     kbd.inline_keyboard.push([{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]);
 
     return send(chatId, ar
@@ -27,9 +35,21 @@ export default class BaseRole {
 
   async showEmployeeCard(chatId, emp, ar) {
     const role = String(this.user.role).toLowerCase();
-    const msg = ar
-      ? `👤 <b>الملف الشامل للموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 الشركة: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 القسم: ${T(emp.department_ar)}\n📅 تاريخ البداية: ${T(emp.startDate)}\n📜 نوع العقد: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`
-      : `👤 <b>DOSSIER COMPLET</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Société: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Début: ${T(emp.startDate)}\n📜 Contrat: ${T(emp.contractType)}\n━━━━━━━━━━━━━━`;
+    const statusLabel = emp.status === 'active' 
+      ? (ar ? 'نشط 🟢' : 'Actif 🟢') 
+      : (ar ? 'متوقف 🔴' : 'Arrêté 🔴');
+    
+    let msg = ar
+      ? `👤 <b>الملف الشامل للموظف</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${T(emp.lastName_ar)} ${T(emp.firstName_ar)}</b>\n🆔 الرمز: <code>${emp.clockingId}</code>\n💼 الوظيفة: <i>${T(emp.jobTitle_ar)}</i>\n🏢 الشركة: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 القسم: ${T(emp.department_ar)}\n📅 تاريخ البداية: ${T(emp.startDate)}\n📜 نوع العقد: ${T(emp.contractType)}\n━━━━━━━━━━━━━━\n✅ الحالة: <b>${statusLabel}</b>`
+      : `👤 <b>DOSSIER COMPLET</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${T(emp.lastName_fr)} ${T(emp.firstName_fr)}</b>\n🆔 ID: <code>${emp.clockingId}</code>\n💼 Poste: <i>${T(emp.jobTitle_fr)}</i>\n🏢 Société: <b>${T(emp.companyId).toUpperCase()}</b>\n🏢 Dept: ${T(emp.department_fr)}\n📅 Début: ${T(emp.startDate)}\n📜 Contrat: ${T(emp.contractType)}\n━━━━━━━━━━━━━━\n✅ Statut: <b>${statusLabel}</b>`;
+
+    if (emp.status === 'stopped' && emp.departureDate) {
+      msg += ar 
+        ? `\n📅 تاريخ المغادرة: <code>${emp.departureDate}</code>\n✍️ السبب: <i>${T(emp.departureReason)}</i>`
+        : `\n📅 Date Départ: <code>${emp.departureDate}</code>\n✍️ Motif: <i>${T(emp.departureReason)}</i>`;
+    }
+    
+    msg += ar ? `\n━━━━━━━━━━━━━━` : `\n━━━━━━━━━━━━━━`;
     
     const kbd = { inline_keyboard: [
       [{ text: ar ? '📄 الملف الكامل' : '📄 Fiche Complète', callback_data: 'full:' + emp.id }],

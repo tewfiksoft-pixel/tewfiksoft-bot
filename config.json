@@ -1,7 +1,7 @@
 {
   "bot_token": "8675308284:AAGKyy40trDM5RGeRv2NjmKPfZv_Pi0fvr0",
   "authorized_users": [],
-  "is_enabled": false,
+  "is_enabled": true,
   "proxy_enabled": false,
   "proxy_host": null,
   "proxy_port": null,
@@ -9,17 +9,17 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_photo": true,
     "show_contract_end": true,
     "show_phone": true,
-    "show_social_number": false,
-    "show_job_title": true,
-    "show_address": false,
-    "show_contract_type": true,
     "show_probation_end": true,
-    "show_hiring_date": true,
     "show_department": true,
-    "show_bank_account": false
+    "show_contract_type": true,
+    "show_address": false,
+    "show_hiring_date": true,
+    "show_bank_account": false,
+    "show_job_title": true,
+    "show_photo": true,
+    "show_social_number": false
   },
   "allowed_documents": null
 }

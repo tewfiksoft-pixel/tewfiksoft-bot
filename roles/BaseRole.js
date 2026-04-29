@@ -33,7 +33,7 @@ export default class BaseRole {
       : `💎 <b>BIENVENUE</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
   }
 
-  async showEmployeeCard(chatId, emp, ar) {
+  async showEmployeeCard(chatId, emp, ar, bals = []) {
     const role = String(this.user.role).toLowerCase();
     const statusLabel = emp.status === 'active' 
       ? (ar ? 'نشط 🟢' : 'Actif 🟢') 
@@ -49,6 +49,13 @@ export default class BaseRole {
         : `\n📅 Date Départ: <code>${emp.departureDate}</code>\n✍️ Motif: <i>${T(emp.departureReason)}</i>`;
     }
     
+    if (bals && bals.length > 0) {
+      msg += ar ? `\n\n🏖️ <b>أرصدة العطل السنوية:</b>\n` : `\n\n🏖️ <b>SOLDES CONGÉS :</b>\n`;
+      bals.forEach(b => {
+        msg += `├ ${b.exercice}: <b>${b.remainingDays}</b> / ${b.totalDays} ${ar ? 'يوم' : 'j'}\n`;
+      });
+    }
+
     msg += ar ? `\n━━━━━━━━━━━━━━` : `\n━━━━━━━━━━━━━━`;
     
     const kbd = { inline_keyboard: [

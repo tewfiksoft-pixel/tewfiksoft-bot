@@ -94,7 +94,10 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d === 'my_profile') {
       const targetId = String(userData.clockingId || (userData.allowed_employees && userData.allowed_employees[0]) || '').trim();
       const emp = db.hr_employees?.find(e => String(e.clockingId).trim() === targetId);
-      if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
+      if (emp) {
+        const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
+        return roleObj.showEmployeeCard(chatId, emp, ar, bals);
+      }
       return send(chatId, ar ? '❌ لم يتم العثور على ملفك. يرجى إعداد رقم الموظف.' : '❌ Profil introuvable. Veuillez configurer votre ID.');
     }
 
@@ -312,7 +315,10 @@ Pour garantir une fin de relation de travail légale et fluide :
     }).slice(0, 5);
 
     if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الرقم: <b>${txt}</b>\n\n🔍 حاول مجدداً:` : `❌ Aucun employé trouvé: <b>${txt}</b>\n\n🔍 Réessayez:`);
-    for (const emp of results) await roleObj.showEmployeeCard(chatId, emp, ar);
+    for (const emp of results) {
+      const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
+      await roleObj.showEmployeeCard(chatId, emp, ar, bals);
+    }
   }
 }
 
@@ -357,6 +363,6 @@ app.post('/api/database', (req, res) => {
 
 const port = process.env.PORT || 10000;
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.5 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.6 on port ${port} ===`);
   tg('setWebhook', { url: 'https://tewfiksoft-hr-bot.onrender.com/api/webhook' });
 });

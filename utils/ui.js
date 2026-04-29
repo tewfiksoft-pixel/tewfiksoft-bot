@@ -40,12 +40,15 @@ export function getStatsMsg(db, ar) {
   const avgExp = senCount > 0 ? (totalSeniority / senCount).toFixed(1) : 0;
   
   let totalLeaveDays = 0;
+  let alLeave = 0, vtLeave = 0;
   leaves.forEach(l => {
-    const r = parseFloat(l.remainingDays);
-    if (!isNaN(r)) totalLeaveDays += r;
+    const r = parseFloat(l.remainingDays || 0);
+    totalLeaveDays += r;
+    const comp = String(l.companyId || '').toLowerCase();
+    if (comp.includes('verre') || comp.includes('tech')) vtLeave += r; else alLeave += r;
   });
 
   return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n🏖️ إجمالي العطل المتبقية: <b>${totalLeaveDays} يوم</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n🏖️ Total Congés Restants: <b>${totalLeaveDays} jours</b>\n━━━━━━━━━━━━━━`;
+    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>رصيد العطل المتبقي:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
+    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>SOLDE CONGÉS RESTANTS:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} jours</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} jours</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
 }

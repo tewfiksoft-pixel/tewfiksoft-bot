@@ -15,6 +15,8 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 
+const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 
@@ -34,7 +36,6 @@ async function handle(u) {
   const roleObj = RoleFactory.create(userData);
   if (!roleObj) return;
 
-  const ar = (langs.get(chatId) || 'ar') === 'ar';
   const ar = (userData.lang || langs.get(chatId) || 'ar') === 'ar';
 
   if (cbq) {

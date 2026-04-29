@@ -269,8 +269,10 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (txtLow === '/me') {
-    const db = loadDB();
-    return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${userData.name}\n🛡️ ${userData.role}\n👥 DB: <b>${db.hr_employees?.length || 0}</b>`);
+    const isAdminRole = String(userData.role).toLowerCase() === 'admin';
+    const db = isAdminRole ? loadDB() : null;
+    const dbLine = isAdminRole ? `\n👥 DB: <b>${db.hr_employees?.length || 0}</b>` : '';
+    return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${userData.name}\n🛡️ ${userData.role}${dbLine}`);
   }
 
   const st = states.get(chatId);

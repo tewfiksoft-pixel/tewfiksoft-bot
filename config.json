@@ -1,6 +1,33 @@
 {
-  "bot_token": "8675308284:AAGKyy40trDM5RGeRv2NjmKPfZv_Pi0fvr0",
-  "authorized_users": [],
+  "bot_token": "8675308284:AAE2YKD7aExW04mfrvsymaVjQRzggZM7iw8",
+  "authorized_users": [
+    {
+      "id": "8626592284",
+      "name": "Tewfik Admin",
+      "role": "admin",
+      "scope": "custom_employees",
+      "allowed_departments": [
+        "DIRECTION DES RESSOURCES HUMAINES"
+      ],
+      "allowed_company": null,
+      "allowed_employees": [],
+      "clockingId": null,
+      "phone": null
+    },
+    {
+      "id": "965443735",
+      "name": "DG",
+      "role": "employee",
+      "scope": "custom_employees",
+      "allowed_departments": [],
+      "allowed_company": "all",
+      "allowed_employees": [
+        "70041"
+      ],
+      "clockingId": "",
+      "phone": null
+    }
+  ],
   "is_enabled": true,
   "proxy_enabled": false,
   "proxy_host": null,
@@ -9,17 +36,17 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_social_number": false,
+    "show_phone": false,
+    "show_photo": false,
+    "show_job_title": true,
     "show_contract_end": true,
+    "show_department": true,
+    "show_social_number": false,
+    "show_contract_type": true,
+    "show_hiring_date": true,
     "show_address": false,
     "show_bank_account": false,
-    "show_hiring_date": true,
-    "show_contract_type": true,
-    "show_photo": true,
-    "show_probation_end": true,
-    "show_department": true,
-    "show_phone": true,
-    "show_job_title": true
+    "show_probation_end": true
   },
   "allowed_documents": null
 }

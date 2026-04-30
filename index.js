@@ -330,6 +330,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
 
       if (!allowed) return false;
+      if (e.status === 'deleted') return false;
 
       // 2. Query match
       const cid = String(e.clockingId || '').toLowerCase().trim();

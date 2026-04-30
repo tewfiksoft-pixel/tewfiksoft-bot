@@ -1,5 +1,5 @@
 export function getStatsMsg(db, ar) {
-  const emps = db.hr_employees || [];
+  const emps = (db.hr_employees || []).filter(e => e.status === 'active');
   const leaves = db.hr_leave_balances || [];
   
   let alver = 0, verre_tech = 0, male = 0, female = 0, cdi = 0, cdd = 0;

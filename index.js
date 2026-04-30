@@ -387,7 +387,31 @@ app.post('/api/database', (req, res) => {
 });
 
 const port = process.env.PORT || 10000;
+const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
+
 app.listen(port, () => {
   log(`=== TewfikSoft HR Bot v8.7 on port ${port} ===`);
-  tg('setWebhook', { url: 'https://tewfiksoft-hr-bot.onrender.com/api/webhook' });
+
+  // ─── ضبط الـ Webhook تلقائياً ───
+  if (WEBHOOK_URL) {
+    tg('setWebhook', { url: `${WEBHOOK_URL}/api/webhook` });
+    log(`✅ Webhook set to: ${WEBHOOK_URL}/api/webhook`);
+  } else {
+    log('⚠️  WEBHOOK_URL not set! Add it in Koyeb Dashboard > Environment Variables');
+  }
+
+  // ─── Keep-Alive: ping كل 10 دقائق لمنع النوم ───
+  if (WEBHOOK_URL) {
+    setInterval(() => {
+      try {
+        import('https').then(({ default: https }) => {
+          https.get(WEBHOOK_URL, (res) => {
+            log(`[Keep-Alive] ping OK - status: ${res.statusCode}`);
+          }).on('error', (e) => {
+            log(`[Keep-Alive] ping error: ${e.message}`);
+          });
+        });
+      } catch(e) { log(`[Keep-Alive] error: ${e.message}`); }
+    }, 10 * 60 * 1000); // كل 10 دقائق
+  }
 });

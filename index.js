@@ -415,4 +415,29 @@ app.listen(port, () => {
       } catch(e) { log(`[Keep-Alive] error: ${e.message}`); }
     }, 10 * 60 * 1000); // كل 10 دقائق
   }
+  
+  // ─── جلب قاعدة البيانات من السحابة الخارجية (Google Drive) ───
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
+  const fetchExternalDatabase = async () => {
+    try {
+      log('Fetching database from external cloud (Google Script)...');
+      const res = await fetch(GOOGLE_SCRIPT_URL);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.text();
+      if (data && data.includes('hr_employees')) {
+        fs.writeFileSync(DB_PATH, data);
+        log(`External Cloud Sync OK: DB saved successfully. Size: ${data.length} bytes.`);
+      } else {
+        log('External Cloud Sync Warning: Fetched data is invalid or empty.');
+      }
+    } catch (e) {
+      log(`External Cloud Sync Error: ${e.message}`);
+    }
+  };
+
+  // جلب البيانات فور تشغيل البوت لتفادي مشكلة "البيانات فارغة"
+  fetchExternalDatabase();
+  // ثم جلبها كل 5 دقائق لضمان التحديث المستمر من السحابة الخارجية
+  setInterval(fetchExternalDatabase, 5 * 60 * 1000);
+
 });

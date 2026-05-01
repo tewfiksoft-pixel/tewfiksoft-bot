@@ -1,18 +1,29 @@
+// ─── حساب السنة الجارية (دورة يوليو ─ يونيو) ───
+function getCurrentExercice() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // 1-12
+  if (month >= 7) return `${year}/${year + 1}`;
+  return `${year - 1}/${year}`;
+}
+
 export function getStatsMsg(db, ar) {
+  const activeEx = getCurrentExercice();
   const emps = (db.hr_employees || []).filter(e => e.status === 'active');
-  const leaves = db.hr_leave_balances || [];
-  
+  // فلترة أرصدة السنة الجارية فقط
+  const currentLeaves = (db.hr_leave_balances || []).filter(l => l.exercice === activeEx);
+
   let alver = 0, verre_tech = 0, male = 0, female = 0, cdi = 0, cdd = 0;
   let totalAge = 0, ageCount = 0;
   let totalSeniority = 0, senCount = 0;
-  
+
   emps.forEach(e => {
     const comp = String(e.companyId || '').toLowerCase();
     if (comp.includes('verre') || comp.includes('tech')) verre_tech++; else alver++;
     if (String(e.gender || '').toUpperCase() === 'M') male++; else female++;
     const ct = String(e.contractType || '').toLowerCase();
     if (ct.includes('tit') || ct === 'cdi') cdi++; else cdd++;
-    
+
     if (e.birthDate) {
       const parts = e.birthDate.split(/[-/]/);
       let year = null;
@@ -35,51 +46,70 @@ export function getStatsMsg(db, ar) {
       }
     }
   });
-  
+
   const avgAge = ageCount > 0 ? Math.round(totalAge / ageCount) : 0;
   const avgExp = senCount > 0 ? (totalSeniority / senCount).toFixed(1) : 0;
-  
-  let totalLeaveDays = 0;
-  let alLeave = 0, vtLeave = 0;
-  leaves.forEach(l => {
+
+  // أرصدة العطل للسنة الجارية فقط
+  let alLeave = 0, vtLeave = 0, alLeaveCount = 0, vtLeaveCount = 0;
+  currentLeaves.forEach(l => {
     const r = parseFloat(l.remainingDays || 0);
-    totalLeaveDays += r;
     const comp = String(l.companyId || '').toLowerCase();
-    if (comp.includes('verre') || comp.includes('tech')) vtLeave += r; else alLeave += r;
+    if (comp.includes('verre') || comp.includes('tech')) { vtLeave += r; vtLeaveCount++; }
+    else { alLeave += r; alLeaveCount++; }
   });
 
   return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>رصيد العطل المتبقي:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>SOLDE CONGÉS RESTANTS:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} jours</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} jours</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
+    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال النشطين: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 عقود دائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ عقود مؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>أرصدة العطل السنوية (${activeEx}):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b> (${alLeaveCount} موظف)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b> (${vtLeaveCount} موظف)\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
+    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total Actif: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>Soldes Congés (${activeEx}):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} j</b> (${alLeaveCount} employés)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} j</b> (${vtLeaveCount} employés)\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
 }
 
 export function getEffectifsDirMsg(db, ar) {
   const emps = (db.hr_employees || []).filter(e => e.status === 'active');
+  const activeEx = getCurrentExercice();
+  const currentLeaves = (db.hr_leave_balances || []).filter(l => l.exercice === activeEx);
+
+  // بناء قاموس الموظف → مبلغ العطل المتبقي
+  const leaveByEmp = {};
+  currentLeaves.forEach(l => {
+    leaveByEmp[String(l.employeeId)] = parseFloat(l.remainingDays || 0);
+  });
+
   const dirs = {};
   emps.forEach(e => {
     let dir = ar ? (e.direction_ar || e.direction_fr || 'أخرى') : (e.direction_fr || e.direction_ar || 'Autre');
-    dir = dir.trim();
+    dir = dir.trim().toUpperCase();
     if (!dir) dir = ar ? 'أخرى' : 'Autre';
-    
-    if (!dirs[dir]) dirs[dir] = { cdi: 0, cdd: 0, total: 0 };
-    
+
+    if (!dirs[dir]) dirs[dir] = { cdi: 0, cdd: 0, total: 0, totalLeave: 0 };
+
     const ct = String(e.contractType || '').toLowerCase();
     if (ct.includes('tit') || ct === 'cdi') dirs[dir].cdi++; else dirs[dir].cdd++;
     dirs[dir].total++;
+
+    const empLeave = leaveByEmp[String(e.id)] || 0;
+    dirs[dir].totalLeave += empLeave;
   });
 
   const sortedDirs = Object.keys(dirs).sort((a, b) => dirs[b].total - dirs[a].total);
 
-  let msg = ar 
-    ? `👥 <b>تعداد العمال حسب المديرية</b>\n━━━━━━━━━━━━━━\n`
-    : `👥 <b>EFFECTIFS PAR DIRECTION</b>\n━━━━━━━━━━━━━━\n`;
+  let totalAll = 0;
+  let msg = ar
+    ? `👥 <b>تعداد العمال النشطين حسب المديرية</b>\n<code>الدورة: ${activeEx}</code>\n━━━━━━━━━━━━━━\n`
+    : `👥 <b>EFFECTIFS ACTIFS PAR DIRECTION</b>\n<code>Exercice: ${activeEx}</code>\n━━━━━━━━━━━━━━\n`;
 
   for (const d of sortedDirs) {
-    const stats = dirs[d];
-    msg += `🏢 <b>${d}</b>: ${stats.total} ${ar ? 'عامل' : 'employé(s)'}\n`;
-    msg += `   ├ 📜 CDI: <b>${stats.cdi}</b>\n`;
-    msg += `   └ ⏱️ CDD: <b>${stats.cdd}</b>\n\n`;
+    const s = dirs[d];
+    totalAll += s.total;
+    const leaveStr = s.totalLeave > 0
+      ? ` | 🏖️ <b>${s.totalLeave.toFixed(0)}</b>${ar ? ' يوم' : 'j'}`
+      : '';
+    msg += `🏢 <b>${d}</b>: ${s.total} ${ar ? 'عامل' : 'emp.'}${leaveStr}\n`;
+    msg += `   ├ 📜 CDI: <b>${s.cdi}</b>  ⏱️ CDD: <b>${s.cdd}</b>\n\n`;
   }
-  msg += `━━━━━━━━━━━━━━`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += ar
+    ? `📌 <b>المجموع: ${totalAll} عامل نشط</b>`
+    : `📌 <b>TOTAL: ${totalAll} employés actifs</b>`;
   return msg;
 }

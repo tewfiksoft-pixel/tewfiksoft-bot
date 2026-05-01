@@ -5,6 +5,7 @@ export default class AdminRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
       [{ text: ar ? '📊 إحصائيات ALVER & VERRE TECH' : '📊 Stats ALVER & VERRE TECH', callback_data: 'stats' }],
+      [{ text: ar ? '👥 تعداد العمال حسب المديرية' : '👥 Effectifs par direction', callback_data: 'effectifs_dir' }],
       [{ text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]

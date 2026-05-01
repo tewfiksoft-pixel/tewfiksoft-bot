@@ -79,8 +79,22 @@ async function main() {
     await postData('/api/config', cfgJson);
 
     // 4. Send decrypted database
-    console.log('\n4. Sending decrypted database to cloud...');
+    console.log('\n4. Sending decrypted database to cloud (Render)...');
     await postData('/api/database', dbJson);
+
+    // 5. Send decrypted database to Google Drive (Persistent Storage)
+    console.log('\n5. Sending decrypted database to Google Drive (Persistent Backup)...');
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
+    try {
+        const res = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: dbJson,
+            headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(`   Google Drive Response: ${res.status}`);
+    } catch (e) {
+        console.error('   Google Drive Sync Failed:', e.message);
+    }
 
     console.log('\n=== SYNC COMPLETE ===');
 }

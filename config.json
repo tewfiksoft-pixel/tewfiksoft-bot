@@ -4,7 +4,7 @@
     {
       "id": "8626592284",
       "name": "Tewfik Admin",
-      "role": "general_manager",
+      "role": "admin",
       "scope": "custom_employees",
       "allowed_departments": [
         "DIRECTION DES RESSOURCES HUMAINES"
@@ -38,17 +38,17 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_photo": false,
-    "show_contract_end": true,
-    "show_hiring_date": true,
-    "show_bank_account": false,
-    "show_department": true,
-    "show_job_title": true,
     "show_address": false,
+    "show_contract_type": true,
+    "show_bank_account": false,
+    "show_contract_end": true,
+    "show_job_title": true,
+    "show_hiring_date": true,
     "show_social_number": false,
+    "show_department": true,
     "show_phone": false,
     "show_probation_end": true,
-    "show_contract_type": true
+    "show_photo": false
   },
   "allowed_documents": null
 }

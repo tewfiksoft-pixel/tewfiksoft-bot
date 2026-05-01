@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, loadConfig, T, log } from './utils/database.js';
-import { getStatsMsg } from './utils/ui.js';
+import { getStatsMsg, getEffectifsDirMsg } from './utils/ui.js';
 import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
 
@@ -257,6 +257,14 @@ Pour garantir une fin de relation de travail légale et fluide :
       const db = loadDB();
       return send(chatId, getStatsMsg(db, ar), { inline_keyboard: [
         [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'stats' }]
+      ]});
+    }
+
+    if (d === 'effectifs_dir') {
+      const db = loadDB();
+      return send(chatId, getEffectifsDirMsg(db, ar), { inline_keyboard: [
+        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'effectifs_dir' }],
+        [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'menu' }]
       ]});
     }
     return;

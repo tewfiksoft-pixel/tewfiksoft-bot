@@ -52,3 +52,34 @@ export function getStatsMsg(db, ar) {
     ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 العقود الدائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ العقود المؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>رصيد العطل المتبقي:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b>\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
     : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>SOLDE CONGÉS RESTANTS:</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} jours</b>\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} jours</b>\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
 }
+
+export function getEffectifsDirMsg(db, ar) {
+  const emps = (db.hr_employees || []).filter(e => e.status === 'active');
+  const dirs = {};
+  emps.forEach(e => {
+    let dir = ar ? (e.direction_ar || e.direction_fr || 'أخرى') : (e.direction_fr || e.direction_ar || 'Autre');
+    dir = dir.trim();
+    if (!dir) dir = ar ? 'أخرى' : 'Autre';
+    
+    if (!dirs[dir]) dirs[dir] = { cdi: 0, cdd: 0, total: 0 };
+    
+    const ct = String(e.contractType || '').toLowerCase();
+    if (ct.includes('tit') || ct === 'cdi') dirs[dir].cdi++; else dirs[dir].cdd++;
+    dirs[dir].total++;
+  });
+
+  const sortedDirs = Object.keys(dirs).sort((a, b) => dirs[b].total - dirs[a].total);
+
+  let msg = ar 
+    ? `👥 <b>تعداد العمال حسب المديرية</b>\n━━━━━━━━━━━━━━\n`
+    : `👥 <b>EFFECTIFS PAR DIRECTION</b>\n━━━━━━━━━━━━━━\n`;
+
+  for (const d of sortedDirs) {
+    const stats = dirs[d];
+    msg += `🏢 <b>${d}</b>: ${stats.total} ${ar ? 'عامل' : 'employé(s)'}\n`;
+    msg += `   ├ 📜 CDI: <b>${stats.cdi}</b>\n`;
+    msg += `   └ ⏱️ CDD: <b>${stats.cdd}</b>\n\n`;
+  }
+  msg += `━━━━━━━━━━━━━━`;
+  return msg;
+}

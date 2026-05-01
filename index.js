@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, loadConfig, T, log } from './utils/database.js';
-import { getStatsMsg, getEffectifsDirMsg } from './utils/ui.js';
+import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg } from './utils/ui.js';
 import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
 
@@ -261,10 +261,20 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d === 'effectifs_dir') {
-      const db = loadDB();
-      return send(chatId, getEffectifsDirMsg(db, ar), { inline_keyboard: [
-        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'effectifs_dir' }],
+      return send(chatId, ar ? '🏢 <b>الرجاء اختيار الشركة لعرض الإحصائيات:</b>\n━━━━━━━━━━━━━━' : '🏢 <b>Veuillez choisir la société:</b>\n━━━━━━━━━━━━━━', { inline_keyboard: [
+        [{ text: ar ? '🟢 شركة الفار (ALVER)' : '🟢 ALVER', callback_data: 'eff_comp:alver' }],
+        [{ text: ar ? '🔵 شركة فارتك (VERRE TECH)' : '🔵 VERRE TECH', callback_data: 'eff_comp:vt' }],
         [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'menu' }]
+      ]});
+    }
+
+    if (d.startsWith('eff_comp:')) {
+      const compType = d.split(':')[1];
+      const db = loadDB();
+      return send(chatId, getEffectifsCompanyMsg(db, ar, compType), { inline_keyboard: [
+        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: d }],
+        [{ text: ar ? '🔙 رجوع للشركات' : '🔙 Retour aux sociétés', callback_data: 'effectifs_dir' }],
+        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
       ]});
     }
     return;

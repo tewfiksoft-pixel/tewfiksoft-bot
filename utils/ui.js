@@ -134,3 +134,55 @@ export function getEffectifsDirMsg(db, ar) {
     : `📌 <b>TOTAL GÉNÉRAL: ${emps.length} employés actifs</b>`;
   return msg;
 }
+
+export function getEffectifsCompanyMsg(db, ar, companyType) {
+  const emps = (db.hr_employees || []).filter(e => e.status === 'active');
+  const isVt = companyType === 'vt';
+  const companyLabel = isVt ? (ar ? '🔵 شركة فارتك (VERRE TECH)' : '🔵 VERRE TECH') : (ar ? '🟢 شركة الفار (ALVER)' : '🟢 ALVER');
+
+  // Filter emps by company
+  const compEmps = emps.filter(e => isVerreTech(e.companyId) === isVt);
+
+  // Group by direction
+  const dirs = {};
+  let total = 0;
+
+  compEmps.forEach(e => {
+    let dir = ar
+      ? (e.direction_ar || e.direction_fr || (ar ? 'أخرى' : 'Autre'))
+      : (e.direction_fr || e.direction_ar || 'Autre');
+    dir = dir.trim().toUpperCase() || (ar ? 'أخرى' : 'AUTRE');
+
+    if (!dirs[dir]) dirs[dir] = { cdi: 0, cdd: 0, total: 0 };
+    const ct = String(e.contractType || '').toLowerCase();
+    if (ct.includes('tit') || ct === 'cdi') dirs[dir].cdi++; else dirs[dir].cdd++;
+    dirs[dir].total++;
+    total++;
+  });
+
+  const sorted = Object.keys(dirs).sort((a, b) => dirs[b].total - dirs[a].total);
+
+  let msg = ar
+    ? `✨ <b>إحصائيات الموظفين | ${companyLabel}</b> ✨\n━━━━━━━━━━━━━━━━━━━━\n`
+    : `✨ <b>STATISTIQUES DÉTAILLÉES | ${companyLabel}</b> ✨\n━━━━━━━━━━━━━━━━━━━━\n`;
+
+  if (total === 0) {
+    msg += ar ? `⚠️ لا يوجد عمال نشطين مسجلين.\n` : `⚠️ Aucun employé actif enregistré.\n`;
+    return msg;
+  }
+
+  for (const d of sorted) {
+    const st = dirs[d];
+    msg += `🏛️ <b>${d}</b>\n`;
+    msg += `   └ 👥 ${ar ? 'الإجمالي:' : 'Total:'} <b>${st.total}</b> ${ar ? 'عامل' : 'emp.'}\n`;
+    msg += `       ├ 🌟 CDI (دائم): <b>${st.cdi}</b>\n`;
+    msg += `       └ ⏳ CDD (مؤقت): <b>${st.cdd}</b>\n`;
+    msg += `┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n`;
+  }
+
+  msg += ar
+    ? `📈 <b>المجموع الكلي: ${total} عامل نشط</b>\n━━━━━━━━━━━━━━━━━━━━`
+    : `📈 <b>TOTAL GÉNÉRAL: ${total} employés actifs</b>\n━━━━━━━━━━━━━━━━━━━━`;
+
+  return msg;
+}

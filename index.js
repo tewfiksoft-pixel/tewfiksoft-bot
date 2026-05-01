@@ -424,28 +424,38 @@ app.listen(port, () => {
     }, 10 * 60 * 1000); // كل 10 دقائق
   }
   
+
   // ─── جلب قاعدة البيانات من السحابة الخارجية (Google Drive) ───
+  // ملاحظة: يتم جلب البيانات من Google Drive فقط إذا كانت قاعدة البيانات فارغة (أول تشغيل)
+  // البيانات الجديدة تأتي تلقائياً عبر /api/database من التطبيق المحلي (server.js)
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
-  const fetchExternalDatabase = async () => {
+  const bootstrapFromCloud = async () => {
     try {
-      log('Fetching database from external cloud (Google Script)...');
+      // تحقق إذا كانت قاعدة البيانات تحتوي على بيانات مسبقاً
+      if (fs.existsSync(DB_PATH)) {
+        const existing = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+        if ((existing.hr_employees || []).length > 0) {
+          log(`DB already has ${existing.hr_employees.length} employees — skipping Google Drive bootstrap.`);
+          return;
+        }
+      }
+      log('DB is empty — attempting one-time bootstrap from Google Drive...');
       const res = await fetch(GOOGLE_SCRIPT_URL);
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.text();
       if (data && data.includes('hr_employees')) {
         fs.writeFileSync(DB_PATH, data);
-        log(`External Cloud Sync OK: DB saved successfully. Size: ${data.length} bytes.`);
+        log(`Bootstrap OK: DB saved. Size: ${data.length} bytes.`);
       } else {
-        log('External Cloud Sync Warning: Fetched data is invalid or empty.');
+        log('Bootstrap Warning: Fetched data is invalid or empty.');
       }
     } catch (e) {
-      log(`External Cloud Sync Error: ${e.message}`);
+      log(`Bootstrap Error: ${e.message}`);
     }
   };
 
-  // جلب البيانات فور تشغيل البوت لتفادي مشكلة "البيانات فارغة"
-  fetchExternalDatabase();
-  // ثم جلبها كل 5 دقائق لضمان التحديث المستمر من السحابة الخارجية
-  setInterval(fetchExternalDatabase, 5 * 60 * 1000);
+  // جلب البيانات مرة واحدة عند الإقلاع فقط إذا كانت قاعدة البيانات فارغة
+  bootstrapFromCloud();
+  // ⚠️ لا يوجد setInterval هنا — البيانات تأتي من التطبيق عبر /api/database
 
 });

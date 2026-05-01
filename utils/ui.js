@@ -175,8 +175,8 @@ export function getEffectifsCompanyMsg(db, ar, companyType) {
     const st = dirs[d];
     msg += `🏛️ <b>${d}</b>\n`;
     msg += `   └ 👥 ${ar ? 'الإجمالي:' : 'Total:'} <b>${st.total}</b> ${ar ? 'عامل' : 'emp.'}\n`;
-    msg += `       ├ 🌟 CDI (دائم): <b>${st.cdi}</b>\n`;
-    msg += `       └ ⏳ CDD (مؤقت): <b>${st.cdd}</b>\n`;
+    msg += `       ├ 🌟 CDI ${ar ? '(دائم)' : '(Permanent)'}: <b>${st.cdi}</b>\n`;
+    msg += `       └ ⏳ CDD ${ar ? '(مؤقت)' : '(Temporaire)'}: <b>${st.cdd}</b>\n`;
     msg += `┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n`;
   }
 

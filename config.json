@@ -19,7 +19,7 @@
     {
       "id": "965443735",
       "name": "DG",
-      "role": "employee",
+      "role": "general_manager",
       "scope": "custom_employees",
       "allowed_departments": [],
       "allowed_company": "all",
@@ -38,17 +38,17 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_bank_account": false,
     "show_social_number": false,
-    "show_job_title": true,
     "show_phone": false,
-    "show_photo": false,
-    "show_contract_end": true,
-    "show_contract_type": true,
-    "show_address": false,
-    "show_hiring_date": true,
+    "show_probation_end": true,
     "show_department": true,
-    "show_probation_end": true
+    "show_bank_account": false,
+    "show_address": false,
+    "show_job_title": true,
+    "show_photo": false,
+    "show_hiring_date": true,
+    "show_contract_end": true,
+    "show_contract_type": true
   },
   "allowed_documents": null
 }

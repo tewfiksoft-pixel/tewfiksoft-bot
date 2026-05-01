@@ -84,59 +84,53 @@ export function getStatsMsg(db, ar) {
 
 export function getEffectifsDirMsg(db, ar) {
   const emps = (db.hr_employees || []).filter(e => e.status === 'active');
-  const activeEx = getCurrentExercice();
 
-  // خريطة empId → remaining leave for current exercise
-  const empMap = {};
-  emps.forEach(e => { empMap[String(e.id)] = e; });
+  // ─── تجميع حسب الشركة ثم المديرية ───
+  const companies = {
+    alver:  { label: '🟢 ALVER',      dirs: {}, total: 0 },
+    vt:     { label: '🔵 VERRE TECH', dirs: {}, total: 0 },
+  };
 
-  const leaveByEmp = {};
-  (db.hr_leave_balances || [])
-    .filter(l => l.exercice === activeEx)
-    .forEach(l => {
-      const empId = String(l.employeeId);
-      if (empMap[empId]) {
-        // نحتفظ بأكبر قيمة في حال تكرار السجل
-        const r = parseFloat(l.remainingDays || 0);
-        leaveByEmp[empId] = Math.max(leaveByEmp[empId] || 0, r);
-      }
-    });
-
-  const dirs = {};
   emps.forEach(e => {
+    const bucket = isVerreTech(e.companyId) ? companies.vt : companies.alver;
+
     let dir = ar
-      ? (e.direction_ar || e.direction_fr || 'أخرى')
+      ? (e.direction_ar || e.direction_fr || (ar ? 'أخرى' : 'Autre'))
       : (e.direction_fr || e.direction_ar || 'Autre');
-    dir = dir.trim().toUpperCase();
-    if (!dir) dir = ar ? 'أخرى' : 'Autre';
+    dir = dir.trim().toUpperCase() || (ar ? 'أخرى' : 'AUTRE');
 
-    if (!dirs[dir]) dirs[dir] = { cdi: 0, cdd: 0, total: 0, totalLeave: 0 };
-
+    if (!bucket.dirs[dir]) bucket.dirs[dir] = { cdi: 0, cdd: 0, total: 0 };
     const ct = String(e.contractType || '').toLowerCase();
-    if (ct.includes('tit') || ct === 'cdi') dirs[dir].cdi++; else dirs[dir].cdd++;
-    dirs[dir].total++;
-    dirs[dir].totalLeave += (leaveByEmp[String(e.id)] || 0);
+    if (ct.includes('tit') || ct === 'cdi') bucket.dirs[dir].cdi++; else bucket.dirs[dir].cdd++;
+    bucket.dirs[dir].total++;
+    bucket.total++;
   });
 
-  const sortedDirs = Object.keys(dirs).sort((a, b) => dirs[b].total - dirs[a].total);
+  const buildSection = (comp) => {
+    const sorted = Object.keys(comp.dirs).sort((a, b) => comp.dirs[b].total - comp.dirs[a].total);
+    let s = '';
+    for (const d of sorted) {
+      const st = comp.dirs[d];
+      s += `  🏢 <b>${d}</b>: <b>${st.total}</b> ${ar ? 'عامل' : 'emp.'}\n`;
+      s += `     ├ 📜 CDI: <b>${st.cdi}</b>  ⏱️ CDD: <b>${st.cdd}</b>\n`;
+    }
+    return s;
+  };
 
-  let totalAll = 0;
   let msg = ar
-    ? `👥 <b>تعداد العمال النشطين حسب المديرية</b>\n<code>الدورة: ${activeEx}</code>\n━━━━━━━━━━━━━━\n`
-    : `👥 <b>EFFECTIFS ACTIFS PAR DIRECTION</b>\n<code>Exercice: ${activeEx}</code>\n━━━━━━━━━━━━━━\n`;
+    ? `👥 <b>تعداد العمال النشطين حسب المديرية</b>\n━━━━━━━━━━━━━━\n`
+    : `👥 <b>EFFECTIFS ACTIFS PAR DIRECTION</b>\n━━━━━━━━━━━━━━\n`;
 
-  for (const d of sortedDirs) {
-    const s = dirs[d];
-    totalAll += s.total;
-    const leaveStr = s.totalLeave > 0
-      ? ` | 🏖️ <b>${s.totalLeave.toFixed(0)}</b>${ar ? ' يوم' : 'j'}`
-      : '';
-    msg += `🏢 <b>${d}</b>: ${s.total} ${ar ? 'عامل' : 'emp.'}${leaveStr}\n`;
-    msg += `   ├ 📜 CDI: <b>${s.cdi}</b>  ⏱️ CDD: <b>${s.cdd}</b>\n\n`;
+  for (const key of ['alver', 'vt']) {
+    const comp = companies[key];
+    if (comp.total === 0) continue;
+    msg += `\n${comp.label} — <b>${comp.total} ${ar ? 'عامل' : 'employés'}</b>\n`;
+    msg += buildSection(comp);
   }
-  msg += `━━━━━━━━━━━━━━\n`;
+
+  msg += `\n━━━━━━━━━━━━━━\n`;
   msg += ar
-    ? `📌 <b>المجموع: ${totalAll} عامل نشط</b>`
-    : `📌 <b>TOTAL: ${totalAll} employés actifs</b>`;
+    ? `📌 <b>المجموع الكلي: ${emps.length} عامل نشط</b>`
+    : `📌 <b>TOTAL GÉNÉRAL: ${emps.length} employés actifs</b>`;
   return msg;
 }

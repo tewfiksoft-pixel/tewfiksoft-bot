@@ -14,7 +14,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
-const WORK_SESSIONS_PATH = path.join(DATA_DIR, 'work_sessions.json');
 
 const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
 
@@ -278,59 +277,36 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
       ]});
     }
-    if (d === 'work_in') {
-      let sessions = {};
-      if (fs.existsSync(WORK_SESSIONS_PATH)) {
-        try { sessions = JSON.parse(fs.readFileSync(WORK_SESSIONS_PATH, 'utf8')); } catch(e){}
-      }
-      sessions[fromId] = { in: Date.now() };
-      fs.writeFileSync(WORK_SESSIONS_PATH, JSON.stringify(sessions, null, 2));
-      
-      const tzOffset = 1 * 60 * 60 * 1000;
-      const now = new Date(Date.now() + tzOffset);
-      const timeStr = now.toISOString().substring(11, 16);
-      
-      return send(chatId, ar 
-        ? `✅ <b>تم تسجيل الدخول للعمل بنجاح!</b>\n⏰ وقت الدخول: <b>${timeStr}</b>` 
-        : `✅ <b>Pointage d'entrée réussi!</b>\n⏰ Heure: <b>${timeStr}</b>`, 
-        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
-    }
-
-    if (d === 'work_out') {
-      let sessions = {};
-      if (fs.existsSync(WORK_SESSIONS_PATH)) {
-        try { sessions = JSON.parse(fs.readFileSync(WORK_SESSIONS_PATH, 'utf8')); } catch(e){}
-      }
-      
-      if (!sessions[fromId] || !sessions[fromId].in) {
-         return send(chatId, ar ? `⚠️ لم تقم بتسجيل الدخول مسبقاً اليوم.` : `⚠️ Vous n'avez pas pointé votre entrée aujourd'hui.`, 
-          { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
-      }
-      
-      const inTime = sessions[fromId].in;
-      const outTime = Date.now();
-      const diffMs = outTime - inTime;
-      
-      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      
-      delete sessions[fromId];
-      fs.writeFileSync(WORK_SESSIONS_PATH, JSON.stringify(sessions, null, 2));
-      
-      const tzOffset = 1 * 60 * 60 * 1000;
-      const now = new Date(Date.now() + tzOffset);
-      const timeStr = now.toISOString().substring(11, 16);
-      
-      return send(chatId, ar 
-        ? `🔴 <b>تم تسجيل الخروج من العمل!</b>\n⏰ وقت الخروج: <b>${timeStr}</b>\n\n⏱️ <b>المدة الإجمالية للعمل:</b>\n<b>${diffHrs}</b> ساعة و <b>${diffMins}</b> دقيقة.` 
-        : `🔴 <b>Pointage de sortie réussi!</b>\n⏰ Heure: <b>${timeStr}</b>\n\n⏱️ <b>Durée totale de travail:</b>\n<b>${diffHrs}</b> heure(s) et <b>${diffMins}</b> minute(s).`,
-        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
-    }
-
     return;
   }
 
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
+
+  // Handle typing 'دخول 08:15 خروج 16:30'
+  if ((txt.includes('دخول') && txt.includes('خروج')) || 
+      (txtLow.includes('entree') && txtLow.includes('sortie')) || 
+      (txtLow.includes('entrée') && txtLow.includes('sortie'))) {
+    const times = [...txt.matchAll(/(\d{1,2})[:.hH](\d{2})/g)];
+    if (times.length >= 2) {
+      const inH = parseInt(times[0][1], 10), inM = parseInt(times[0][2], 10);
+      const outH = parseInt(times[1][1], 10), outM = parseInt(times[1][2], 10);
+      let inTotal = inH * 60 + inM;
+      let outTotal = outH * 60 + outM;
+      if (outTotal < inTotal) outTotal += 24 * 60; // handle cross midnight
+      
+      const diffMins = outTotal - inTotal;
+      const diffHrs = Math.floor(diffMins / 60);
+      const remMins = diffMins % 60;
+      
+      let reply = ar ? `⏱️ <b>المدة الإجمالية للعمل:</b>\n` : `⏱️ <b>Durée totale de travail:</b>\n`;
+      if (diffHrs > 0) {
+        reply += ar ? `<b>${diffHrs}</b> ساعة و ` : `<b>${diffHrs}</b> heure(s) et `;
+      }
+      reply += ar ? `<b>${remMins}</b> دقيقة.` : `<b>${remMins}</b> minute(s).`;
+      
+      return send(chatId, reply);
+    }
+  }
 
   if (txtLow === '/start' || txtLow === '/m') {
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });

@@ -10,7 +10,7 @@ function getCurrentExercice() {
 // ─── مساعد: تحديد الشركة بشكل صحيح ───
 function isVerreTech(companyId) {
   const c = String(companyId || '').toLowerCase().replace(/[_\s-]/g, '');
-  return c.includes('verre') || c.includes('tech') || c === 'verretech';
+  return c.includes('verre') || c.includes('tech') || c === 'verretech' || c === 'vt';
 }
 
 export function getStatsMsg(db, ar) {

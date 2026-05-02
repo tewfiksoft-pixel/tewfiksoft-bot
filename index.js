@@ -429,6 +429,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       const lnf = String(e.lastName_fr || '').toLowerCase();
       const fnf = String(e.firstName_fr || '').toLowerCase();
       const lna = String(e.lastName_ar || '');
+      
+      if (/^[0-9]+$/.test(q)) {
+        return cid === q;
+      }
       return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q) || lna.includes(q);
     }).slice(0, 5);
 

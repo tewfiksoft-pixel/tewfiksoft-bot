@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, loadConfig, T, log } from './utils/database.js';
-import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg } from './utils/ui.js';
+import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
 import { convertAmountToWords } from './utils/cheque.js';
 import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
@@ -142,12 +142,30 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('leave:')) {
       const empId = d.split(':')[1];
-      const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === empId);
+      const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      let bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === empId);
+      
       let msg = ar ? '🏖️ <b>رصيد العطل السنوي:</b>\n━━━━━━━━━━━━━━\n' : '🏖️ <b>SOLDE CONGÉS:</b>\n━━━━━━━━━━━━━━\n';
-      if (bals.length === 0) msg += ar ? '⚠️ لا توجد بيانات مسجلة.' : '⚠️ Aucune donnée enregistrée.';
-      for (const b of bals) {
-        msg += `📅 ${b.exercice}: ✅ ${b.remainingDays}/${b.totalDays} ${ar ? 'يوم' : 'jours'}\n`;
-        if (b.lastComment) msg += `   └ 💬 <i>${b.lastComment}</i>\n`;
+      
+      if (bals.length === 0 && emp) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const activeEx = month >= 7 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
+        const auto = calculateAutoLeave(emp.startDate, activeEx);
+        if (auto > 0) {
+          bals = [{ exercice: activeEx, totalDays: auto, remainingDays: auto, isAuto: true }];
+        }
+      }
+
+      if (bals.length === 0) {
+        msg += ar ? '⚠️ لا توجد بيانات مسجلة.' : '⚠️ Aucune donnée enregistrée.';
+      } else {
+        for (const b of bals) {
+          const suffix = b.isAuto ? (ar ? ' (تلقائي)' : ' (Auto)') : '';
+          msg += `📅 ${b.exercice}: ✅ ${b.remainingDays}/${b.totalDays} ${ar ? 'يوم' : 'jours'}${suffix}\n`;
+          if (b.lastComment) msg += `   └ 💬 <i>${b.lastComment}</i>\n`;
+        }
       }
       return send(chatId, msg);
     }
@@ -438,7 +456,26 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الرقم: <b>${txt}</b>\n\n🔍 حاول مجدداً:` : `❌ Aucun employé trouvé: <b>${txt}</b>\n\n🔍 Réessayez:`);
     for (const emp of results) {
-      const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
+      let bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
+      
+      // إذا لم يكن هناك رصيد يدوي، قم بحساب الرصيد التلقائي للسنة الجارية
+      if (bals.length === 0) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const activeEx = month >= 7 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
+        const auto = calculateAutoLeave(emp.startDate, activeEx);
+        
+        if (auto > 0) {
+          bals = [{
+            exercice: activeEx,
+            totalDays: auto,
+            remainingDays: auto,
+            isAuto: true
+          }];
+        }
+      }
+
       await roleObj.showEmployeeCard(chatId, emp, ar, bals);
     }
   }

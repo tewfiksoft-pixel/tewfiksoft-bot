@@ -52,7 +52,8 @@ export default class BaseRole {
     if (bals && bals.length > 0) {
       msg += ar ? `\n\n🏖️ <b>أرصدة العطل السنوية:</b>\n` : `\n\n🏖️ <b>SOLDES CONGÉS :</b>\n`;
       bals.forEach(b => {
-        msg += `├ ${b.exercice}: <b>${b.remainingDays}</b> / ${b.totalDays} ${ar ? 'يوم' : 'j'}\n`;
+        const suffix = b.isAuto ? (ar ? ' (تلقائي)' : ' (Auto)') : '';
+        msg += `├ ${b.exercice}: <b>${b.remainingDays}</b> / ${b.totalDays} ${ar ? 'يوم' : 'j'}${suffix}\n`;
       });
     }
 

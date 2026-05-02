@@ -13,6 +13,51 @@ function isVerreTech(companyId) {
   return c.includes('verre') || c.includes('tech') || c === 'verretech' || c === 'vt';
 }
 
+function parseDateRobust(dateStr) {
+  if (!dateStr) return new Date(NaN);
+  const cleaned = dateStr.trim();
+  if (cleaned.includes('/') || (cleaned.includes('-') && cleaned.split('-')[0].length < 4)) {
+    const separator = cleaned.includes('/') ? '/' : '-';
+    const parts = cleaned.split(separator);
+    if (parts.length === 3) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2];
+      return new Date(`${y}-${m}-${d}T00:00:00Z`);
+    }
+  }
+  return new Date(cleaned.includes('T') ? cleaned : `${cleaned}T00:00:00Z`);
+}
+
+export function calculateAutoLeave(recruitmentDate, exercice) {
+  try {
+    const [startYearStr, endYearStr] = exercice.split('/');
+    const exStart = new Date(`${startYearStr}-07-01T00:00:00Z`);
+    const exEnd = new Date(`${endYearStr}-06-30T23:59:59Z`);
+    const hireDate = parseDateRobust(recruitmentDate);
+    if (isNaN(hireDate.getTime())) return 0;
+    if (hireDate > exEnd) return 0;
+    const now = new Date();
+    const nowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    if (nowUTC < exStart) return 0;
+    const effectiveStart = hireDate > exStart ? hireDate : exStart;
+    const effectiveEnd = nowUTC < exEnd ? nowUTC : exEnd;
+    if (effectiveStart > effectiveEnd) return 0;
+    let curM = effectiveStart.getUTCMonth();
+    let curY = effectiveStart.getUTCFullYear();
+    if (hireDate > exStart && hireDate.getUTCDate() >= 16) {
+      curM++; if (curM > 11) { curM = 0; curY++; }
+    }
+    let workMonths = 0;
+    const targetM = effectiveEnd.getUTCMonth();
+    const targetY = effectiveEnd.getUTCFullYear();
+    while (curY < targetY || (curY === targetY && curM <= targetM)) {
+      workMonths++; curM++; if (curM > 11) { curM = 0; curY++; }
+    }
+    return Math.min(30, Math.min(12, workMonths) * 2.5);
+  } catch { return 0; }
+}
+
 export function getStatsMsg(db, ar) {
   const activeEx = getCurrentExercice();
   const allEmps = (db.hr_employees || []);
@@ -67,7 +112,7 @@ export function getStatsMsg(db, ar) {
     .forEach(l => {
       const empId = String(l.employeeId);
       const emp = empMap[empId];
-      if (!emp) return; // تجاهل سجلات لموظفين غير نشطين
+      if (!emp) return;
 
       const r = parseFloat(l.remainingDays || 0);
       if (isVerreTech(emp.companyId)) {
@@ -76,6 +121,24 @@ export function getStatsMsg(db, ar) {
         if (!seenAlver.has(empId)) { alLeave += r; seenAlver.add(empId); }
       }
     });
+
+  // إضافة الأرصدة التلقائية للموظفين الذين ليس لديهم سجل يدوي
+  emps.forEach(emp => {
+    const empId = String(emp.id);
+    if (isVerreTech(emp.companyId)) {
+      if (!seenVt.has(empId)) {
+        const auto = calculateAutoLeave(emp.startDate, activeEx);
+        vtLeave += auto;
+        seenVt.add(empId);
+      }
+    } else {
+      if (!seenAlver.has(empId)) {
+        const auto = calculateAutoLeave(emp.startDate, activeEx);
+        alLeave += auto;
+        seenAlver.add(empId);
+      }
+    }
+  });
 
   return ar
     ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال النشطين: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 عقود دائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ عقود مؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>أرصدة العطل السنوية (${activeEx}):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b> (${seenAlver.size} موظف)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b> (${seenVt.size} موظف)\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`

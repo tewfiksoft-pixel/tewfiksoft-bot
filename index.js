@@ -14,6 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
+const WORK_SESSIONS_PATH = path.join(DATA_DIR, 'work_sessions.json');
 
 const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
 
@@ -277,6 +278,55 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
       ]});
     }
+    if (d === 'work_in') {
+      let sessions = {};
+      if (fs.existsSync(WORK_SESSIONS_PATH)) {
+        try { sessions = JSON.parse(fs.readFileSync(WORK_SESSIONS_PATH, 'utf8')); } catch(e){}
+      }
+      sessions[fromId] = { in: Date.now() };
+      fs.writeFileSync(WORK_SESSIONS_PATH, JSON.stringify(sessions, null, 2));
+      
+      const tzOffset = 1 * 60 * 60 * 1000;
+      const now = new Date(Date.now() + tzOffset);
+      const timeStr = now.toISOString().substring(11, 16);
+      
+      return send(chatId, ar 
+        ? `✅ <b>تم تسجيل الدخول للعمل بنجاح!</b>\n⏰ وقت الدخول: <b>${timeStr}</b>` 
+        : `✅ <b>Pointage d'entrée réussi!</b>\n⏰ Heure: <b>${timeStr}</b>`, 
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
+    if (d === 'work_out') {
+      let sessions = {};
+      if (fs.existsSync(WORK_SESSIONS_PATH)) {
+        try { sessions = JSON.parse(fs.readFileSync(WORK_SESSIONS_PATH, 'utf8')); } catch(e){}
+      }
+      
+      if (!sessions[fromId] || !sessions[fromId].in) {
+         return send(chatId, ar ? `⚠️ لم تقم بتسجيل الدخول مسبقاً اليوم.` : `⚠️ Vous n'avez pas pointé votre entrée aujourd'hui.`, 
+          { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+      }
+      
+      const inTime = sessions[fromId].in;
+      const outTime = Date.now();
+      const diffMs = outTime - inTime;
+      
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      delete sessions[fromId];
+      fs.writeFileSync(WORK_SESSIONS_PATH, JSON.stringify(sessions, null, 2));
+      
+      const tzOffset = 1 * 60 * 60 * 1000;
+      const now = new Date(Date.now() + tzOffset);
+      const timeStr = now.toISOString().substring(11, 16);
+      
+      return send(chatId, ar 
+        ? `🔴 <b>تم تسجيل الخروج من العمل!</b>\n⏰ وقت الخروج: <b>${timeStr}</b>\n\n⏱️ <b>المدة الإجمالية للعمل:</b>\n<b>${diffHrs}</b> ساعة و <b>${diffMins}</b> دقيقة.` 
+        : `🔴 <b>Pointage de sortie réussi!</b>\n⏰ Heure: <b>${timeStr}</b>\n\n⏱️ <b>Durée totale de travail:</b>\n<b>${diffHrs}</b> heure(s) et <b>${diffMins}</b> minute(s).`,
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
     return;
   }
 

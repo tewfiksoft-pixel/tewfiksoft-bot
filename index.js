@@ -282,10 +282,9 @@ Pour garantir une fin de relation de travail légale et fluide :
 
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
-  // Handle typing 'دخول 08:15 خروج 16:30'
-  if ((txt.includes('دخول') && txt.includes('خروج')) || 
-      (txtLow.includes('entree') && txtLow.includes('sortie')) || 
-      (txtLow.includes('entrée') && txtLow.includes('sortie'))) {
+  // Handle typing 'دخول 08:15 خروج 16:30' (robust to typos)
+  if (txt.includes('دخول') || txt.includes('دحول') || txt.includes('خروج') || 
+      txtLow.includes('entree') || txtLow.includes('sortie') || txtLow.includes('entrée')) {
     const times = [...txt.matchAll(/(\d{1,2})[:.hH](\d{2})/g)];
     if (times.length >= 2) {
       const inH = parseInt(times[0][1], 10), inM = parseInt(times[0][2], 10);

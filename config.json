@@ -4,12 +4,12 @@
     {
       "id": "8626592284",
       "name": "Tewfik Admin",
-      "role": "gestionnaire_rh",
-      "scope": "custom_employees",
+      "role": "admin",
+      "scope": "all",
       "allowed_departments": [
         "DIRECTION DES RESSOURCES HUMAINES"
       ],
-      "allowed_company": null,
+      "allowed_company": "all",
       "allowed_employees": [
         "70041"
       ],
@@ -19,8 +19,8 @@
     {
       "id": "965443735",
       "name": "DG",
-      "role": "gestionnaire_rh",
-      "scope": "custom_employees",
+      "role": "admin",
+      "scope": "all",
       "allowed_departments": [],
       "allowed_company": "all",
       "allowed_employees": [

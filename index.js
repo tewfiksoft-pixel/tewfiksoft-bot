@@ -563,22 +563,26 @@ app.listen(port, () => {
     log('⚠️  WEBHOOK_URL not set! Add it in Koyeb Dashboard > Environment Variables');
   }
 
-  // ─── Keep-Alive: ping كل 5 دقائق لمنع النوم (Koyeb/Render) ───
-  if (WEBHOOK_URL) {
-    const ping = () => {
-      try {
-        const https = require('https');
-        https.get(WEBHOOK_URL, (res) => {
-          log(`[Keep-Alive] ping OK - status: ${res.statusCode}`);
-        }).on('error', (e) => {
-          log(`[Keep-Alive] ping error: ${e.message}`);
-        });
-      } catch(e) { log(`[Keep-Alive] error: ${e.message}`); }
-    };
-    ping(); // Ping immediately on start
-    setInterval(ping, 5 * 60 * 1000); // Every 5 minutes
-  }
+  // ─── Keep-Alive: ping كل 4 دقائق لمنع النوم على Render ───
+  // Render يوقف الخدمة المجانية بعد 15 دقيقة بدون نشاط
+  // الحل: ping كل 4 دقائق باستخدام fetch المدمج في Node.js 18+
+  const SELF_URL = WEBHOOK_URL || `http://localhost:${port}`;
   
+  const keepAlive = async () => {
+    try {
+      const r = await fetch(SELF_URL, { signal: AbortSignal.timeout(10000) });
+      log(`[Keep-Alive] ✅ ping OK - ${r.status} - ${new Date().toISOString()}`);
+    } catch (e) {
+      log(`[Keep-Alive] ⚠️ ping failed: ${e.message}`);
+    }
+  };
+
+  // Ping immediately, then every 4 minutes
+  setTimeout(keepAlive, 5000); // 5 seconds after start
+  setInterval(keepAlive, 4 * 60 * 1000); // Every 4 minutes
+  
+  log('✅ Keep-Alive activated: pinging every 4 minutes to prevent sleep.');
+
 
   // ─── جلب قاعدة البيانات من السحابة الخارجية (Google Drive) ───
   // ملاحظة: يتم جلب البيانات من Google Drive فقط إذا كانت قاعدة البيانات فارغة (أول تشغيل)

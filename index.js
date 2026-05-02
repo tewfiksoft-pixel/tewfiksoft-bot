@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, loadConfig, T, log } from './utils/database.js';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg } from './utils/ui.js';
+import { convertAmountToWords } from './utils/cheque.js';
 import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
 
@@ -85,6 +86,13 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `🟢 <b>أرسل وقت الدخول الآن</b>\nمثال: <code>08:15</code>` 
         : `🟢 <b>Envoyez l'heure d'entrée</b>\nExemple: <code>08:15</code>`);
+    }
+
+    if (d === 'cheque_step') {
+      states.set(chatId, { step: 'cheque_amount' });
+      return send(chatId, ar 
+        ? `📝 <b>تحويل الأرقام إلى حروف (شيك بنكي)</b>\n\n💰 أرسل المبلغ بالأرقام الآن:\nمثال: <code>15000.50</code>` 
+        : `📝 <b>Convertir Chiffres en Lettres (Chèque)</b>\n\n💰 Envoyez le montant en chiffres:\nExemple: <code>15000.50</code>`);
     }
 
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
@@ -348,6 +356,23 @@ Pour garantir une fin de relation de travail légale et fluide :
       } else {
         states.set(chatId, { step: 'calc_out', inH: st.inH, inM: st.inM }); // keep state
         return send(chatId, ar ? `⚠️ صيغة خاطئة. أرسل الوقت هكذا: <code>16:30</code>` : `⚠️ Format invalide. Exemple: <code>16:30</code>`);
+      }
+    }
+
+    if (st.step === 'cheque_amount') {
+      let norm = txt.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      const words = convertAmountToWords(norm, ar ? 'ar' : 'fr');
+      if (words) {
+        return send(chatId, ar 
+          ? `🏦 <b>المبلغ بالحروف:</b>\n\n${words}` 
+          : `🏦 <b>Montant en lettres:</b>\n\n${words}`, 
+          { inline_keyboard: [
+            [{ text: ar ? '🔄 حساب مبلغ آخر' : '🔄 Autre montant', callback_data: 'cheque_step' }],
+            [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
+          ]});
+      } else {
+        states.set(chatId, { step: 'cheque_amount' }); // keep state
+        return send(chatId, ar ? `⚠️ الرجاء إرسال رقم صحيح. مثال: <code>15000.50</code>` : `⚠️ Montant invalide. Exemple: <code>15000.50</code>`);
       }
     }
 

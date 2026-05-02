@@ -5,6 +5,7 @@ export default class GestionnaireRhRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
       [{ text: ar ? '⏱️ حساب مدة العمل' : '⏱️ Calculer temps de travail', callback_data: 'calc_step_1' }],
+      [{ text: ar ? '📝 تفقيط الأرقام (شيك)' : '📝 Chiffres en Lettres', callback_data: 'cheque_step' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '📜 دليل نهاية العمل' : '📜 Guide Fin de Travail', callback_data: 'end_work_guide' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]

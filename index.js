@@ -28,16 +28,29 @@ async function handle(u) {
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig();
+  const txt = msg.text || '', txtLow = txt.toLowerCase();
+
   const userData = cfg.authorized_users?.find(u => {
     const adId = String(u.id || '').replace('@', '').toLowerCase().trim();
     return adId === fromId || (from.username && adId === from.username.toLowerCase());
   });
-  if (!userData) return;
+
+  const ar = (userData?.lang || langs.get(chatId) || 'ar') === 'ar';
+
+  // Public /id command to help user find their Telegram ID
+  if (txtLow === '/id' || txtLow === '/me') {
+    const idMsg = (ar ? `🆔 معرفك هو: <code>${fromId}</code>` : `🆔 Votre ID est: <code>${fromId}</code>`);
+    await send(chatId, idMsg, { parse_mode: 'HTML' });
+    log(`[Bot] Public ID request from ${fromId} (${from.username || 'no-user'})`);
+  }
+
+  if (!userData) {
+    log(`[Bot] Unauthorized access attempt: ${fromId} (${from.username || 'no-user'})`);
+    return;
+  }
 
   const roleObj = RoleFactory.create(userData);
   if (!roleObj) return;
-
-  const ar = (userData.lang || langs.get(chatId) || 'ar') === 'ar';
 
   if (cbq) {
     await answerCallbackQuery(cbq.id);
@@ -534,19 +547,20 @@ app.listen(port, () => {
     log('⚠️  WEBHOOK_URL not set! Add it in Koyeb Dashboard > Environment Variables');
   }
 
-  // ─── Keep-Alive: ping كل 10 دقائق لمنع النوم ───
+  // ─── Keep-Alive: ping كل 5 دقائق لمنع النوم (Koyeb/Render) ───
   if (WEBHOOK_URL) {
-    setInterval(() => {
+    const ping = () => {
       try {
-        import('https').then(({ default: https }) => {
-          https.get(WEBHOOK_URL, (res) => {
-            log(`[Keep-Alive] ping OK - status: ${res.statusCode}`);
-          }).on('error', (e) => {
-            log(`[Keep-Alive] ping error: ${e.message}`);
-          });
+        const https = require('https');
+        https.get(WEBHOOK_URL, (res) => {
+          log(`[Keep-Alive] ping OK - status: ${res.statusCode}`);
+        }).on('error', (e) => {
+          log(`[Keep-Alive] ping error: ${e.message}`);
         });
       } catch(e) { log(`[Keep-Alive] error: ${e.message}`); }
-    }, 10 * 60 * 1000); // كل 10 دقائق
+    };
+    ping(); // Ping immediately on start
+    setInterval(ping, 5 * 60 * 1000); // Every 5 minutes
   }
   
 

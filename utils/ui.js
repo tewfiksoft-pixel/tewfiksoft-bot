@@ -101,28 +101,28 @@ export function getStatsMsg(db, ar) {
   const avgAge = ageCount > 0 ? Math.round(totalAge / ageCount) : 0;
   const avgExp = senCount > 0 ? (totalSeniority / senCount).toFixed(1) : 0;
 
-  // ─── أرصدة العطل: ربط بالموظف وليس بالشركة في سجل العطلة ───
-  // نحسب فقط السنة الجارية، ولكل موظف نحتفظ بآخر قيمة (تجنب التكرار)
+  // ─── أرصدة العطل: الإجمالي التراكمي لكل السنوات ───
   const seenAlver = new Set();
   const seenVt = new Set();
   let alLeave = 0, vtLeave = 0;
 
-  (db.hr_leave_balances || [])
-    .filter(l => l.exercice === activeEx)
-    .forEach(l => {
-      const empId = String(l.employeeId);
-      const emp = empMap[empId];
-      if (!emp) return;
+  // 1. جمع الأرصدة اليدوية من قاعدة البيانات (لكل السنوات المتاحة)
+  (db.hr_leave_balances || []).forEach(l => {
+    const empId = String(l.employeeId);
+    const emp = empMap[empId];
+    if (!emp) return;
 
-      const r = parseFloat(l.remainingDays || 0);
-      if (isVerreTech(emp.companyId)) {
-        if (!seenVt.has(empId)) { vtLeave += r; seenVt.add(empId); }
-      } else {
-        if (!seenAlver.has(empId)) { alLeave += r; seenAlver.add(empId); }
-      }
-    });
+    const r = parseFloat(l.remainingDays || 0);
+    if (isVerreTech(emp.companyId)) {
+      vtLeave += r;
+      seenVt.add(empId);
+    } else {
+      alLeave += r;
+      seenAlver.add(empId);
+    }
+  });
 
-  // إضافة الأرصدة التلقائية للموظفين الذين ليس لديهم سجل يدوي
+  // 2. إضافة الرصيد التلقائي للسنة الجارية للموظفين الذين لم يسبق لهم الحصول على رصيد يدوي أبداً
   emps.forEach(emp => {
     const empId = String(emp.id);
     if (isVerreTech(emp.companyId)) {
@@ -141,8 +141,8 @@ export function getStatsMsg(db, ar) {
   });
 
   return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال النشطين: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 عقود دائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ عقود مؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>أرصدة العطل السنوية (${activeEx}):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b> (${seenAlver.size} موظف)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b> (${seenVt.size} موظف)\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total Actif: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>Soldes Congés (${activeEx}):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} j</b> (${seenAlver.size} emp.)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} j</b> (${seenVt.size} emp.)\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
+    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال النشطين: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 عقود دائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ عقود مؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>أرصدة العطل الإجمالية (تراكمي):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b> (${seenAlver.size} موظف)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b> (${seenVt.size} موظف)\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
+    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total Actif: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>Soldes Congés (Global Cumulé):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} j</b> (${seenAlver.size} emp.)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} j</b> (${seenVt.size} emp.)\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
 }
 
 export function getEffectifsDirMsg(db, ar) {

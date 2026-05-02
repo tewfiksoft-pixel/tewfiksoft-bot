@@ -512,6 +512,14 @@ app.post('/api/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
+app.get('/api/debug-config', (req, res) => {
+  try {
+    const cfg = loadConfig();
+    const cleanCfg = { ...cfg, bot_token: cfg.bot_token ? (cfg.bot_token.substring(0, 5) + '...') : 'missing' };
+    res.json(cleanCfg);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
 app.post('/api/config', (req, res) => {
   try {
     let data = req.rawBody;

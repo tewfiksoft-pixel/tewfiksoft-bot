@@ -1,7 +1,19 @@
 {
   "bot_token": "8675308284:AAE2YKD7aExW04mfrvsymaVjQRzggZM7iw8",
-  "authorized_users": [],
-  "is_enabled": false,
+  "authorized_users": [
+    {
+      "id": "6581452445",
+      "name": "NOUAR Tewfik (Admin)",
+      "role": "admin",
+      "scope": "full",
+      "allowed_departments": null,
+      "allowed_company": null,
+      "allowed_employees": null,
+      "clockingId": null,
+      "phone": null
+    }
+  ],
+  "is_enabled": true,
   "proxy_enabled": false,
   "proxy_host": null,
   "proxy_port": null,
@@ -9,17 +21,19 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_contract_type": true,
-    "show_probation_end": true,
     "show_department": true,
     "show_contract_end": true,
-    "show_bank_account": false,
-    "show_hiring_date": true,
-    "show_job_title": true,
-    "show_phone": true,
     "show_photo": true,
-    "show_address": false,
+    "show_probation_end": true,
+    "show_job_title": true,
+    "show_hiring_date": true,
+    "show_contract_type": true,
+    "show_phone": true,
     "show_social_number": false
   },
-  "allowed_documents": null
+  "allowed_documents": {
+    "work_contract": true,
+    "salary_slip": true,
+    "leave_title": true
+  }
 }

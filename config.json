@@ -38,17 +38,17 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_bank_account": false,
-    "show_contract_type": true,
-    "show_department": true,
-    "show_photo": false,
-    "show_phone": false,
     "show_probation_end": true,
-    "show_hiring_date": true,
-    "show_social_number": false,
-    "show_address": false,
+    "show_department": true,
     "show_job_title": true,
-    "show_contract_end": true
+    "show_address": false,
+    "show_photo": false,
+    "show_social_number": false,
+    "show_contract_end": true,
+    "show_contract_type": true,
+    "show_phone": false,
+    "show_bank_account": false,
+    "show_hiring_date": true
   },
   "allowed_documents": null
 }

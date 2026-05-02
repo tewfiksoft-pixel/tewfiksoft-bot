@@ -25,6 +25,7 @@ const langs = new Map();
 const states = new Map();
 
 async function handle(u) {
+  log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig();
@@ -527,6 +528,13 @@ app.post('/api/config', (req, res) => {
     fs.writeFileSync(CONFIG_PATH, data);
     log('Config updated: ' + data.length + ' bytes');
     res.sendStatus(200);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+app.get('/api/logs', (req, res) => {
+  try {
+    const logs = fs.readFileSync(path.join(__dirname, 'bot_debug.log'), 'utf8');
+    res.type('text/plain').send(logs.split('\n').slice(-100).join('\n'));
   } catch (e) { res.status(500).send(e.message); }
 });
 

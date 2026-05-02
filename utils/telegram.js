@@ -2,6 +2,7 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { log } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
@@ -25,9 +26,18 @@ export const tg = (method, body) => new Promise((res) => {
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(p) } 
   }, (r) => {
     let d = ''; r.on('data', c => d += c);
-    r.on('end', () => { try { res(JSON.parse(d)); } catch { res({ ok: false }); } });
+    r.on('end', () => { 
+      try { 
+        const resObj = JSON.parse(d);
+        if (!resObj.ok) log(`[TG-Error] ${method}: ${JSON.stringify(resObj)}`);
+        res(resObj); 
+      } catch { res({ ok: false }); } 
+    });
   });
-  req.on('error', () => res({ ok: false }));
+  req.on('error', (e) => {
+    log(`[TG-Network-Error] ${method}: ${e.message}`);
+    res({ ok: false });
+  });
   req.write(p); req.end();
 });
 

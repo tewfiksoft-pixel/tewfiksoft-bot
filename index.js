@@ -79,6 +79,14 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d === 'choose_lang') return send(chatId, '🌐', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
+    
+    if (d === 'work_calc_help') {
+      return send(chatId, ar 
+        ? `⏱️ <b>لحساب مدة العمل:</b>\n\nقم بكتابة رسالة نصية عادية تحتوي على كلمة "دخول" و "خروج" مع الوقت. كمثال:\n\n<code>دخول 08:15 خروج 16:30</code>\n\nوسأقوم بحساب المدة فوراً! 🚀` 
+        : `⏱️ <b>Pour calculer le temps de travail:</b>\n\nÉcrivez un message contenant "entrée" et "sortie" avec l'heure. Exemple:\n\n<code>entrée 08:15 sortie 16:30</code>\n\nJe calculerai la durée immédiatement ! 🚀`,
+        { inline_keyboard: [[{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'menu' }]] });
+    }
+
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();

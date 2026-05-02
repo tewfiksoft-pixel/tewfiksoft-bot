@@ -505,7 +505,7 @@ app.use((req, res, next) => {
 
 app.get('/', (req, res) => {
   const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v8.0 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
+  res.status(200).send(`TewfikSoft HR Bot v8.8 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
 });
 
 app.post('/api/webhook', (req, res) => {

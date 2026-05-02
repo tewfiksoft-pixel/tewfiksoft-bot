@@ -7,9 +7,11 @@ services:
     startCommand: node index.js
     envVars:
       - key: BOT_TOKEN
-        value: 8675308284:AAF1LCwdFKZZdD6lQXcyJJImXwRz8ColvBM
+        value: 8675308284:AAE2YKD7aExW04mfrvsymaVjQRzggZM7iw8
+      - key: WEBHOOK_URL
+        value: https://tewfiksoft-hr-bot.onrender.com
       - key: ADMIN_CHAT_ID
-        value: 8626592284
+        value: 6581452445
       - key: NODE_ENV
         value: production
       - key: PORT

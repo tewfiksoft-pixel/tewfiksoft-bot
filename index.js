@@ -80,11 +80,11 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'choose_lang') return send(chatId, '🌐', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
     
-    if (d === 'work_calc_help') {
+    if (d === 'calc_step_1') {
+      states.set(chatId, { step: 'calc_in' });
       return send(chatId, ar 
-        ? `⏱️ <b>لحساب مدة العمل:</b>\n\nقم بكتابة رسالة نصية عادية تحتوي على كلمة "دخول" و "خروج" مع الوقت. كمثال:\n\n<code>دخول 08:15 خروج 16:30</code>\n\nوسأقوم بحساب المدة فوراً! 🚀` 
-        : `⏱️ <b>Pour calculer le temps de travail:</b>\n\nÉcrivez un message contenant "entrée" et "sortie" avec l'heure. Exemple:\n\n<code>entrée 08:15 sortie 16:30</code>\n\nJe calculerai la durée immédiatement ! 🚀`,
-        { inline_keyboard: [[{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'menu' }]] });
+        ? `🟢 <b>أرسل وقت الدخول الآن</b>\nمثال: <code>08:15</code>` 
+        : `🟢 <b>Envoyez l'heure d'entrée</b>\nExemple: <code>08:15</code>`);
     }
 
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
@@ -290,39 +290,6 @@ Pour garantir une fin de relation de travail légale et fluide :
 
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
-  // Handle typing 'دخول 08:15 خروج 16:30' (robust to typos)
-  const isWorkMsg = txt.includes('دخول') || txt.includes('دحول') || txt.includes('خروج') || 
-      txtLow.includes('entree') || txtLow.includes('sortie') || txtLow.includes('entrée');
-
-  if (isWorkMsg) {
-    let norm = txt.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
-    const times = [...norm.matchAll(/(\d{1,2})\s*[:.hH،,]\s*(\d{2})/g)];
-    
-    if (times.length >= 2) {
-      const inH = parseInt(times[0][1], 10), inM = parseInt(times[0][2], 10);
-      const outH = parseInt(times[1][1], 10), outM = parseInt(times[1][2], 10);
-      let inTotal = inH * 60 + inM;
-      let outTotal = outH * 60 + outM;
-      if (outTotal < inTotal) outTotal += 24 * 60; // handle cross midnight
-      
-      const diffMins = outTotal - inTotal;
-      const diffHrs = Math.floor(diffMins / 60);
-      const remMins = diffMins % 60;
-      
-      let reply = ar ? `⏱️ <b>المدة الإجمالية للعمل:</b>\n` : `⏱️ <b>Durée totale de travail:</b>\n`;
-      if (diffHrs > 0) {
-        reply += ar ? `<b>${diffHrs}</b> ساعة و ` : `<b>${diffHrs}</b> heure(s) et `;
-      }
-      reply += ar ? `<b>${remMins}</b> دقيقة.` : `<b>${remMins}</b> minute(s).`;
-      
-      return send(chatId, reply);
-    } else {
-       return send(chatId, ar 
-         ? `⚠️ لم أتمكن من التعرف على أوقات الدخول والخروج.\nيرجى كتابتها بهذا الشكل: <b>دخول 08:15 خروج 16:30</b>` 
-         : `⚠️ Impossible de lire l'heure.\nVeuillez écrire comme ceci: <b>entrée 08:15 sortie 16:30</b>`);
-    }
-  }
-
   if (txtLow === '/start' || txtLow === '/m') {
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
   }
@@ -342,6 +309,47 @@ Pour garantir une fin de relation de travail légale et fluide :
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
     const role = String(userData.role).toLowerCase();
     const isManager = role === 'manager';
+
+    if (st.step === 'calc_in') {
+      let norm = txt.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      const times = [...norm.matchAll(/(\d{1,2})\s*[:.hH،,]\s*(\d{0,2})/g)];
+      if (times.length > 0) {
+        const inH = parseInt(times[0][1], 10), inM = parseInt(times[0][2] || '0', 10);
+        states.set(chatId, { step: 'calc_out', inH, inM });
+        return send(chatId, ar 
+          ? `🔴 <b>تم استلام وقت الدخول (${inH}:${inM < 10 ? '0'+inM : inM}).</b>\nأرسل وقت الخروج الآن:` 
+          : `🔴 <b>Heure d'entrée reçue (${inH}:${inM < 10 ? '0'+inM : inM}).</b>\nEnvoyez l'heure de sortie maintenant:`);
+      } else {
+        states.set(chatId, { step: 'calc_in' }); // keep state
+        return send(chatId, ar ? `⚠️ صيغة خاطئة. أرسل الوقت هكذا: <code>08:15</code>` : `⚠️ Format invalide. Exemple: <code>08:15</code>`);
+      }
+    }
+
+    if (st.step === 'calc_out') {
+      let norm = txt.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      const times = [...norm.matchAll(/(\d{1,2})\s*[:.hH،,]\s*(\d{0,2})/g)];
+      if (times.length > 0) {
+        const outH = parseInt(times[0][1], 10), outM = parseInt(times[0][2] || '0', 10);
+        const inH = st.inH, inM = st.inM;
+        
+        let inTotal = inH * 60 + inM;
+        let outTotal = outH * 60 + outM;
+        if (outTotal < inTotal) outTotal += 24 * 60;
+        
+        const diffMins = outTotal - inTotal;
+        const diffHrs = Math.floor(diffMins / 60);
+        const remMins = diffMins % 60;
+        
+        let reply = ar ? `⏱️ <b>المدة الإجمالية للعمل:</b>\n` : `⏱️ <b>Durée totale de travail:</b>\n`;
+        if (diffHrs > 0) reply += ar ? `<b>${diffHrs}</b> ساعة و ` : `<b>${diffHrs}</b> heure(s) et `;
+        reply += ar ? `<b>${remMins}</b> دقيقة.` : `<b>${remMins}</b> minute(s).`;
+        
+        return send(chatId, reply, { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+      } else {
+        states.set(chatId, { step: 'calc_out', inH: st.inH, inM: st.inM }); // keep state
+        return send(chatId, ar ? `⚠️ صيغة خاطئة. أرسل الوقت هكذا: <code>16:30</code>` : `⚠️ Format invalide. Exemple: <code>16:30</code>`);
+      }
+    }
 
     if (st.step === 'doc_reason') {
       await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${st.docName}</b>\n✍️ السبب: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);

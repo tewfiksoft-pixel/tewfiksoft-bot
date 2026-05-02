@@ -4,7 +4,7 @@ import { send } from '../utils/telegram.js';
 export default class GestionnaireRhRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
-      [{ text: ar ? '⏱️ حساب مدة العمل' : '⏱️ Calculer temps de travail', callback_data: 'work_calc_help' }],
+      [{ text: ar ? '⏱️ حساب مدة العمل' : '⏱️ Calculer temps de travail', callback_data: 'calc_step_1' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '📜 دليل نهاية العمل' : '📜 Guide Fin de Travail', callback_data: 'end_work_guide' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]

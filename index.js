@@ -562,6 +562,16 @@ app.get('/api/logs', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+app.get('/api/database', (req, res) => {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      res.sendFile(DB_PATH);
+    } else {
+      res.status(404).send('Database not found');
+    }
+  } catch (e) { res.status(500).send(e.message); }
+});
+
 app.post('/api/database', (req, res) => {
   try {
     let data = req.rawBody;

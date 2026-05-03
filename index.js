@@ -29,7 +29,7 @@ async function handle(u) {
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig();
-  const txt = msg.text || '', txtLow = txt.toLowerCase();
+  const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
   const userData = cfg.authorized_users?.find(u => {
     const adId = String(u.id || '').replace('@', '').toLowerCase().trim();
@@ -329,7 +329,6 @@ Pour garantir une fin de relation de travail légale et fluide :
     return;
   }
 
-  const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
   if (txtLow === '/start' || txtLow === '/m') {
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });

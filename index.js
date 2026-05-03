@@ -510,12 +510,7 @@ app.use((req, res, next) => {
 
 app.get('/', (req, res) => {
   const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v8.9 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
-});
-
-app.post('/api/webhook', (req, res) => {
-  try { handle(JSON.parse(req.rawBody.toString('utf8'))).catch(e => log('Err: ' + e.message)); } catch (e) {}
-  res.sendStatus(200);
+  res.status(200).send(`TewfikSoft HR Bot v8.9.2 | Server is running OK (Polling Mode) | ${db.hr_employees?.length || 0} employees loaded.`);
 });
 
 app.get('/api/debug-config', (req, res) => {
@@ -580,15 +575,12 @@ const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.7 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.9.2 on port ${port} ===`);
 
-  // ─── جلب قاعدة البيانات من السحابة الخارجية (Google Drive) ───
-  // ملاحظة: يتم جلب البيانات من Google Drive فقط إذا كانت قاعدة البيانات فارغة (أول تشغيل)
-  // البيانات الجديدة تأتي تلقائياً عبر /api/database من التطبيق المحلي (server.js)
+  // ... bootstrap code ...
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
   const bootstrapFromCloud = async () => {
     try {
-      // تحقق إذا كانت قاعدة البيانات تحتوي على بيانات مسبقاً
       if (fs.existsSync(DB_PATH)) {
         const existing = loadDB();
         if ((existing.hr_employees || []).length > 0) {
@@ -611,8 +603,22 @@ app.listen(port, () => {
     }
   };
 
-  // جلب البيانات مرة واحدة عند الإقلاع فقط إذا كانت قاعدة البيانات فارغة
   bootstrapFromCloud();
-  // ⚠️ لا يوجد setInterval هنا — البيانات تأتي من التطبيق عبر /api/database
+
+  // ─── Long Polling Logic ───
+  let offset = 0;
+  setInterval(async () => {
+    try {
+      const updates = await tg('getUpdates', { offset, timeout: 30 });
+      if (updates && updates.length > 0) {
+        for (const u of updates) {
+          handle(u).catch(e => log(`Handle Err: ${e.message}`));
+          offset = Math.max(offset, u.update_id + 1);
+        }
+      }
+    } catch (e) {
+      if (!e.message.includes('timeout')) log(`Polling Err: ${e.message}`);
+    }
+  }, 1000);
 
 });

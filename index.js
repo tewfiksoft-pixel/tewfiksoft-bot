@@ -590,7 +590,7 @@ app.listen(port, () => {
     try {
       // تحقق إذا كانت قاعدة البيانات تحتوي على بيانات مسبقاً
       if (fs.existsSync(DB_PATH)) {
-        const existing = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+        const existing = loadDB();
         if ((existing.hr_employees || []).length > 0) {
           log(`DB already has ${existing.hr_employees.length} employees — skipping Google Drive bootstrap.`);
           return;

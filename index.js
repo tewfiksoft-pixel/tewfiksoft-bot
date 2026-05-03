@@ -39,10 +39,11 @@ async function handle(u) {
   const ar = (userData?.lang || langs.get(chatId) || 'ar') === 'ar';
 
   // Public /id command to help user find their Telegram ID
-  if (txtLow === '/id' || txtLow === '/me') {
+  if (txtLow === '/id') {
     const idMsg = (ar ? `🆔 معرفك هو: <code>${fromId}</code>` : `🆔 Votre ID est: <code>${fromId}</code>`);
     await send(chatId, idMsg, { parse_mode: 'HTML' });
     log(`[Bot] Public ID request from ${fromId} (${from.username || 'no-user'})`);
+    return; // Stop here for non-authorized users or just for /id
   }
 
   if (!userData) {
@@ -334,11 +335,16 @@ Pour garantir une fin de relation de travail légale et fluide :
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
   }
 
-  if (txtLow === '/me') {
-    const isAdminRole = String(userData.role).toLowerCase() === 'admin';
+  if (txtLow === '/me' || txtLow === '/id') {
+    const isAdminRole = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'manager';
     const db = isAdminRole ? loadDB() : null;
-    const dbLine = isAdminRole ? `\n👥 DB: <b>${db.hr_employees?.length || 0}</b>` : '';
-    return send(chatId, `🛠️ <b>System:</b>\n🆔 ID: <code>${fromId}</code>\n👤 ${userData.name}\n🛡️ ${userData.role}${dbLine}`);
+    const count = db?.hr_employees?.length || 0;
+    
+    const meMsg = ar 
+      ? `👤 <b>البطاقة التعريفية:</b>\n━━━━━━━━━━━━━━\n🆔 المعرف: <code>${fromId}</code>\n👤 الاسم: <b>${userData.name}</b>\n🛡️ الرتبة: <code>${userData.role}</code>${isAdminRole ? `\n👥 قاعدة البيانات: <b>${count} موظف</b>` : ''}\n🌐 اللغة: ${userData.lang || 'ar'}`
+      : `👤 <b>CARTE D'IDENTITÉ:</b>\n━━━━━━━━━━━━━━\n🆔 ID: <code>${fromId}</code>\n👤 Nom: <b>${userData.name}</b>\n🛡️ Rôle: <code>${userData.role}</code>${isAdminRole ? `\n👥 Base de données: <b>${count} employés</b>` : ''}\n🌐 Langue: ${userData.lang || 'fr'}`;
+    
+    return send(chatId, meMsg);
   }
 
   const st = states.get(chatId);
@@ -505,7 +511,7 @@ app.use((req, res, next) => {
 
 app.get('/', (req, res) => {
   const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v8.8 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
+  res.status(200).send(`TewfikSoft HR Bot v8.9 | Server is running OK | ${db.hr_employees?.length || 0} employees loaded.`);
 });
 
 app.post('/api/webhook', (req, res) => {

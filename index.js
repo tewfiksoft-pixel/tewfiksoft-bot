@@ -525,10 +525,32 @@ app.post('/api/config', (req, res) => {
   try {
     let data = req.rawBody;
     if (data[0] === 0x1f && data[1] === 0x8b) data = zlib.gunzipSync(data);
+    
+    // ⚠️ CRITICAL PROTECTION: Never overwrite config with an invalid/empty token!
+    let incoming;
+    try { incoming = JSON.parse(data.toString('utf8')); } catch(e) { incoming = null; }
+    
+    if (!incoming || !incoming.bot_token || incoming.bot_token.trim().length < 20) {
+      log('[Config API] ⚠️ REJECTED: Incoming config has no valid bot_token. Current config PRESERVED.');
+      return res.status(400).json({ error: 'Invalid config: missing or empty bot_token. Existing config preserved.' });
+    }
+    
     fs.writeFileSync(CONFIG_PATH, data);
-    log('Config updated: ' + data.length + ' bytes');
+    log('Config updated: ' + data.length + ' bytes | token: ' + incoming.bot_token.substring(0, 8) + '...');
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
+});
+
+app.get('/ping', (req, res) => res.send('pong - bot is alive ♥️'));
+app.get('/health', (req, res) => {
+  const db = loadDB();
+  const cfg = loadConfig();
+  res.json({
+    status: 'OK',
+    employees: db.hr_employees?.length || 0,
+    token_ok: !!(cfg.bot_token && cfg.bot_token.length > 20),
+    time: new Date().toISOString()
+  });
 });
 
 app.get('/api/logs', (req, res) => {

@@ -38,12 +38,12 @@ async function handle(u) {
 
   const ar = (userData?.lang || langs.get(chatId) || 'ar') === 'ar';
 
-  // Public /id command to help user find their Telegram ID
-  if (txtLow === '/id') {
+  // Public /id and /me command to help user find their Telegram ID
+  if (txtLow === '/id' || (txtLow === '/me' && !userData)) {
     const idMsg = (ar ? `🆔 معرفك هو: <code>${fromId}</code>` : `🆔 Votre ID est: <code>${fromId}</code>`);
     await send(chatId, idMsg, { parse_mode: 'HTML' });
     log(`[Bot] Public ID request from ${fromId} (${from.username || 'no-user'})`);
-    return; // Stop here for non-authorized users or just for /id
+    return;
   }
 
   if (!userData) {

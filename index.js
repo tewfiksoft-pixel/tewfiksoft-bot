@@ -510,7 +510,7 @@ app.use((req, res, next) => {
 
 app.get('/', (req, res) => {
   const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v8.9.2 | Server is running OK (Polling Mode) | ${db.hr_employees?.length || 0} employees loaded.`);
+  res.status(200).send(`TewfikSoft HR Bot v8.9.3 | Server is running OK (Polling Mode) | ${db.hr_employees?.length || 0} employees loaded.`);
 });
 
 app.get('/api/debug-config', (req, res) => {
@@ -575,7 +575,7 @@ const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.9.2 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.9.3 on port ${port} ===`);
 
   // ... bootstrap code ...
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
@@ -605,9 +605,9 @@ app.listen(port, () => {
 
   bootstrapFromCloud();
 
-  // ─── Long Polling Logic ───
+  // ─── Sequential Long Polling ───
   let offset = 0;
-  setInterval(async () => {
+  const poll = async () => {
     try {
       const updates = await tg('getUpdates', { offset, timeout: 30 });
       if (updates && updates.length > 0) {
@@ -619,6 +619,9 @@ app.listen(port, () => {
     } catch (e) {
       if (!e.message.includes('timeout')) log(`Polling Err: ${e.message}`);
     }
-  }, 1000);
+    setTimeout(poll, 100); // 100ms delay between polls
+  };
+
+  poll();
 
 });

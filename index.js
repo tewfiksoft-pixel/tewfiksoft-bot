@@ -609,9 +609,9 @@ app.listen(port, () => {
   let offset = 0;
   const poll = async () => {
     try {
-      const updates = await tg('getUpdates', { offset, timeout: 30 });
-      if (updates && updates.length > 0) {
-        for (const u of updates) {
+      const res = await tg('getUpdates', { offset, timeout: 30 });
+      if (res.ok && res.result && res.result.length > 0) {
+        for (const u of res.result) {
           handle(u).catch(e => log(`Handle Err: ${e.message}`));
           offset = Math.max(offset, u.update_id + 1);
         }

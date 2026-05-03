@@ -578,12 +578,12 @@ app.listen(port, () => {
   log(`=== TewfikSoft HR Bot v8.7 on port ${port} ===`);
 
   // ─── ضبط الـ Webhook تلقائياً ───
-  if (WEBHOOK_URL) {
-    tg('setWebhook', { url: `${WEBHOOK_URL}/api/webhook` });
-    log(`✅ Webhook set to: ${WEBHOOK_URL}/api/webhook`);
-  } else {
-    log('⚠️  WEBHOOK_URL not set! Add it in Koyeb Dashboard > Environment Variables');
-  }
+  // Use env variable if set, otherwise use the known production URL
+  const EFFECTIVE_WEBHOOK = WEBHOOK_URL || 'https://tewfiksoft-hr-bot.onrender.com';
+  
+  tg('setWebhook', { url: `${EFFECTIVE_WEBHOOK}/api/webhook`, drop_pending_updates: false })
+    .then(() => log(`✅ Webhook set to: ${EFFECTIVE_WEBHOOK}/api/webhook`))
+    .catch(e => log(`⚠️ Webhook set failed: ${e.message}`));
 
   // ─── Keep-Alive: ping كل 4 دقائق لمنع النوم على Render ───
   // Render يوقف الخدمة المجانية بعد 15 دقيقة بدون نشاط

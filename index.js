@@ -40,7 +40,9 @@ async function handle(u) {
 
   // Public /id and /me command to help user find their Telegram ID
   if (txtLow === '/id' || (txtLow === '/me' && !userData)) {
-    const idMsg = (ar ? `🆔 معرفك هو: <code>${fromId}</code>` : `🆔 Votre ID est: <code>${fromId}</code>`);
+    const idMsg = ar 
+      ? `🆔 معرفك هو: <code>${fromId}</code>\n\n⚠️ <b>هذا الحساب غير مفعل حالياً.</b>\nيرجى تصوير هذه الشاشة أو إرسال المعرف للمسؤول لتفعيل وصولك للبوت.`
+      : `🆔 Votre ID est: <code>${fromId}</code>\n\n⚠️ <b>Ce compte n'est pas activé.</b>\nVeuillez envoyer cet ID à l'administrateur pour activer votre accès.`;
     await send(chatId, idMsg, { parse_mode: 'HTML' });
     log(`[Bot] Public ID request from ${fromId} (${from.username || 'no-user'})`);
     return;

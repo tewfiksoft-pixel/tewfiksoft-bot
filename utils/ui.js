@@ -66,8 +66,8 @@ export function getStatsMsg(db, ar) {
   emps.forEach(e => { empMap[String(e.id)] = e; });
 
   const stats = {
-    alver: { total: 0, cdi: 0, cdd: 0, salaries: 0, totalAge: 0, ageCount: 0, leave: 0, empCountForLeave: 0 },
-    vt: { total: 0, cdi: 0, cdd: 0, salaries: 0, totalAge: 0, ageCount: 0, leave: 0, empCountForLeave: 0 }
+    alver: { total: 0, cdi: 0, cdd: 0, male: 0, female: 0, totalAge: 0, ageCount: 0, leave: 0 },
+    vt: { total: 0, cdi: 0, cdd: 0, male: 0, female: 0, totalAge: 0, ageCount: 0, leave: 0 }
   };
 
   const curYear = new Date().getFullYear();
@@ -77,7 +77,8 @@ export function getStatsMsg(db, ar) {
     s.total++;
     const ct = String(e.contractType || '').toLowerCase();
     if (ct.includes('tit') || ct === 'cdi') s.cdi++; else s.cdd++;
-    s.salaries += parseFloat(e.salary || 0);
+    
+    if (String(e.gender || '').toUpperCase() === 'M') s.male++; else s.female++;
 
     if (e.birthDate) {
       const parts = e.birthDate.split(/[-/]/);
@@ -97,21 +98,15 @@ export function getStatsMsg(db, ar) {
     if (!emp) return;
     const s = isVerreTech(emp.companyId) ? stats.vt : stats.alver;
     s.leave += parseFloat(l.remainingDays || 0);
-    if (!seen.has(String(emp.id))) {
-      s.empCountForLeave++;
-      seen.add(String(emp.id));
-    }
+    seen.add(String(emp.id));
   });
 
   emps.forEach(emp => {
     if (seen.has(String(emp.id))) return;
     const s = isVerreTech(emp.companyId) ? stats.vt : stats.alver;
     s.leave += calculateAutoLeave(emp.startDate, activeEx);
-    s.empCountForLeave++;
     seen.add(String(emp.id));
   });
-
-  const formatMoney = (val) => String(Math.round(val)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
   let msg = ar
     ? `📊 <b>لوحة القيادة الإستراتيجية</b>\n━━━━━━━━━━━━━━\n`
@@ -120,8 +115,8 @@ export function getStatsMsg(db, ar) {
   const buildCompSection = (s, label) => {
     const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
     return ar
-      ? `${label}\n  ├ التعداد: <b>${s.total}</b>\n  ├ العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  ├ الأجور: <b>${formatMoney(s.salaries)}</b> DA\n  └ متوسط العمر: <b>${avgAge} سنة</b>\n\n`
-      : `${label}\n  ├ Effectif: <b>${s.total}</b>\n  ├ Contrats: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  ├ Masse Salariale: <b>${formatMoney(s.salaries)}</b> DA\n  └ Âge Moyen: <b>${avgAge} ans</b>\n\n`;
+      ? `${label}\n  ├ التعداد: <b>${s.total}</b>\n  ├ الجنس: <b>${s.male} رجال | ${s.female} نساء</b>\n  ├ العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  └ متوسط العمر: <b>${avgAge} سنة</b>\n\n`
+      : `${label}\n  ├ Effectif: <b>${s.total}</b>\n  ├ Genre: <b>${s.male} H | ${s.female} F</b>\n  ├ Contrats: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  └ Âge Moyen: <b>${avgAge} ans</b>\n\n`;
   };
 
   msg += buildCompSection(stats.alver, ar ? '🟢 <b>مجموعة ALVER</b>' : '🟢 <b>GROUPE ALVER</b>');
@@ -129,8 +124,8 @@ export function getStatsMsg(db, ar) {
 
   msg += `━━━━━━━━━━━━━━\n`;
   msg += ar 
-    ? `📊 <b>الحصيلة المجمعة</b>\n  ├ إجمالي العمال: <b>${emps.length}</b>\n  ├ كتلة الأجور: <b>${formatMoney(stats.alver.salaries + stats.vt.salaries)}</b> DA\n  └ ديون العطل: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} يوم</b>\n`
-    : `📊 <b>BILAN CONSOLIDÉ</b>\n  ├ Effectif Global: <b>${emps.length}</b>\n  ├ Masse Totale: <b>${formatMoney(stats.alver.salaries + stats.vt.salaries)}</b> DA\n  └ Dette Congés: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} j</b>\n`;
+    ? `📊 <b>الحصيلة المجمعة</b>\n  ├ إجمالي العمال: <b>${emps.length}</b>\n  ├ رجال: <b>${stats.alver.male + stats.vt.male}</b> | نساء: <b>${stats.alver.female + stats.vt.female}</b>\n  └ ديون العطل: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} يوم</b>\n`
+    : `📊 <b>BILAN CONSOLIDÉ</b>\n  ├ Effectif Global: <b>${emps.length}</b>\n  ├ Hommes: <b>${stats.alver.male + stats.vt.male}</b> | Femmes: <b>${stats.alver.female + stats.vt.female}</b>\n  └ Dette Congés: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} j</b>\n`;
 
   msg += `━━━━━━━━━━━━━━\n`;
   msg += ar ? `📡 بيانات حية ومؤمنة 🔐` : `📡 Données en Temps Réel 🔐`;

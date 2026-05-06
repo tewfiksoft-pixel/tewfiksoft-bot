@@ -62,87 +62,79 @@ export function getStatsMsg(db, ar) {
   const activeEx = getCurrentExercice();
   const allEmps = (db.hr_employees || []);
   const emps = allEmps.filter(e => e.status === 'active');
-
-  // خريطة: empId → employee (للبحث السريع)
   const empMap = {};
   emps.forEach(e => { empMap[String(e.id)] = e; });
 
-  let alver = 0, verre_tech = 0, male = 0, female = 0, cdi = 0, cdd = 0;
-  let totalAge = 0, ageCount = 0;
-  let totalSeniority = 0, senCount = 0;
+  const stats = {
+    alver: { total: 0, cdi: 0, cdd: 0, salaries: 0, totalAge: 0, ageCount: 0, leave: 0, empCountForLeave: 0 },
+    vt: { total: 0, cdi: 0, cdd: 0, salaries: 0, totalAge: 0, ageCount: 0, leave: 0, empCountForLeave: 0 }
+  };
+
+  const curYear = new Date().getFullYear();
 
   emps.forEach(e => {
-    if (isVerreTech(e.companyId)) verre_tech++; else alver++;
-    if (String(e.gender || '').toUpperCase() === 'M') male++; else female++;
+    const s = isVerreTech(e.companyId) ? stats.vt : stats.alver;
+    s.total++;
     const ct = String(e.contractType || '').toLowerCase();
-    if (ct.includes('tit') || ct === 'cdi') cdi++; else cdd++;
+    if (ct.includes('tit') || ct === 'cdi') s.cdi++; else s.cdd++;
+    s.salaries += parseFloat(e.salary || 0);
 
     if (e.birthDate) {
       const parts = e.birthDate.split(/[-/]/);
       let year = null;
       if (parts.length === 3) { year = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]); }
       else if (parts.length === 1 && parts[0].length === 4) { year = parseInt(parts[0]); }
-      if (year && year > 1900 && year <= new Date().getFullYear()) {
-        totalAge += (new Date().getFullYear() - year); ageCount++;
-      }
-    }
-
-    if (e.startDate) {
-      const parts = e.startDate.split(/[-/]/);
-      let sYear = null;
-      if (parts.length === 3) { sYear = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]); }
-      else if (parts.length === 1 && parts[0].length === 4) { sYear = parseInt(parts[0]); }
-      if (sYear && sYear > 1900 && sYear <= new Date().getFullYear()) {
-        totalSeniority += (new Date().getFullYear() - sYear); senCount++;
+      if (year && year > 1900 && year <= curYear) {
+        s.totalAge += (curYear - year);
+        s.ageCount++;
       }
     }
   });
 
-  const avgAge = ageCount > 0 ? Math.round(totalAge / ageCount) : 0;
-  const avgExp = senCount > 0 ? (totalSeniority / senCount).toFixed(1) : 0;
-
-  // ─── أرصدة العطل: الإجمالي التراكمي لكل السنوات ───
-  const seenAlver = new Set();
-  const seenVt = new Set();
-  let alLeave = 0, vtLeave = 0;
-
-  // 1. جمع الأرصدة اليدوية من قاعدة البيانات (لكل السنوات المتاحة)
+  const seen = new Set();
   (db.hr_leave_balances || []).forEach(l => {
-    const empId = String(l.employeeId);
-    const emp = empMap[empId];
+    const emp = empMap[String(l.employeeId)];
     if (!emp) return;
-
-    const r = parseFloat(l.remainingDays || 0);
-    if (isVerreTech(emp.companyId)) {
-      vtLeave += r;
-      seenVt.add(empId);
-    } else {
-      alLeave += r;
-      seenAlver.add(empId);
+    const s = isVerreTech(emp.companyId) ? stats.vt : stats.alver;
+    s.leave += parseFloat(l.remainingDays || 0);
+    if (!seen.has(String(emp.id))) {
+      s.empCountForLeave++;
+      seen.add(String(emp.id));
     }
   });
 
-  // 2. إضافة الرصيد التلقائي للسنة الجارية للموظفين الذين لم يسبق لهم الحصول على رصيد يدوي أبداً
   emps.forEach(emp => {
-    const empId = String(emp.id);
-    if (isVerreTech(emp.companyId)) {
-      if (!seenVt.has(empId)) {
-        const auto = calculateAutoLeave(emp.startDate, activeEx);
-        vtLeave += auto;
-        seenVt.add(empId);
-      }
-    } else {
-      if (!seenAlver.has(empId)) {
-        const auto = calculateAutoLeave(emp.startDate, activeEx);
-        alLeave += auto;
-        seenAlver.add(empId);
-      }
-    }
+    if (seen.has(String(emp.id))) return;
+    const s = isVerreTech(emp.companyId) ? stats.vt : stats.alver;
+    s.leave += calculateAutoLeave(emp.startDate, activeEx);
+    s.empCountForLeave++;
+    seen.add(String(emp.id));
   });
 
-  return ar
-    ? `📊 <b>إحصائيات الإدارة العليا | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 إجمالي العمال النشطين: <b>${emps.length}</b>\n👦 رجال: <b>${male}</b> | 👧 نساء: <b>${female}</b>\n📜 عقود دائمة (CDI/Titulaire): <b>${cdi}</b>\n⏱️ عقود مؤقتة (CDD): <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>أرصدة العطل الإجمالية (تراكمي):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} يوم</b> (${seenAlver.size} موظف)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} يوم</b> (${seenVt.size} موظف)\n━━━━━━━━━━━━━━\n🎂 متوسط العمر: <b>${avgAge} سنة</b>\n⏳ متوسط الأقدمية: <b>${avgExp} سنة</b>\n━━━━━━━━━━━━━━`
-    : `📊 <b>STATS DIRECTION GÉNÉRALE | ALVER & VERRE TECH</b>\n━━━━━━━━━━━━━━\n🏢 ALVER: <b>${alver}</b> 🟢\n🏢 VERRE TECH: <b>${verre_tech}</b> 🔵\n━━━━━━━━━━━━━━\n👥 Effectif Total Actif: <b>${emps.length}</b>\n👦 Hommes: <b>${male}</b> | 👧 Femmes: <b>${female}</b>\n📜 Contrats CDI/Titulaire: <b>${cdi}</b>\n⏱️ Contrats CDD: <b>${cdd}</b>\n━━━━━━━━━━━━━━\n🏖️ <b>Soldes Congés (Global Cumulé):</b>\n├ 🟢 ALVER: <b>${alLeave.toFixed(1)} j</b> (${seenAlver.size} emp.)\n└ 🔵 Verre Tech: <b>${vtLeave.toFixed(1)} j</b> (${seenVt.size} emp.)\n━━━━━━━━━━━━━━\n🎂 Moyenne d'âge: <b>${avgAge} ans</b>\n⏳ Expérience Moyenne: <b>${avgExp} ans</b>\n━━━━━━━━━━━━━━`;
+  const formatMoney = (val) => String(Math.round(val)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  let msg = ar
+    ? `📊 <b>لوحة القيادة الإستراتيجية</b>\n━━━━━━━━━━━━━━\n`
+    : `📊 <b>TABLEAU DE BORD STRATÉGIQUE</b>\n━━━━━━━━━━━━━━\n`;
+
+  const buildCompSection = (s, label) => {
+    const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
+    return ar
+      ? `${label}\n  ├ التعداد: <b>${s.total}</b>\n  ├ العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  ├ الأجور: <b>${formatMoney(s.salaries)}</b> DA\n  └ متوسط العمر: <b>${avgAge} سنة</b>\n\n`
+      : `${label}\n  ├ Effectif: <b>${s.total}</b>\n  ├ Contrats: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  ├ Masse Salariale: <b>${formatMoney(s.salaries)}</b> DA\n  └ Âge Moyen: <b>${avgAge} ans</b>\n\n`;
+  };
+
+  msg += buildCompSection(stats.alver, ar ? '🟢 <b>مجموعة ALVER</b>' : '🟢 <b>GROUPE ALVER</b>');
+  msg += buildCompSection(stats.vt, ar ? '🔵 <b>VERRE TECH</b>' : '🔵 <b>VERRE TECH</b>');
+
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += ar 
+    ? `📊 <b>الحصيلة المجمعة</b>\n  ├ إجمالي العمال: <b>${emps.length}</b>\n  ├ كتلة الأجور: <b>${formatMoney(stats.alver.salaries + stats.vt.salaries)}</b> DA\n  └ ديون العطل: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} يوم</b>\n`
+    : `📊 <b>BILAN CONSOLIDÉ</b>\n  ├ Effectif Global: <b>${emps.length}</b>\n  ├ Masse Totale: <b>${formatMoney(stats.alver.salaries + stats.vt.salaries)}</b> DA\n  └ Dette Congés: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} j</b>\n`;
+
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += ar ? `📡 بيانات حية ومؤمنة 🔐` : `📡 Données en Temps Réel 🔐`;
+  return msg;
 }
 
 export function getEffectifsDirMsg(db, ar) {

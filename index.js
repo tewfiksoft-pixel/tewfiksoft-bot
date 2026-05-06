@@ -333,6 +333,9 @@ Pour garantir une fin de relation de travail légale et fluide :
 
 
   if (txtLow === '/start' || txtLow === '/m') {
+    if (userData.lang) {
+      return roleObj.showMenu(chatId, userData.lang === 'ar', getStatsMsg);
+    }
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
   }
 

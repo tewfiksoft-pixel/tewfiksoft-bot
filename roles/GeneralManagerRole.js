@@ -6,7 +6,7 @@ export default class GeneralManagerRole extends BaseRole {
   showMenu(chatId, ar, getStatsMsg) {
     const db = loadDB();
     const kbd = { inline_keyboard: [
-      [{ text: ar ? '🔄 تحديث الإحصائيات' : '🔄 Actualiser', callback_data: 'stats' }],
+      [{ text: ar ? '🔄 ستاتستيك' : '🔄 Statistiques', callback_data: 'stats' }],
       [{ text: ar ? '👥 تعداد العمال حسب المديرية' : '👥 Effectifs par direction', callback_data: 'effectifs_dir' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]
     ]};

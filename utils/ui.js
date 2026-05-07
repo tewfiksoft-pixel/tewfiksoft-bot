@@ -65,9 +65,16 @@ export function getStatsMsg(db, ar) {
   const empMap = {};
   emps.forEach(e => { empMap[String(e.id)] = e; });
 
+  const createStatsObj = () => ({
+    total: 0, cdi: 0, cdd: 0, male: 0, female: 0, 
+    totalAge: 0, ageCount: 0, totalSen: 0, senCount: 0, 
+    leave: 0,
+    csp: { executive: 0, cadre: 0, maitrise: 0, execution: 0 }
+  });
+
   const stats = {
-    alver: { total: 0, cdi: 0, cdd: 0, male: 0, female: 0, totalAge: 0, ageCount: 0, leave: 0 },
-    vt: { total: 0, cdi: 0, cdd: 0, male: 0, female: 0, totalAge: 0, ageCount: 0, leave: 0 }
+    alver: createStatsObj(),
+    vt: createStatsObj()
   };
 
   const curYear = new Date().getFullYear();
@@ -76,18 +83,36 @@ export function getStatsMsg(db, ar) {
     const s = isVerreTech(e.companyId) ? stats.vt : stats.alver;
     s.total++;
     const ct = String(e.contractType || '').toLowerCase();
-    if (ct.includes('tit') || ct === 'cdi') s.cdi++; else s.cdd++;
+    if (ct.includes('tit') || ct === 'cdi' || ct.includes('dirigeant')) s.cdi++; else s.cdd++;
     
     if (String(e.gender || '').toUpperCase() === 'M') s.male++; else s.female++;
 
+    // CSP Breakdown
+    const cspVal = String(e.csp || '').toLowerCase().trim();
+    if (cspVal.includes('dirigeant') || cspVal.includes('supérieur')) s.csp.executive++;
+    else if (cspVal === 'cadre') s.csp.cadre++;
+    else if (cspVal.includes('maitrise') || cspVal.includes('maîtrise')) s.csp.maitrise++;
+    else s.csp.execution++;
+
     if (e.birthDate) {
-      const parts = e.birthDate.split(/[-/]/);
-      let year = null;
-      if (parts.length === 3) { year = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]); }
-      else if (parts.length === 1 && parts[0].length === 4) { year = parseInt(parts[0]); }
-      if (year && year > 1900 && year <= curYear) {
-        s.totalAge += (curYear - year);
-        s.ageCount++;
+      const bDate = parseDateRobust(e.birthDate);
+      if (!isNaN(bDate.getTime())) {
+        const age = curYear - bDate.getUTCFullYear();
+        if (age > 15 && age < 80) {
+          s.totalAge += age;
+          s.ageCount++;
+        }
+      }
+    }
+
+    if (e.startDate) {
+      const sDate = parseDateRobust(e.startDate);
+      if (!isNaN(sDate.getTime())) {
+        const sen = (new Date() - sDate) / (1000 * 60 * 60 * 24 * 365.25);
+        if (sen >= 0) {
+          s.totalSen += sen;
+          s.senCount++;
+        }
       }
     }
   });
@@ -108,29 +133,59 @@ export function getStatsMsg(db, ar) {
     seen.add(String(emp.id));
   });
 
+  const buildBlock = (s, title, icon = '📊') => {
+    const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
+    const avgExp = s.senCount > 0 ? (s.totalSen / s.senCount).toFixed(1) : 0;
+    
+    if (ar) {
+      return `<b>${title}</b> ${icon}\n` +
+        `👥 التعداد: <b>${s.total}</b>\n` +
+        `⚧️ الجنس: <b>${s.male} ر | ${s.female} ن</b>\n` +
+        `📄 العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
+        `🎂 متوسط العمر: <b>${avgAge} سنة</b>\n` +
+        `📈 متوسط الخبرة: <b>${avgExp} سنة</b>\n` +
+        `🔹 الفئات: مسير: ${s.csp.executive} | إطار: ${s.csp.cadre} | تحكم: ${s.csp.maitrise} | تنفيذ: ${s.csp.execution}\n\n`;
+    } else {
+      return `<b>${title}</b> ${icon}\n` +
+        `Effectif : <b>${s.total}</b>\n` +
+        `⚧️ Genre : <b>${s.male} H | ${s.female} F</b>\n` +
+        `📄 Contrats : <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
+        `🎂 Âge Moyen : <b>${avgAge} ans</b>\n` +
+        `📈 Exp. Moyenne : <b>${avgExp} ans</b>\n` +
+        `CSP : Dir: ${s.csp.executive} | Cad: ${s.csp.cadre} | Maî: ${s.csp.maitrise} | Exé: ${s.csp.execution}\n\n`;
+    }
+  };
+
   let msg = ar
     ? `📊 <b>لوحة القيادة الإستراتيجية</b>\n━━━━━━━━━━━━━━\n`
     : `📊 <b>TABLEAU DE BORD STRATÉGIQUE</b>\n━━━━━━━━━━━━━━\n`;
 
-  const buildCompSection = (s, label) => {
-    const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
-    return ar
-      ? `${label}\n  ├ التعداد: <b>${s.total}</b>\n  ├ الجنس: <b>${s.male} رجال | ${s.female} نساء</b>\n  ├ العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  └ متوسط العمر: <b>${avgAge} سنة</b>\n\n`
-      : `${label}\n  ├ Effectif: <b>${s.total}</b>\n  ├ Genre: <b>${s.male} H | ${s.female} F</b>\n  ├ Contrats: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n  └ Âge Moyen: <b>${avgAge} ans</b>\n\n`;
-  };
+  msg += buildBlock(stats.alver, ar ? 'شركة الفار ALVER' : 'ALVER Spa', '🟢');
+  msg += buildBlock(stats.vt, ar ? 'شركة فارتك VERRE TECH' : 'VERRE TECH', '🔵');
 
-  msg += buildCompSection(stats.alver, ar ? '🟢 <b>مجموعة ALVER</b>' : '🟢 <b>GROUPE ALVER</b>');
-  msg += buildCompSection(stats.vt, ar ? '🔵 <b>VERRE TECH</b>' : '🔵 <b>VERRE TECH</b>');
+  const globalTotal = stats.alver.total + stats.vt.total;
+  const globalMale = stats.alver.male + stats.vt.male;
+  const globalFemale = stats.alver.female + stats.vt.female;
+  const globalLeave = (stats.alver.leave + stats.vt.leave).toFixed(1);
 
   msg += `━━━━━━━━━━━━━━\n`;
-  msg += ar 
-    ? `📊 <b>الحصيلة المجمعة</b>\n  ├ إجمالي العمال: <b>${emps.length}</b>\n  ├ رجال: <b>${stats.alver.male + stats.vt.male}</b> | نساء: <b>${stats.alver.female + stats.vt.female}</b>\n  └ ديون العطل: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} يوم</b>\n`
-    : `📊 <b>BILAN CONSOLIDÉ</b>\n  ├ Effectif Global: <b>${emps.length}</b>\n  ├ Hommes: <b>${stats.alver.male + stats.vt.male}</b> | Femmes: <b>${stats.alver.female + stats.vt.female}</b>\n  └ Dette Congés: <b>${(stats.alver.leave + stats.vt.leave).toFixed(1)} j</b>\n`;
+  if (ar) {
+    msg += `<b>الحصيلة المجمعة (BILAN)</b>\n` +
+      `👥 إجمالي العمال: <b>${globalTotal}</b>\n` +
+      `⚧️ رجال: <b>${globalMale}</b> | نساء: <b>${globalFemale}</b>\n` +
+      `⏳ ديون العطل: <b>${globalLeave} يوم</b>\n`;
+  } else {
+    msg += `<b>Bilan Consolidé</b>\n` +
+      `Effectif Global : <b>${globalTotal}</b>\n` +
+      `⚧️ Hommes : <b>${globalMale}</b> | Femmes : <b>${globalFemale}</b>\n` +
+      `⏳ Dette Congés : <b>${globalLeave} jours</b>\n`;
+  }
 
   msg += `━━━━━━━━━━━━━━\n`;
   msg += ar ? `📡 بيانات حية ومؤمنة 🔐` : `📡 Données en Temps Réel 🔐`;
   return msg;
 }
+
 
 export function getEffectifsDirMsg(db, ar) {
   const emps = (db.hr_employees || []).filter(e => e.status === 'active');

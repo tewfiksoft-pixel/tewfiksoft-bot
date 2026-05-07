@@ -56,19 +56,19 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_contract_type": true,
-    "show_contract_end": true,
     "show_probation_end": true,
-    "show_social_number": false,
-    "show_job_title": true,
+    "show_contract_type": true,
     "show_photo": true,
-    "show_phone": true,
+    "show_hiring_date": true,
     "show_department": true,
-    "show_hiring_date": true
+    "show_job_title": true,
+    "show_phone": true,
+    "show_social_number": false,
+    "show_contract_end": true
   },
   "allowed_documents": {
-    "salary_slip": true,
+    "work_contract": true,
     "leave_title": true,
-    "work_contract": true
+    "salary_slip": true
   }
 }

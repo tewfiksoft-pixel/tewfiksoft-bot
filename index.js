@@ -306,8 +306,9 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'stats') {
       const db = loadDB();
-      return send(chatId, getStatsMsg(db, ar), { inline_keyboard: [
-        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'stats' }]
+      return send(chatId, getStatsMsg(db, true), { inline_keyboard: [
+        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'stats' }],
+        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]
       ]});
     }
 

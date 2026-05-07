@@ -18,7 +18,7 @@ export default class AdminRole extends BaseRole {
       ? `💎 <b>أهلاً بك في نظام الإدارة العليا</b>\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n`
       : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n`;
 
-    return send(chatId, header + "\n" + getStatsMsg(db, ar), kbd);
+    return send(chatId, header, kbd);
   }
 
   isAdmin() { return true; }

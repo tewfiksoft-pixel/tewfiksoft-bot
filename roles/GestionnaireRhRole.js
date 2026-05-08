@@ -4,11 +4,11 @@ import { send } from '../utils/telegram.js';
 export default class GestionnaireRhRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
-      [{ text: ar ? '⏱️ حساب مدة العمل' : '⏱️ Calculer temps de travail', callback_data: 'calc_step_1' }],
-      [{ text: ar ? '📝 تفقيط الأرقام (شيك)' : '📝 Chiffres en Lettres', callback_data: 'cheque_step' }],
-      [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
-      [{ text: ar ? '📜 دليل نهاية العمل' : '📜 Guide Fin de Travail', callback_data: 'end_work_guide' }],
-      [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]
+      [{ text: '⏱️ Temps de Travail (مدة العمل)', callback_data: 'calc_step_1' }],
+      [{ text: '📝 Chèque/Lettres (تحويل المبالغ)', callback_data: 'cheque_step' }],
+      [{ text: '👤 Mon Profil (ملفي الشخصي)', callback_data: 'my_profile' }],
+      [{ text: '📜 Guide Procédures (دليل العمل)', callback_data: 'end_work_guide' }],
+      [{ text: '🌐 Langue (تغيير اللغة)', callback_data: 'choose_lang' }]
     ]};
 
     return send(chatId, ar

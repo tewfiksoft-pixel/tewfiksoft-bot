@@ -133,58 +133,43 @@ export function getStatsMsg(db, ar) {
     seen.add(String(emp.id));
   });
 
-  const buildBlock = (s, title, icon = '📊') => {
+  const buildBlock = (s, titleAr, titleFr, icon = '📊') => {
     const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
     const avgExp = s.senCount > 0 ? (s.totalSen / s.senCount).toFixed(1) : 0;
     
-    if (ar) {
-      return `<b>${title}</b> ${icon}\n` +
-        `👥 التعداد: <b>${s.total}</b>\n` +
-        `⚧️ الجنس: <b>${s.male} ر | ${s.female} ن</b>\n` +
-        `📄 العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
-        `🎂 متوسط العمر: <b>${avgAge} سنة</b>\n` +
-        `📈 متوسط الخبرة: <b>${avgExp} سنة</b>\n` +
-        `🏖️ رصيد العطل: <b>${s.leave.toFixed(1)} يوم</b>\n` +
-        `🔹 الفئات: مسير: ${s.csp.executive} | إطار: ${s.csp.cadre} | تحكم: ${s.csp.maitrise} | تنفيذ: ${s.csp.execution}\n\n`;
-    } else {
-      return `<b>${title}</b> ${icon}\n` +
-        `Effectif : <b>${s.total}</b>\n` +
-        `⚧️ Genre : <b>${s.male} H | ${s.female} F</b>\n` +
-        `📄 Contrats : <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
-        `🎂 Âge Moyen : <b>${avgAge} ans</b>\n` +
-        `📈 Exp. Moyenne : <b>${avgExp} ans</b>\n` +
-        `🏖️ Solde Congés : <b>${s.leave.toFixed(1)} j</b>\n` +
-        `CSP : Dir: ${s.csp.executive} | Cad: ${s.csp.cadre} | Maî: ${s.csp.maitrise} | Exé: ${s.csp.execution}\n\n`;
-    }
+    return `<b>${icon} ${titleFr} (${titleAr})</b>\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `👥 Effectif (التعداد): <b>${s.total}</b>\n` +
+      `⚧️ Genre (الجنس): <b>${s.male} H(ر) | ${s.female} F(ن)</b>\n` +
+      `📄 Contrats (العقود): <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
+      `🎂 Âge Moyen (العمر): <b>${avgAge} ans(سنة)</b>\n` +
+      `📈 Expérience (الخبرة): <b>${avgExp} ans(سنة)</b>\n` +
+      `🏖️ Congés (العطل): <b>${s.leave.toFixed(1)} j(يوم)</b>\n` +
+      `━━━━━━━━━━━━━━\n` +
+      `💼 <b>Catégories (الفئات):</b>\n` +
+      `├ Dir (مسير): <b>${s.csp.executive}</b> | Cad (إطار): <b>${s.csp.cadre}</b>\n` +
+      `└ Maî (تحكم): <b>${s.csp.maitrise}</b> | Exé (تنفيذ): <b>${s.csp.execution}</b>\n\n`;
   };
 
-  let msg = ar
-    ? `📊 <b>ستاتستيك</b>\n━━━━━━━━━━━━━━\n`
-    : `📊 <b>STATISTIQUES</b>\n━━━━━━━━━━━━━━\n`;
+  let msg = `📊 <b>STATISTIQUES (ستاتستيك)</b>\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
 
-  msg += buildBlock(stats.alver, ar ? 'شركة الفار ALVER' : 'ALVER Spa', '🟢');
-  msg += buildBlock(stats.vt, ar ? 'شركة فارتك VERRE TECH' : 'VERRE TECH', '🔵');
+  msg += buildBlock(stats.alver, 'شركة الفار', 'ALVER Spa', '🟢');
+  msg += buildBlock(stats.vt, 'شركة فارتك', 'VERRE TECH', '🔵');
 
   const globalTotal = stats.alver.total + stats.vt.total;
   const globalMale = stats.alver.male + stats.vt.male;
   const globalFemale = stats.alver.female + stats.vt.female;
   const globalLeave = (stats.alver.leave + stats.vt.leave).toFixed(1);
 
+  msg += `👑 <b>BILAN GLOBAL (الحصيلة المجمعة)</b>\n`;
   msg += `━━━━━━━━━━━━━━\n`;
-  if (ar) {
-    msg += `<b>الحصيلة المجمعة (BILAN)</b>\n` +
-      `👥 إجمالي العمال: <b>${globalTotal}</b>\n` +
-      `⚧️ رجال: <b>${globalMale}</b> | نساء: <b>${globalFemale}</b>\n` +
-      `⏳ ديون العطل: <b>${globalLeave} يوم</b>\n`;
-  } else {
-    msg += `<b>Bilan Consolidé</b>\n` +
-      `Effectif Global : <b>${globalTotal}</b>\n` +
-      `⚧️ Hommes : <b>${globalMale}</b> | Femmes : <b>${globalFemale}</b>\n` +
-      `⏳ Dette Congés : <b>${globalLeave} jours</b>\n`;
-  }
-
+  msg += `👥 Total (الإجمالي): <b>${globalTotal}</b>\n`;
+  msg += `⚧️ H(رجال): <b>${globalMale}</b> | F(نساء): <b>${globalFemale}</b>\n`;
+  msg += `⏳ Dette Congés (ديون العطل): <b>${globalLeave} j</b>\n`;
   msg += `━━━━━━━━━━━━━━\n`;
-  msg += ar ? `📡 بيانات حية ومؤمنة 🔐` : `📡 Données en Temps Réel 🔐`;
+  msg += `📡 <i>Données en direct (بيانات حية ومؤمنة)</i> 🔐`;
+  
   return msg;
 }
 

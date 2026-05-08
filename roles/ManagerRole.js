@@ -4,9 +4,9 @@ import { send } from '../utils/telegram.js';
 export default class ManagerRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
-      [{ text: ar ? '🔍 البحث السريع عن الموظفين' : '🔍 Recherche Rapide', callback_data: 'search' }],
-      [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
-      [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer Langue', callback_data: 'choose_lang' }]
+      [{ text: '🔍 Recherche (البحث السريع)', callback_data: 'search' }],
+      [{ text: '👤 Mon Profil (ملفي الشخصي)', callback_data: 'my_profile' }],
+      [{ text: '🌐 Langue (تغيير اللغة)', callback_data: 'choose_lang' }]
     ]};
 
     return send(chatId, ar

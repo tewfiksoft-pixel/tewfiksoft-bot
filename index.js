@@ -5,7 +5,8 @@ import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
-import { loadDB, loadConfig, T, log } from './utils/database.js';
+import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
+import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
 import { convertAmountToWords } from './utils/cheque.js';
 import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
@@ -123,7 +124,52 @@ Pour garantir une fin de relation de travail légale et fluide :
       return;
     }
 
+    if (d === 'add_emp') {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin' && role !== 'manager') {
+        return send(chatId, ar ? '❌ <b>هذه الميزة مخصصة للإدارة.</b>' : '❌ <b>Accès restreint à l\'administration.</b>');
+      }
+      states.set(chatId, { step: 'add_emp_id' });
+      return send(chatId, ar 
+        ? `➕ <b>إضافة عامل جديد:</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>رقم الموظف (Matricule)</b>:` 
+        : `➕ <b>Ajouter un employé:</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer <b>le matricule (ID)</b>:`);
+    }
+
     const db = loadDB();
+
+    if (d.startsWith('add_emp_role:')) {
+      const parts = d.split(':');
+      const empRole = parts[1], empId = parts[2], empName = parts.slice(3).join(':');
+      
+      const emp = {
+        id: crypto.randomUUID(),
+        clockingId: empId,
+        firstName_ar: empName,
+        firstName_fr: empName,
+        lastName_ar: '',
+        lastName_fr: '',
+        status: 'active',
+        csp: empRole,
+        department_ar: empRole,
+        department_fr: empRole,
+        startDate: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      };
+      
+      if (!db.hr_employees) db.hr_employees = [];
+      db.hr_employees.push(emp);
+      
+      const success = saveDB(db);
+      if (success) {
+        return send(chatId, ar 
+          ? `✅ <b>تمت إضافة العامل بنجاح!</b>\nالاسم: ${empName}\nالرقم: <code>${empId}</code>\nالمنصب: ${empRole}\n\n<i>سيظهر العامل في التطبيق فور إجراء مزامنة للبيانات.</i>` 
+          : `✅ <b>Employé ajouté avec succès!</b>\nNom: ${empName}\nID: <code>${empId}</code>\nRôle: ${empRole}\n\n<i>L'employé apparaîtra dans l'application après la synchronisation.</i>`,
+          { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]] }
+        );
+      } else {
+        return send(chatId, ar ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Erreur de sauvegarde.');
+      }
+    }
 
     if (d === 'my_profile') {
       const targetId = String(userData.clockingId || (userData.allowed_employees && userData.allowed_employees[0]) || '').trim();
@@ -386,6 +432,30 @@ Pour garantir une fin de relation de travail légale et fluide :
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
     const role = String(userData.role).toLowerCase();
     const isManager = role === 'manager';
+
+    if (st.step === 'add_emp_id') {
+      const exists = (db.hr_employees || []).some(e => String(e.clockingId) === txt);
+      if (exists) {
+         return send(chatId, ar ? `⚠️ هذا الرقم (<code>${txt}</code>) موجود مسبقاً! الرجاء إرسال رقم مختلف:` : `⚠️ Ce matricule (<code>${txt}</code>) existe déjà! Envoyez un autre numéro:`);
+      }
+      states.set(chatId, { step: 'add_emp_name', empId: txt });
+      return send(chatId, ar 
+        ? `✅ الرقم مقبول.\n\n✍️ الآن، أرسل <b>الاسم الكامل</b> للعامل (مثال: محمد عبد الله):`
+        : `✅ Matricule accepté.\n\n✍️ Maintenant, envoyez <b>le nom complet</b> (ex: Mohamed Abdallah):`);
+    }
+
+    if (st.step === 'add_emp_name') {
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_role:Directeur:${st.empId}:${txt}` }],
+        [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_role:Manager:${st.empId}:${txt}` }],
+        [{ text: ar ? '📋 مسؤول (Superviseur)' : '📋 Superviseur', callback_data: `add_emp_role:Superviseur:${st.empId}:${txt}` }],
+        [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_role:Employé:${st.empId}:${txt}` }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      return send(chatId, ar 
+        ? `✅ الاسم: <b>${txt}</b>\n\n📌 <b>اختر المنصب/الصنف:</b>`
+        : `✅ Nom: <b>${txt}</b>\n\n📌 <b>Choisissez le rôle:</b>`, kbd);
+    }
 
     if (st.step === 'calc_in') {
       let norm = txt.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));

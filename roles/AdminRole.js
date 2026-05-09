@@ -8,6 +8,7 @@ export default class AdminRole extends BaseRole {
     const kbd = { inline_keyboard: [
       [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
       [{ text: ar ? '📈 إحصائيات المديريات' : '📈 Stats par Directions', callback_data: 'effectifs_dir' }],
+      [{ text: ar ? '➕ إضافة عامل جديد' : '➕ Ajouter un Employé', callback_data: 'add_emp' }],
       [{ text: ar ? '🔍 البحث السريع' : '🔍 Recherche Rapide', callback_data: 'search' }],
       [{ text: ar ? '📝 تحويل المبالغ' : '📝 Chèque en Lettres', callback_data: 'cheque_step' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],

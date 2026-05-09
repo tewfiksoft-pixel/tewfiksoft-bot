@@ -53,5 +53,16 @@ export const loadConfig = () => {
   catch { return { authorized_users: [] }; }
 };
 
+export const saveDB = (db) => {
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(db));
+    log(`[DB] Saved successfully: ${db.hr_employees?.length || 0} employees.`);
+    return true;
+  } catch (e) {
+    log(`[DB] Save Error: ${e.message}`);
+    return false;
+  }
+};
+
 export const T = (s) => String(s || '').trim() || '—';
 export const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);

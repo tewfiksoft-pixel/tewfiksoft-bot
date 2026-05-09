@@ -70,6 +70,9 @@ export default class BaseRole {
     
     kbd.inline_keyboard.push([{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Doc', callback_data: 'reqmenu:' + emp.id }]);
     
+    // زر حادث العمل للعامل والمدير وgestionnaire RH
+    kbd.inline_keyboard.push([{ text: ar ? '🚑 تبليغ عن حادث عمل' : '🚑 Déclarer Accident de Travail', callback_data: 'accident:' + emp.id }]);
+    
     if (role === 'admin' || role === 'manager') {
       kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Recherche', callback_data: 'search' }]);
     }

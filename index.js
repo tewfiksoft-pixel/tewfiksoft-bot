@@ -300,6 +300,14 @@ Pour garantir une fin de relation de travail légale et fluide :
         : (ar ? `✅ <b>تم إرسال الطلب!</b>\n📄 ${docName}\n✍️ ${rsnName}` : `✅ <b>Demande envoyée!</b>\n📄 ${docName}\n✍️ ${rsnName}`));
     }
 
+    if (d.startsWith('accident:')) {
+      const empId = d.split(':')[1];
+      states.set(chatId, { step: 'accident_detail', empId });
+      return send(chatId, ar 
+        ? `🚑 <b>التبليغ عن حادث عمل:</b>\n━━━━━━━━━━━━━━\nيرجى كتابة <b>تاريخ ومكان وتفاصيل</b> الحادث باختصار:` 
+        : `🚑 <b>DÉCLARATION D'ACCIDENT:</b>\n━━━━━━━━━━━━━━\nVeuillez écrire <b>la date, le lieu et les détails</b> de l'accident :`);
+    }
+
     if (d.startsWith('back:')) {
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
       if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
@@ -449,6 +457,13 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, isManager
         ? (ar ? `✅ تم تسجيل الغياب.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Absence enregistrée.\n📊 ${st.typeName} | 📅 ${txt}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم تسجيل الغياب!</b>\n📊 ${st.typeName} | 📅 ${txt}` : `✅ <b>Absence enregistrée!</b>\n📊 ${st.typeName} | 📅 ${txt}`));
+    }
+
+    if (st.step === 'accident_detail') {
+      await notifyStaff(`🚑 <b>تبليغ عن حادث عمل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📝 التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
+      return send(chatId, ar 
+        ? `✅ <b>تم إرسال التبليغ بنجاح!</b>\nسوف تتصل بك مصلحة الموارد البشرية فوراً.` 
+        : `✅ <b>Signalement envoyé avec succès !</b>\nLe service RH vous contactera immédiatement.`);
     }
 
     if (st.step === 'survey_detail') {

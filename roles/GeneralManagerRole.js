@@ -7,7 +7,7 @@ export default class GeneralManagerRole extends BaseRole {
     const db = loadDB();
     const kbd = { inline_keyboard: [
       [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
-      [{ text: ar ? '👥 تعداد العمال' : '👥 Effectifs/Directions', callback_data: 'effectifs_dir' }],
+      [{ text: ar ? '📈 إحصائيات المديريات' : '📈 Stats par Directions', callback_data: 'effectifs_dir' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};
     let header = ar

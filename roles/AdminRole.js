@@ -5,8 +5,6 @@ import { loadDB } from '../utils/database.js';
 export default class AdminRole extends BaseRole {
   showMenu(chatId, ar, getStatsMsg) {
     const db = loadDB();
-  showMenu(chatId, ar, getStatsMsg) {
-    const db = loadDB();
     const kbd = { inline_keyboard: [
       [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
       [{ text: ar ? '👥 تعداد العمال' : '👥 Effectifs/Directions', callback_data: 'effectifs_dir' }],
@@ -16,7 +14,7 @@ export default class AdminRole extends BaseRole {
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};
 
-    let header = ar
+    const header = ar
       ? `💎 <b>أهلاً بك في نظام الإدارة العليا</b>\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n`
       : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n`;
 

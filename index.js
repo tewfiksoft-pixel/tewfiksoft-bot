@@ -129,46 +129,70 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (role !== 'admin' && role !== 'manager') {
         return send(chatId, ar ? '❌ <b>هذه الميزة مخصصة للإدارة.</b>' : '❌ <b>Accès restreint à l\'administration.</b>');
       }
-      states.set(chatId, { step: 'add_emp_id' });
+      states.set(chatId, { step: 'add_emp_tid' });
       return send(chatId, ar 
-        ? `➕ <b>إضافة عامل جديد:</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>رقم الموظف (Matricule)</b>:` 
-        : `➕ <b>Ajouter un employé:</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer <b>le matricule (ID)</b>:`);
+        ? `➕ <b>إضافة / تفعيل عامل:</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>معرف تيليجرام (ID)</b> الخاص بالعامل (الذي يحصل عليه من أمر /me):` 
+        : `➕ <b>Ajouter / Activer un employé:</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer <b>l'ID Telegram</b> de l'employé (obtenu avec /me):`);
     }
 
     const db = loadDB();
 
-    if (d.startsWith('add_emp_role:')) {
+    if (d.startsWith('add_emp_rolex:') || d.startsWith('add_emp_rolen:')) {
       const parts = d.split(':');
-      const empRole = parts[1], empId = parts[2], empName = parts.slice(3).join(':');
+      const isNew = d.startsWith('add_emp_rolen:');
+      const botRole = parts[1];
+      const tid = parts[2];
+      const empId = parts[3];
+      const empName = isNew ? parts.slice(4).join(':') : '';
+
+      const cfg = loadConfig();
+      if (!cfg.authorized_users) cfg.authorized_users = [];
       
-      const emp = {
-        id: crypto.randomUUID(),
-        clockingId: empId,
-        firstName_ar: empName,
-        firstName_fr: empName,
-        lastName_ar: '',
-        lastName_fr: '',
-        status: 'active',
-        csp: empRole,
-        department_ar: empRole,
-        department_fr: empRole,
-        startDate: new Date().toISOString().split('T')[0],
-        createdAt: new Date().toISOString()
-      };
-      
-      if (!db.hr_employees) db.hr_employees = [];
-      db.hr_employees.push(emp);
-      
-      const success = saveDB(db);
-      if (success) {
-        return send(chatId, ar 
-          ? `✅ <b>تمت إضافة العامل بنجاح!</b>\nالاسم: ${empName}\nالرقم: <code>${empId}</code>\nالمنصب: ${empRole}\n\n<i>سيظهر العامل في التطبيق فور إجراء مزامنة للبيانات.</i>` 
-          : `✅ <b>Employé ajouté avec succès!</b>\nNom: ${empName}\nID: <code>${empId}</code>\nRôle: ${empRole}\n\n<i>L'employé apparaîtra dans l'application après la synchronisation.</i>`,
-          { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]] }
-        );
+      let botUser = cfg.authorized_users.find(u => String(u.id) === String(tid));
+      if (!botUser) {
+         botUser = {
+            id: tid,
+            name: isNew ? empName : (db.hr_employees?.find(e => String(e.clockingId) === empId)?.firstName_ar || 'Employé'),
+            role: botRole,
+            scope: botRole === 'employee' ? 'custom_employees' : 'all',
+            allowed_employees: [empId],
+            clockingId: empId
+         };
+         cfg.authorized_users.push(botUser);
       } else {
-        return send(chatId, ar ? '❌ حدث خطأ أثناء الحفظ.' : '❌ Erreur de sauvegarde.');
+         botUser.role = botRole;
+         botUser.clockingId = empId;
+         if (botRole === 'employee') {
+            botUser.scope = 'custom_employees';
+            botUser.allowed_employees = [empId];
+         }
       }
+      updateConfig(cfg);
+
+      if (isNew) {
+         const emp = {
+           id: crypto.randomUUID(),
+           clockingId: empId,
+           firstName_ar: empName,
+           firstName_fr: empName,
+           lastName_ar: '',
+           lastName_fr: '',
+           status: 'active',
+           csp: botRole,
+           department_ar: '',
+           startDate: new Date().toISOString().split('T')[0],
+           createdAt: new Date().toISOString()
+         };
+         if (!db.hr_employees) db.hr_employees = [];
+         db.hr_employees.push(emp);
+         saveDB(db);
+      }
+      
+      return send(chatId, ar 
+         ? `✅ <b>تم العملية بنجاح!</b>\nتم تفعيل حساب التيليجرام: <code>${tid}</code>\nبرقم الموظف: <code>${empId}</code>\n\n<i>${isNew ? 'تمت إضافة العامل للقاعدة وسيظهر في التطبيق.' : 'العامل موجود مسبقاً وتم ربطه بالبوت.'}</i>` 
+         : `✅ <b>Opération réussie!</b>\nCompte activé: <code>${tid}</code>\nID: <code>${empId}</code>`,
+         { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]] }
+      );
     }
 
     if (d === 'my_profile') {
@@ -433,28 +457,47 @@ Pour garantir une fin de relation de travail légale et fluide :
     const role = String(userData.role).toLowerCase();
     const isManager = role === 'manager';
 
-    if (st.step === 'add_emp_id') {
-      const exists = (db.hr_employees || []).some(e => String(e.clockingId) === txt);
-      if (exists) {
-         return send(chatId, ar ? `⚠️ هذا الرقم (<code>${txt}</code>) موجود مسبقاً! الرجاء إرسال رقم مختلف:` : `⚠️ Ce matricule (<code>${txt}</code>) existe déjà! Envoyez un autre numéro:`);
+    if (st.step === 'add_emp_tid') {
+      if (!/^\d+$/.test(txt)) {
+         return send(chatId, ar ? `⚠️ معرف تيليجرام يجب أن يكون أرقاماً فقط. حاول مجدداً:` : `⚠️ L'ID Telegram doit être numérique:`);
       }
-      states.set(chatId, { step: 'add_emp_name', empId: txt });
+      states.set(chatId, { step: 'add_emp_id', tid: txt });
       return send(chatId, ar 
-        ? `✅ الرقم مقبول.\n\n✍️ الآن، أرسل <b>الاسم الكامل</b> للعامل (مثال: محمد عبد الله):`
-        : `✅ Matricule accepté.\n\n✍️ Maintenant, envoyez <b>le nom complet</b> (ex: Mohamed Abdallah):`);
+        ? `✅ تم استلام المعرف.\n\n✍️ الآن، أرسل <b>رقم الموظف (Matricule)</b> لربطه بهذا الحساب:`
+        : `✅ ID reçu.\n\n✍️ Maintenant, envoyez <b>le matricule (ID)</b> de l'employé:`);
+    }
+
+    if (st.step === 'add_emp_id') {
+      const exists = (db.hr_employees || []).find(e => String(e.clockingId) === txt);
+      if (exists) {
+         states.set(chatId, { step: 'add_emp_role_existing', tid: st.tid, empId: txt, empName: `${exists.firstName_ar} ${exists.lastName_ar}`.trim() });
+         const kbd = { inline_keyboard: [
+           [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_rolex:general_manager:${st.tid}:${txt}` }],
+           [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolex:manager:${st.tid}:${txt}` }],
+           [{ text: ar ? '👷 عامل عادي (Employé)' : '👷 Employé normal', callback_data: `add_emp_rolex:employee:${st.tid}:${txt}` }],
+           [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+         ]};
+         return send(chatId, ar 
+           ? `✅ <b>هذا العامل موجود مسبقاً!</b>\nالاسم: ${exists.firstName_ar} ${exists.lastName_ar}\n\n📌 <b>اختر الصلاحية التي تريد منحها له في البوت:</b>`
+           : `✅ <b>Cet employé existe déjà!</b>\nNom: ${exists.firstName_fr} ${exists.lastName_fr}\n\n📌 <b>Choisissez son rôle d'accès au Bot:</b>`, kbd);
+      } else {
+         states.set(chatId, { step: 'add_emp_name', tid: st.tid, empId: txt });
+         return send(chatId, ar 
+           ? `✅ الرقم جديد.\n\n✍️ أرسل <b>الاسم الكامل</b> للعامل الجديد لإنشائه:`
+           : `✅ Nouveau matricule.\n\n✍️ Envoyez <b>le nom complet</b> du nouvel employé:`);
+      }
     }
 
     if (st.step === 'add_emp_name') {
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_role:Directeur:${st.empId}:${txt}` }],
-        [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_role:Manager:${st.empId}:${txt}` }],
-        [{ text: ar ? '📋 مسؤول (Superviseur)' : '📋 Superviseur', callback_data: `add_emp_role:Superviseur:${st.empId}:${txt}` }],
-        [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_role:Employé:${st.empId}:${txt}` }],
+        [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_rolen:general_manager:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolen:manager:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_rolen:employee:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       return send(chatId, ar 
-        ? `✅ الاسم: <b>${txt}</b>\n\n📌 <b>اختر المنصب/الصنف:</b>`
-        : `✅ Nom: <b>${txt}</b>\n\n📌 <b>Choisissez le rôle:</b>`, kbd);
+        ? `✅ الاسم: <b>${txt}</b>\n\n📌 <b>اختر صلاحية البوت والمنصب:</b>`
+        : `✅ Nom: <b>${txt}</b>\n\n📌 <b>Choisissez le rôle d'accès:</b>`, kbd);
     }
 
     if (st.step === 'calc_in') {

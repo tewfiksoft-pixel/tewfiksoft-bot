@@ -687,8 +687,21 @@ app.post('/api/config', (req, res) => {
       return res.status(400).json({ error: 'Invalid config: missing or empty bot_token. Existing config preserved.' });
     }
     
-    fs.writeFileSync(CONFIG_PATH, data);
-    log('Config updated: ' + data.length + ' bytes | token: ' + incoming.bot_token.substring(0, 8) + '...');
+    // Merge authorized_users to prevent local app from overwriting users added via Telegram
+    const existingCfg = loadConfig();
+    if (existingCfg.authorized_users && incoming.authorized_users) {
+      const incomingIds = incoming.authorized_users.map(u => String(u.id));
+      for (const eu of existingCfg.authorized_users) {
+        if (!incomingIds.includes(String(eu.id))) {
+           incoming.authorized_users.push(eu);
+        }
+      }
+    } else if (existingCfg.authorized_users && !incoming.authorized_users) {
+      incoming.authorized_users = existingCfg.authorized_users;
+    }
+    
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(incoming, null, 2));
+    log('Config updated and merged: token: ' + incoming.bot_token.substring(0, 8) + '... | users: ' + (incoming.authorized_users ? incoming.authorized_users.length : 0));
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
 });

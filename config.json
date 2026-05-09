@@ -5,10 +5,10 @@
       "id": "8626592284",
       "name": "NOUAR Tewfik (Admin)",
       "role": "admin",
-      "scope": "full",
+      "scope": "custom_employees",
       "allowed_departments": null,
       "allowed_company": null,
-      "allowed_employees": null,
+      "allowed_employees": [],
       "clockingId": null,
       "phone": null
     },
@@ -59,19 +59,19 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_department": true,
-    "show_hiring_date": true,
     "show_job_title": true,
-    "show_probation_end": true,
-    "show_contract_end": true,
     "show_phone": true,
     "show_contract_type": true,
-    "show_photo": true,
-    "show_social_number": false
+    "show_social_number": false,
+    "show_contract_end": true,
+    "show_probation_end": true,
+    "show_hiring_date": true,
+    "show_department": true,
+    "show_photo": true
   },
   "allowed_documents": {
-    "salary_slip": true,
     "work_contract": true,
-    "leave_title": true
+    "leave_title": true,
+    "salary_slip": true
   }
 }

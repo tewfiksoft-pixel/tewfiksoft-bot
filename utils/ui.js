@@ -58,7 +58,7 @@ export function calculateAutoLeave(recruitmentDate, exercice) {
   } catch { return 0; }
 }
 
-export function getStatsMsg(db, ar) {
+export function getStatsMsg(db, ar, type = 'all') {
   const activeEx = getCurrentExercice();
   const allEmps = (db.hr_employees || []);
   const emps = allEmps.filter(e => e.status === 'active');
@@ -133,42 +133,64 @@ export function getStatsMsg(db, ar) {
     seen.add(String(emp.id));
   });
 
-  const buildBlock = (s, titleAr, titleFr, icon = '📊') => {
+  const buildBlock = (s, title, icon = '📊') => {
     const avgAge = s.ageCount > 0 ? Math.round(s.totalAge / s.ageCount) : 0;
     const avgExp = s.senCount > 0 ? (s.totalSen / s.senCount).toFixed(1) : 0;
     
-    return `<b>${icon} ${titleFr} (${titleAr})</b>\n` +
-      `━━━━━━━━━━━━━━\n` +
-      `👥 Effectif (التعداد): <b>${s.total}</b>\n` +
-      `⚧️ Genre (الجنس): <b>${s.male} H(ر) | ${s.female} F(ن)</b>\n` +
-      `📄 Contrats (العقود): <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
-      `🎂 Âge Moyen (العمر): <b>${avgAge} ans(سنة)</b>\n` +
-      `📈 Expérience (الخبرة): <b>${avgExp} ans(سنة)</b>\n` +
-      `🏖️ Congés (العطل): <b>${s.leave.toFixed(1)} j(يوم)</b>\n` +
-      `━━━━━━━━━━━━━━\n` +
-      `💼 <b>Catégories (الفئات):</b>\n` +
-      `├ Dir (مسير): <b>${s.csp.executive}</b> | Cad (إطار): <b>${s.csp.cadre}</b>\n` +
-      `└ Maî (تحكم): <b>${s.csp.maitrise}</b> | Exé (تنفيذ): <b>${s.csp.execution}</b>\n\n`;
+    if (ar) {
+      return `<b>${icon} ${title}</b>\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `👥 التعداد: <b>${s.total}</b>\n` +
+        `⚧️ الجنس: <b>${s.male} رجال | ${s.female} نساء</b>\n` +
+        `📄 العقود: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
+        `🎂 العمر المتوسط: <b>${avgAge} سنة</b>\n` +
+        `📈 الخبرة: <b>${avgExp} سنة</b>\n` +
+        `🏖️ العطل: <b>${s.leave.toFixed(1)} يوم</b>\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `💼 <b>الفئات المهنية:</b>\n` +
+        `├ مسير: <b>${s.csp.executive}</b> | إطار: <b>${s.csp.cadre}</b>\n` +
+        `└ تحكم: <b>${s.csp.maitrise}</b> | تنفيذ: <b>${s.csp.execution}</b>\n\n`;
+    } else {
+      return `<b>${icon} ${title}</b>\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `👥 Effectif: <b>${s.total}</b>\n` +
+        `⚧️ Genre: <b>${s.male} H | ${s.female} F</b>\n` +
+        `📄 Contrats: <b>${s.cdi} CDI | ${s.cdd} CDD</b>\n` +
+        `🎂 Âge Moyen: <b>${avgAge} ans</b>\n` +
+        `📈 Expérience: <b>${avgExp} ans</b>\n` +
+        `🏖️ Congés: <b>${s.leave.toFixed(1)} j</b>\n` +
+        `━━━━━━━━━━━━━━\n` +
+        `💼 <b>Catégories:</b>\n` +
+        `├ Dir: <b>${s.csp.executive}</b> | Cad: <b>${s.csp.cadre}</b>\n` +
+        `└ Maî: <b>${s.csp.maitrise}</b> | Exé: <b>${s.csp.execution}</b>\n\n`;
+    }
   };
 
-  let msg = `📊 <b>STATISTIQUES (ستاتستيك)</b>\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-
-  msg += buildBlock(stats.alver, 'شركة الفار', 'ALVER Spa', '🟢');
-  msg += buildBlock(stats.vt, 'شركة فارتك', 'VERRE TECH', '🔵');
+  if (type === 'alver') return buildBlock(stats.alver, ar ? 'شركة الفار (ALVER)' : 'ALVER Spa', '🟢');
+  if (type === 'vt') return buildBlock(stats.vt, ar ? 'شركة فارتك (VERRE TECH)' : 'VERRE TECH', '🔵');
 
   const globalTotal = stats.alver.total + stats.vt.total;
   const globalMale = stats.alver.male + stats.vt.male;
   const globalFemale = stats.alver.female + stats.vt.female;
   const globalLeave = (stats.alver.leave + stats.vt.leave).toFixed(1);
 
-  msg += `👑 <b>BILAN GLOBAL (الحصيلة المجمعة)</b>\n`;
+  let msg = ar 
+    ? `👑 <b>الحصيلة المجمعة (BILAN GLOBAL)</b>\n━━━━━━━━━━━━━━\n` 
+    : `👑 <b>BILAN GLOBAL CONSOLIDÉ</b>\n━━━━━━━━━━━━━━\n`;
+  
+  if (type === 'all' || type === 'global') {
+    msg += ar
+      ? `👥 الإجمالي: <b>${globalTotal}</b>\n⚧️ رجال: <b>${globalMale}</b> | نساء: <b>${globalFemale}</b>\n⏳ ديون العطل: <b>${globalLeave} يوم</b>\n`
+      : `👥 Total: <b>${globalTotal}</b>\n⚧️ H: <b>${globalMale}</b> | F: <b>${globalFemale}</b>\n⏳ Dette Congés: <b>${globalLeave} j</b>\n`;
+    
+    if (type === 'all') {
+      msg += `\n` + buildBlock(stats.alver, ar ? 'شركة الفار' : 'ALVER Spa', '🟢');
+      msg += buildBlock(stats.vt, ar ? 'شركة فارتك' : 'VERRE TECH', '🔵');
+    }
+  }
+
   msg += `━━━━━━━━━━━━━━\n`;
-  msg += `👥 Total (الإجمالي): <b>${globalTotal}</b>\n`;
-  msg += `⚧️ H(رجال): <b>${globalMale}</b> | F(نساء): <b>${globalFemale}</b>\n`;
-  msg += `⏳ Dette Congés (ديون العطل): <b>${globalLeave} j</b>\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `📡 <i>Données en direct (بيانات حية ومؤمنة)</i> 🔐`;
+  msg += ar ? `📡 <i>بيانات حية ومؤمنة</i> 🔐` : `📡 <i>Données en direct et sécurisées</i> 🔐`;
   
   return msg;
 }

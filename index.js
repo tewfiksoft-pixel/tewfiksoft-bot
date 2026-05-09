@@ -63,7 +63,8 @@ async function handle(u) {
     if (d.startsWith('lang:')) {
       userData.lang = d.split(':')[1];
       await updateConfig(cfg);
-      return roleObj.showMenu(chatId, userData.lang === 'ar', getStatsMsg);
+      const isAr = userData.lang === 'ar';
+      return roleObj.showMenu(chatId, isAr, getStatsMsg);
     }
 
     if (d === 'end_work_guide') {
@@ -304,34 +305,45 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
     }
 
-    if (d === 'stats' || d === 'effectifs_dir' || d.startsWith('eff_comp:')) {
+    if (d === 'stats_menu') {
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🟢 شركة الفار' : '🟢 Statistiques ALVER', callback_data: 'stats:alver' }],
+        [{ text: ar ? '🔵 شركة فارتك' : '🔵 Statistiques VERRE TECH', callback_data: 'stats:vt' }],
+        [{ text: ar ? '👑 الحصيلة المجمعة' : '👑 Bilan Global', callback_data: 'stats:global' }],
+        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]
+      ]};
+      return send(chatId, ar ? '📊 <b>اختر نوع الإحصائيات:</b>' : '📊 <b>Choisissez le type de statistiques :</b>', kbd);
+    }
+
+    if (d.startsWith('stats:')) {
+      const type = d.split(':')[1];
+      return send(chatId, getStatsMsg(db, ar, type), { inline_keyboard: [
+        [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: d }],
+        [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'stats_menu' }]
+      ]});
+    }
+
+    if (d === 'effectifs_dir' || d.startsWith('eff_comp:')) {
       const role = String(userData.role).toLowerCase();
       if (role !== 'admin' && role !== 'general_manager') {
         return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للإدارة العليا فقط.</b>' : '❌ <b>Accès restreint à la Direction Générale.</b>');
       }
       
       const db = loadDB();
-      if (d === 'stats') {
-        return send(chatId, getStatsMsg(db, ar), { inline_keyboard: [
-          [{ text: '📊 Statistiques (ستاتستيك)', callback_data: 'stats' }],
-          [{ text: '🏠 Menu (القائمة الرئيسية)', callback_data: 'menu' }]
-        ]});
-      }
-
       if (d === 'effectifs_dir') {
         return send(chatId, ar ? '🏢 <b>الرجاء اختيار الشركة لعرض الإحصائيات:</b>\n━━━━━━━━━━━━━━' : '🏢 <b>Veuillez choisir la société:</b>\n━━━━━━━━━━━━━━', { inline_keyboard: [
           [{ text: ar ? '🟢 شركة الفار (ALVER)' : '🟢 ALVER', callback_data: 'eff_comp:alver' }],
           [{ text: ar ? '🔵 شركة فارتك (VERRE TECH)' : '🔵 VERRE TECH', callback_data: 'eff_comp:vt' }],
-          [{ text: '🔙 Retour (رجوع)', callback_data: 'menu' }]
+          [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'menu' }]
         ]});
       }
 
       if (d.startsWith('eff_comp:')) {
         const compType = d.split(':')[1];
         return send(chatId, getEffectifsCompanyMsg(db, ar, compType), { inline_keyboard: [
-          [{ text: '🔄 Actualiser (تحديث)', callback_data: d }],
-          [{ text: '🔙 Retour (رجوع)', callback_data: 'effectifs_dir' }],
-          [{ text: '🏠 Menu (القائمة الرئيسية)', callback_data: 'menu' }]
+          [{ text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: d }],
+          [{ text: ar ? '🔙 رجوع' : '🔙 Retour', callback_data: 'effectifs_dir' }],
+          [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]
         ]});
       }
     }

@@ -19,14 +19,14 @@ export default class BaseRole {
   showMenu(chatId, ar) {
     // Default menu logic (can be overridden)
     const kbd = { inline_keyboard: [] };
-    kbd.inline_keyboard.push([{ text: '👤 Mon Profil (ملفي الشخصي)', callback_data: 'my_profile' }]);
+    kbd.inline_keyboard.push([{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }]);
     
     const role = String(this.user.role).toLowerCase();
     if (this.isAdmin() || role === 'manager' || role === 'gestionnaire_rh' || role === 'general_manager') {
-      kbd.inline_keyboard.push([{ text: '📜 Guide Procédures (دليل العمل)', callback_data: 'end_work_guide' }]);
+      kbd.inline_keyboard.push([{ text: ar ? '📜 دليل العمل' : '📜 Guide Procédures', callback_data: 'end_work_guide' }]);
     }
 
-    kbd.inline_keyboard.push([{ text: '🌐 Langue (تغيير اللغة)', callback_data: 'choose_lang' }]);
+    kbd.inline_keyboard.push([{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]);
 
     return send(chatId, ar
       ? `💎 <b>أهلاً بك</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
@@ -60,18 +60,18 @@ export default class BaseRole {
     msg += `\n━━━━━━━━━━━━━━`;
     
     const kbd = { inline_keyboard: [
-      [{ text: '📄 Fiche (الملف الكامل)', callback_data: 'full:' + emp.id }],
-      [{ text: '📜 Contrats (العقود)', callback_data: 'docs:' + emp.id }, { text: '🏖️ Congés (العطل)', callback_data: 'leave:' + emp.id }]
+      [{ text: ar ? '📄 الملف الكامل' : '📄 Fiche Détallée', callback_data: 'full:' + emp.id }],
+      [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }]
     ]};
     
     if (role !== 'employee' && role !== 'gestionnaire_rh') {
-      kbd.inline_keyboard.push([{ text: '🚨 Absences (الغيابات)', callback_data: 'abs:' + emp.id }, { text: '🗳️ Sondage (الاستبيان)', callback_data: 'survey:' + emp.id }]);
+      kbd.inline_keyboard.push([{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ المخالفات' : '🗳️ Incidents', callback_data: 'survey:' + emp.id }]);
     }
     
-    kbd.inline_keyboard.push([{ text: '📄 Demander Doc (طلب وثيقة)', callback_data: 'reqmenu:' + emp.id }]);
+    kbd.inline_keyboard.push([{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Doc', callback_data: 'reqmenu:' + emp.id }]);
     
     if (role === 'admin' || role === 'manager') {
-      kbd.inline_keyboard.push([{ text: '🔍 Recherche (بحث جديد)', callback_data: 'search' }]);
+      kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Recherche', callback_data: 'search' }]);
     }
     return send(chatId, msg, kbd);
   }

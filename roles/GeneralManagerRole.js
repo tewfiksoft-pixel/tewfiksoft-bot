@@ -6,9 +6,9 @@ export default class GeneralManagerRole extends BaseRole {
   showMenu(chatId, ar, getStatsMsg) {
     const db = loadDB();
     const kbd = { inline_keyboard: [
-      [{ text: '📊 Statistiques (ستاتستيك)', callback_data: 'stats' }],
-      [{ text: '👥 Effectifs/Dir (تعداد العمال)', callback_data: 'effectifs_dir' }],
-      [{ text: '🌐 Langue (تغيير اللغة)', callback_data: 'choose_lang' }]
+      [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
+      [{ text: ar ? '👥 تعداد العمال' : '👥 Effectifs/Directions', callback_data: 'effectifs_dir' }],
+      [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};
     let header = ar
       ? `💎 <b>أهلاً بك يا سيادة المدير العام</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>DIRECTEUR GÉNÉRAL</code>\n━━━━━━━━━━━━━━`

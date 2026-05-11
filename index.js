@@ -809,6 +809,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '📦 المستودع' : '📦 Dépôt', callback_data: 'accloc:Depot' }, { text: ar ? '🚗 طريق (مهمة)' : '🚗 Route (Mission)', callback_data: 'accloc:Route' }],
         [{ text: ar ? '🌐 مكان آخر' : '🌐 Autre lieu', callback_data: 'accloc:Autre' }]
       ]};
+      states.set(chatId, st);
       return send(chatId, ar 
         ? `📍 <b>مكان الحادث (خطوة 2/7)</b>\nأين وقع الحادث بالضبط؟` 
         : `📍 <b>LIEU DE L'ACCIDENT (Étape 2/7)</b>\nOù l'accident s'est-il produit ?`, kbd);
@@ -820,6 +821,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '✅ نعم' : '✅ Oui', callback_data: 'acchosp:Oui' },
         { text: ar ? '❌ لا' : '❌ Non', callback_data: 'acchosp:Non' }
       ]]};
+      states.set(chatId, st);
       return send(chatId, ar 
         ? `🏥 <b>النقل للمستشفى (خطوة 5/7)</b>\nهل تم نقل الموظف للمستشفى أو تلقى إسعافات طبية؟` 
         : `🏥 <b>TRANSFERT À L'HÔPITAL (Étape 5/7)</b>\nL'employé a-t-il été transféré à l'hôpital ?`, kbd);
@@ -835,16 +837,19 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'acc_final_send' },
         { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }
       ]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
     
     // --- 🛠️ 1. Resource Request Steps ---
     if (st.step === 'res_item') {
       st.data.item = txt; st.step = 'res_qty';
+      states.set(chatId, st);
       return send(chatId, ar ? `🔢 <b>الكمية (3/4)</b>\nما هي الكمية المطلوبة؟` : `🔢 <b>QUANTITÉ (3/4)</b>\nQuelle est la quantité ?`);
     }
     if (st.step === 'res_qty') {
       st.data.qty = txt; st.step = 'res_reason';
+      states.set(chatId, st);
       return send(chatId, ar ? `✍️ <b>السبب (4/4)</b>\nلماذا تحتاج هذه المعدات؟ (مثال: تلف القطعة القديمة)` : `✍️ <b>RAISON (4/4)</b>\nPourquoi en avez-vous besoin ?`);
     }
     if (st.step === 'res_reason') {
@@ -854,6 +859,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `📦 <b>ملخص طلب معدات</b>\n━━━━━━━━━━━━━━\n📂 الفئة: ${d.category}\n🛠️ القطعة: ${d.item}\n🔢 الكمية: ${d.qty}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.reporter}`
         : `📦 <b>RÉSUMÉ DEMANDE</b>\n━━━━━━━━━━━━━━\n📂 Cat: ${d.category}\n🛠️ Item: ${d.item}\n🔢 Qté: ${d.qty}\n✍️ Raison: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'res_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
 
@@ -865,6 +871,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '🟡 متوسط' : '🟡 Moyen', callback_data: 'maintpri:Moyen' },
         { text: ar ? '🔴 عاجل' : '🔴 Urgent', callback_data: 'maintpri:Urgent' }
       ]]};
+      states.set(chatId, st);
       return send(chatId, ar ? `⚡ <b>مستوى الأهمية (3/4)</b>\nما مدى تأثير هذا العطب على العمل؟` : `⚡ <b>PRIORITÉ (3/4)</b>\nImportance de la panne ?`, kbd);
     }
     if (st.step === 'maint_desc') {
@@ -874,17 +881,20 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `⚙️ <b>ملخص بلاغ عطب</b>\n━━━━━━━━━━━━━━\n📍 المكان: ${d.location}\n⚙️ الجهاز: ${d.equipment}\n⚡ الأولوية: ${d.priority}\n🛑 توقف العمل: ${d.stops_work}\n📝 الوصف: ${d.description}\n👤 المُبلِّغ: ${d.reporter}`
         : `⚙️ <b>RÉSUMÉ PANNE</b>\n━━━━━━━━━━━━━━\n📍 Lieu: ${d.location}\n⚙️ Équip: ${d.equipment}\n⚡ Prio: ${d.priority}\n🛑 Arrêt travail: ${d.stops_work}\n📝 Desc: ${d.description}\n👤 Rapporteur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال البلاغ' : '✅ Envoyer', callback_data: 'maint_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
 
     // --- 💼 3. Recruitment Steps ---
     if (st.step === 'hire_dept') {
       st.data.department = txt; st.step = 'hire_title';
+      states.set(chatId, st);
       return send(chatId, ar ? `💼 <b>المسمى الوظيفي (2/4)</b>\nما هو المنصب المراد شغله؟` : `💼 <b>POSTE (2/4)</b>\nQuel est le poste ?`);
     }
     if (st.step === 'hire_title') {
       st.data.title = txt; st.step = 'hire_type';
       const kbd = { inline_keyboard: [[{ text: 'CDI (Titulaire)', callback_data: 'hiretype:CDI' }, { text: 'CDD (Contractuel)', callback_data: 'hiretype:CDD' }]]};
+      states.set(chatId, st);
       return send(chatId, ar ? `📜 <b>نوع العقد (3/4)</b>\nما هو نوع العقد المقترح؟` : `📜 <b>CONTRAT (3/4)</b>\nType de contrat ?`, kbd);
     }
     if (st.step === 'hire_reason') {
@@ -894,6 +904,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `💼 <b>ملخص طلب توظيف</b>\n━━━━━━━━━━━━━━\n🏢 القسم: ${d.department}\n💼 المنصب: ${d.title}\n📜 العقد: ${d.contract}\n✍️ التبرير: ${d.reason}\n👤 الطالب: ${d.reporter}`
         : `💼 <b>RÉSUMÉ RECRUTEMENT</b>\n━━━━━━━━━━━━━━\n🏢 Dept: ${d.department}\n💼 Poste: ${d.title}\n📜 Contrat: ${d.contract}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'hire_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
 
@@ -905,12 +916,14 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `📊 <b>ملخص تقرير الإنتاج</b>\n━━━━━━━━━━━━━━\n🕒 الوردية: ${d.shift}\n✅ الهدف: ${d.target}\n📝 ملاحظات: ${d.notes}\n👤 المسؤول: ${d.reporter}`
         : `📊 <b>RÉSUMÉ PRODUCTION</b>\n━━━━━━━━━━━━━━\n🕒 Shift: ${d.shift}\n✅ Objectif: ${d.target}\n📝 Notes: ${d.notes}\n👤 Resp: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال التقرير' : '✅ Envoyer', callback_data: 'prod_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
 
     // --- 💡 6. Suggestion Steps ---
     if (st.step === 'sug_idea') {
       st.data.idea = txt; st.step = 'sug_benefit';
+      states.set(chatId, st);
       return send(chatId, ar ? `🚀 <b>الفائدة المتوقعة (3/3)</b>\nما هي الفائدة التي ستعود على الشركة من هذه الفكرة؟` : `🚀 <b>BÉNÉFICE (3/3)</b>\nQuel est le bénéfice attendu ?`);
     }
     if (st.step === 'sug_benefit') {
@@ -920,6 +933,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `💡 <b>ملخص الاقتراح</b>\n━━━━━━━━━━━━━━\n📂 المجال: ${d.category}\n💡 الفكرة: ${d.idea}\n🚀 الفائدة: ${d.benefit}\n👤 صاحب الفكرة: ${d.reporter}`
         : `💡 <b>RÉSUMÉ IDÉE</b>\n━━━━━━━━━━━━━━\n📂 Domaine: ${d.category}\n💡 Idée: ${d.idea}\n🚀 Bénéfice: ${d.benefit}\n👤 Auteur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال الفكرة' : '✅ Envoyer', callback_data: 'sug_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
       return send(chatId, summary, kbd);
     }
 

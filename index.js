@@ -889,8 +889,6 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (st.step === 'survey_detail') {
-
-    if (st.step === 'survey_detail') {
       await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName}\n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)

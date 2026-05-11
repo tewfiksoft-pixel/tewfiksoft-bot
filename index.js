@@ -372,15 +372,243 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('accident:')) {
       const empId = d.split(':')[1];
-      states.set(chatId, { step: 'accident_detail', empId });
+      states.set(chatId, { 
+        step: 'acc_date', 
+        empId, 
+        data: { reporter: userData.name, timestamp: new Date().toLocaleString() } 
+      });
       return send(chatId, ar 
-        ? `🚑 <b>التبليغ عن حادث عمل:</b>\n━━━━━━━━━━━━━━\nيرجى كتابة <b>تاريخ ومكان وتفاصيل</b> الحادث باختصار:` 
-        : `🚑 <b>DÉCLARATION D'ACCIDENT:</b>\n━━━━━━━━━━━━━━\nVeuillez écrire <b>la date, le lieu et les détails</b> de l'accident :`);
+        ? `🚑 <b>التبليغ عن حادث عمل (خطوة 1/7)</b>\n━━━━━━━━━━━━━━\n📅 يرجى كتابة <b>تاريخ ووقت</b> وقوع الحادث:\nمثال: <code>اليوم 10:30</code> أو <code>أمس المساء</code>` 
+        : `🚑 <b>DÉCLARATION D'ACCIDENT (Étape 1/7)</b>\n━━━━━━━━━━━━━━\n📅 Veuillez écrire <b>la date et l'heure</b> de l'accident :\nEx: <code>Aujourd'hui 10:30</code>`);
+    }
+
+    if (d === 'mgmt_tools') {
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🛠️ طلب وسائل / معدات' : '🛠️ Demande de Moyens', callback_data: 'start_res_req' }],
+        [{ text: ar ? '⚙️ بلاغ عن عطب تقني' : '⚙️ Signalement de Panne', callback_data: 'start_maint_req' }],
+        [{ text: ar ? '💼 طلب توظيف جديد' : '💼 Demande de Recrutement', callback_data: 'start_hire_req' }],
+        [{ text: ar ? '📊 تقرير الإنتاج اليومي' : '📊 Rapport Production', callback_data: 'start_prod_req' }],
+        [{ text: ar ? '💡 صندوق الاقتراحات' : '💡 Boîte à Idées', callback_data: 'start_suggest' }],
+        [{ text: ar ? '🔙 العودة' : '🔙 Retour', callback_data: 'menu' }]
+      ]};
+      return send(chatId, ar 
+        ? `🛠️ <b>أدوات الإدارة والتشغيل</b>\n━━━━━━━━━━━━━━\nيرجى اختيار النظام المطلوب للبدء في ملء البيانات:` 
+        : `🛠️ <b>OUTILS DE GESTION & OPS</b>\n━━━━━━━━━━━━━━\nVeuillez choisir un système :`, kbd);
+    }
+
+    // --- 🛠️ 1. Resource Request Start ---
+    if (d === 'start_res_req') {
+      states.set(chatId, { step: 'res_cat', data: { reporter: userData.name } });
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '📝 أدوات مكتبية' : '📝 Papeterie', callback_data: 'rescat:Papeterie' }, { text: ar ? '🦺 وسائل وقاية' : '🦺 EPI', callback_data: 'rescat:EPI' }],
+        [{ text: ar ? '🛠️ أدوات عمل' : '🛠️ Outillage', callback_data: 'rescat:Outils' }, { text: ar ? '🌐 أخرى' : '🌐 Autre', callback_data: 'rescat:Autre' }]
+      ]};
+      return send(chatId, ar ? `📂 <b>طلب وسائل (1/4)</b>\nاختر فئة المعدات المطلوبة:` : `📂 <b>REQUÊTE (1/4)</b>\nChoisissez une catégorie :`, kbd);
+    }
+
+    // --- ⚙️ 2. Maintenance Report Start ---
+    if (d === 'start_maint_req') {
+      states.set(chatId, { step: 'maint_loc', data: { reporter: userData.name } });
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🏭 الورشة' : '🏭 Atelier', callback_data: 'maintloc:Atelier' }, { text: ar ? '🏢 المكتب' : '🏢 Bureau', callback_data: 'maintloc:Bureau' }],
+        [{ text: ar ? '📦 المستودع' : '📦 Dépôt', callback_data: 'maintloc:Depot' }, { text: ar ? '🌐 أخرى' : '🌐 Autre', callback_data: 'maintloc:Autre' }]
+      ]};
+      return send(chatId, ar ? `📍 <b>بلاغ عطب (1/4)</b>\nأين يقع العطب التقني؟` : `📍 <b>PANNE (1/4)</b>\nOù est la panne ?`, kbd);
+    }
+
+    // --- 💼 3. Recruitment Start ---
+    if (d === 'start_hire_req') {
+      states.set(chatId, { step: 'hire_dept', data: { reporter: userData.name } });
+      return send(chatId, ar ? `🏢 <b>طلب توظيف (1/4)</b>\nما هو القسم أو المديرية الطالبة؟` : `🏢 <b>RECRUTEMENT (1/4)</b>\nQuel est le département demandeur ?`);
+    }
+
+    // --- 📊 5. Daily Production Start ---
+    if (d === 'start_prod_req') {
+      states.set(chatId, { step: 'prod_shift', data: { reporter: userData.name } });
+      const kbd = { inline_keyboard: [[
+        { text: ar ? '☀️ نهار' : '☀️ Jour', callback_data: 'prodshift:Jour' },
+        { text: ar ? '🌙 ليل' : '🌙 Nuit', callback_data: 'prodshift:Nuit' }
+      ]]};
+      return send(chatId, ar ? `📊 <b>تقرير الإنتاج (1/3)</b>\nاختر الوردية (Shift):` : `📊 <b>PRODUCTION (1/3)</b>\nChoisissez le shift :`, kbd);
+    }
+
+    // --- 💡 6. Suggestion Box Start ---
+    if (d === 'start_suggest') {
+      states.set(chatId, { step: 'sug_cat', data: { reporter: userData.name } });
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '💰 توفير مال' : '💰 Économie', callback_data: 'sugcat:Economie' }, { text: ar ? '🚀 تحسين عمل' : '🚀 Efficacité', callback_data: 'sugcat:Efficacité' }],
+        [{ text: ar ? '🛡️ سلامة' : '🛡️ Sécurité', callback_data: 'sugcat:Sécurité' }, { text: ar ? '🌐 أخرى' : '🌐 Autre', callback_data: 'sugcat:Autre' }]
+      ]};
+      return send(chatId, ar ? `💡 <b>صندوق الاقتراحات (1/3)</b>\nما هو مجال فكرتك؟` : `💡 <b>BOÎTE À IDÉES (1/3)</b>\nQuel est le domaine de l'idée ?`, kbd);
     }
 
     if (d.startsWith('back:')) {
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
       if (emp) return roleObj.showEmployeeCard(chatId, emp, ar);
+    }
+
+    // --- 🚑 Accident Wizard Callbacks ---
+
+    if (d.startsWith('accloc:')) {
+      const loc = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.location = loc;
+      st.step = 'acc_injury';
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🦴 كسر' : '🦴 Fracture', callback_data: 'accinj:Fracture' }, { text: ar ? '🩸 جرح' : '🩸 Plaie/Coupure', callback_data: 'accinj:Plaie' }],
+        [{ text: ar ? '🔥 حرق' : '🔥 Brûlure', callback_data: 'accinj:Brulure' }, { text: ar ? '😵 إغماء' : '😵 Malaise', callback_data: 'accinj:Malaise' }],
+        [{ text: ar ? '🩹 أخرى' : '🩹 Autre', callback_data: 'accinj:Autre' }]
+      ]};
+      return send(chatId, ar 
+        ? `🤕 <b>نوع الإصابة (خطوة 3/7)</b>\nما هي طبيعة الإصابة الظاهرة؟` 
+        : `🤕 <b>NATURE DE LA BLESSURE (Étape 3/7)</b>\nQuelle est la nature de la blessure ?`, kbd);
+    }
+
+    if (d.startsWith('accinj:')) {
+      const inj = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.injury = inj;
+      st.step = 'acc_witnesses';
+      return send(chatId, ar 
+        ? `👥 <b>الشهود (خطوة 4/7)</b>\nهل وجد شهود على الحادث؟ يرجى كتابة أسمائهم (أو اكتب "لا يوجد"):` 
+        : `👥 <b>TÉMOINS (Étape 4/7)</b>\nY a-t-il eu des témoins ? Veuillez écrire leurs noms (ou "Aucun") :`);
+    }
+
+    if (d.startsWith('acchosp:')) {
+      const hosp = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.hospital = hosp;
+      st.step = 'acc_status';
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ قادر على العمل' : '✅ Apte au travail', callback_data: 'accstatus:Apte' }],
+        [{ text: ar ? '❌ غير قادر' : '❌ Inapte', callback_data: 'accstatus:Inapte' }],
+        [{ text: ar ? '⚠️ جزئياً' : '⚠️ Partiellement', callback_data: 'accstatus:Partiel' }]
+      ]};
+      return send(chatId, ar 
+        ? `🏃 <b>الحالة الصحية الحالية (خطوة 6/7)</b>\nكيف تقيم قدرة الموظف على مواصلة العمل؟` 
+        : `🏃 <b>STATUT D'APTITUDE (Étape 6/7)</b>\nComment évaluez-vous l'aptitude de l'employé ?`, kbd);
+    }
+
+    if (d.startsWith('accstatus:')) {
+      const status = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.status = status;
+      st.step = 'acc_desc';
+      return send(chatId, ar 
+        ? `📝 <b>وصف الحادث (خطوة 7/7)</b>\nيرجى كتابة وصف مختصر كيف وقع الحادث:` 
+        : `📝 <b>DESCRIPTION (Étape 7/7)</b>\nVeuillez écrire une brève description des faits :`);
+    }
+
+    // --- 🚑 Accident Wizard Callbacks ---
+    // (Already implemented)
+
+    // --- 🛠️ 1. Resource Callbacks ---
+    if (d.startsWith('rescat:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.category = d.split(':')[1]; st.step = 'res_item';
+      return send(chatId, ar ? `🛠️ <b>اسم القطعة (2/4)</b>\nما هي المعدات أو الوسائل المطلوبة؟` : `🛠️ <b>ITEM (2/4)</b>\nQuel est l'article demandé ?`);
+    }
+    if (d === 'res_final_send') {
+      const st = states.get(chatId); if (!st) return;
+      const r = ar ? `🛠️ <b>طلب وسائل جديد</b>\n━━━━━━━━━━━━━━\n📂 الفئة: ${st.data.category}\n🛠️ القطعة: ${st.data.item}\n🔢 الكمية: ${st.data.qty}\n✍️ السبب: ${st.data.reason}\n👤 بواسطة: ${st.data.reporter}` 
+                   : `🛠️ <b>NOUVELLE DEMANDE DE MOYENS</b>\n━━━━━━━━━━━━━━\n📂 Cat: ${st.data.category}\n🛠️ Item: ${st.data.item}\n🔢 Qté: ${st.data.qty}\n✍️ Raison: ${st.data.reason}\n👤 Par: ${st.data.reporter}`;
+      await notifyStaff(r, cfg, send); states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال طلبك للإدارة بنجاح.` : `✅ Demande envoyée avec succès.`);
+    }
+
+    // --- ⚙️ 2. Maintenance Callbacks ---
+    if (d.startsWith('maintloc:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.location = d.split(':')[1]; st.step = 'maint_eq';
+      return send(chatId, ar ? `⚙️ <b>اسم الجهاز/الآلة (2/4)</b>\nما هو الجهاز المتعطل؟` : `⚙️ <b>ÉQUIPEMENT (2/4)</b>\nQuel appareil est en panne ?`);
+    }
+    if (d.startsWith('maintpri:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.priority = d.split(':')[1]; st.step = 'maint_stop';
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ نعم' : '✅ Oui', callback_data: 'maintstop:Oui' }, { text: ar ? '❌ لا' : '❌ Non', callback_data: 'maintstop:Non' }]]};
+      return send(chatId, ar ? `🛑 <b>توقف العمل (4/4)</b>\nهل تسبب هذا العطب في توقف العمل؟` : `🛑 <b>ARRÊT TRAVAIL (4/4)</b>\nLa panne bloque-t-elle le travail ?`, kbd);
+    }
+    if (d.startsWith('maintstop:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.stops_work = d.split(':')[1]; st.step = 'maint_desc';
+      return send(chatId, ar ? `📝 <b>وصف العطب</b>\nيرجى كتابة تفاصيل إضافية عن المشكلة:` : `📝 <b>DESCRIPTION</b>\nVeuillez décrire le problème :`);
+    }
+    if (d === 'maint_final_send') {
+      const st = states.get(chatId); if (!st) return;
+      const r = ar ? `⚙️ <b>بلاغ عطب تقني جديد</b>\n━━━━━━━━━━━━━━\n📍 المكان: ${st.data.location}\n⚙️ الجهاز: ${st.data.equipment}\n⚡ الأولوية: ${st.data.priority}\n🛑 توقف العمل: ${st.data.stops_work}\n📝 الوصف: ${st.data.description}\n👤 بواسطة: ${st.data.reporter}`
+                   : `⚙️ <b>NOUVEAU SIGNALEMENT DE PANNE</b>\n━━━━━━━━━━━━━━\n📍 Lieu: ${st.data.location}\n⚙️ Équip: ${st.data.equipment}\n⚡ Prio: ${st.data.priority}\n🛑 Arrêt: ${st.data.stops_work}\n📝 Desc: ${st.data.description}\n👤 Par: ${st.data.reporter}`;
+      await notifyStaff(r, cfg, send); states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إبلاغ مصلحة الصيانة والإدارة.` : `✅ Service maintenance informé.`);
+    }
+
+    // --- 💼 3. Recruitment Callbacks ---
+    if (d.startsWith('hiretype:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.contract = d.split(':')[1]; st.step = 'hire_reason';
+      return send(chatId, ar ? `✍️ <b>التبرير (4/4)</b>\nلماذا نحتاج لهذا الموظف؟ (مثال: استبدال موظف مستقيل)` : `✍️ <b>JUSTIFICATION (4/4)</b>\nPourquoi ce recrutement ?`);
+    }
+    if (d === 'hire_final_send') {
+      const st = states.get(chatId); if (!st) return;
+      const r = ar ? `💼 <b>طلب توظيف جديد</b>\n━━━━━━━━━━━━━━\n🏢 القسم: ${st.data.department}\n💼 المنصب: ${st.data.title}\n📜 العقد: ${st.data.contract}\n✍️ التبرير: ${st.data.reason}\n👤 بواسطة: ${st.data.reporter}`
+                   : `💼 <b>DEMANDE DE RECRUTEMENT</b>\n━━━━━━━━━━━━━━\n🏢 Dept: ${st.data.department}\n💼 Poste: ${st.data.title}\n📜 Contrat: ${st.data.contract}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.reporter}`;
+      await notifyStaff(r, cfg, send); states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال طلب التوظيف للمدير العام.` : `✅ Demande envoyée au DG.`);
+    }
+
+    // --- 📊 5. Production Callbacks ---
+    if (d.startsWith('prodshift:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.shift = d.split(':')[1]; st.step = 'prod_target';
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ نعم' : '✅ Oui', callback_data: 'prodtarget:Oui' }, { text: ar ? '❌ لا' : '❌ Non', callback_data: 'prodtarget:Non' }]]};
+      return send(chatId, ar ? `🎯 <b>تحقيق الهدف (2/3)</b>\nهل تم تحقيق هدف الإنتاج المسطر لهذا اليوم؟` : `🎯 <b>OBJECTIF (2/3)</b>\nL'objectif a-t-il été atteint ?`, kbd);
+    }
+    if (d.startsWith('prodtarget:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.target = d.split(':')[1]; st.step = 'prod_notes';
+      return send(chatId, ar ? `📝 <b>ملاحظات (3/3)</b>\nاكتب أي ملاحظات أو مشاكل حدثت أثناء الوردية:` : `📝 <b>NOTES (3/3)</b>\nNotes ou problèmes rencontrés :`);
+    }
+    if (d === 'prod_final_send') {
+      const st = states.get(chatId); if (!st) return;
+      const r = ar ? `📊 <b>تقرير إنتاج يومي</b>\n━━━━━━━━━━━━━━\n🕒 الوردية: ${st.data.shift}\n🎯 تحقيق الهدف: ${st.data.target}\n📝 ملاحظات: ${st.data.notes}\n👤 المسؤول: ${st.data.reporter}`
+                   : `📊 <b>RAPPORT DE PRODUCTION</b>\n━━━━━━━━━━━━━━\n🕒 Shift: ${st.data.shift}\n🎯 Objectif atteint: ${st.data.target}\n📝 Notes: ${st.data.notes}\n👤 Resp: ${st.data.reporter}`;
+      await notifyStaff(r, cfg, send); states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال تقرير الإنتاج للمدير العام.` : `✅ Rapport de production envoyé.`);
+    }
+
+    // --- 💡 6. Suggestion Callbacks ---
+    if (d.startsWith('sugcat:')) {
+      const st = states.get(chatId); if (!st) return;
+      st.data.category = d.split(':')[1]; st.step = 'sug_idea';
+      return send(chatId, ar ? `💡 <b>اشرح فكرتك (2/3)</b>\nيرجى كتابة اقتراحك بالتفصيل:` : `💡 <b>VOTRE IDÉE (2/3)</b>\nVeuillez détailler votre idée :`);
+    }
+    if (d === 'sug_final_send') {
+      const st = states.get(chatId); if (!st) return;
+      const r = ar ? `💡 <b>اقتراح جديد من موظف</b>\n━━━━━━━━━━━━━━\n📂 المجال: ${st.data.category}\n💡 الفكرة: ${st.data.idea}\n🚀 الفائدة: ${st.data.benefit}\n👤 صاحب الفكرة: ${st.data.reporter}`
+                   : `💡 <b>NOUVELLE IDÉE / SUGGESTION</b>\n━━━━━━━━━━━━━━\n📂 Domaine: ${st.data.category}\n💡 Idée: ${st.data.idea}\n🚀 Bénéfice: ${st.data.benefit}\n👤 Auteur: ${st.data.reporter}`;
+      await notifyStaff(r, cfg, send); states.delete(chatId);
+      return send(chatId, ar ? `✅ شكراً لك! تم إرسال فكرتك للمدير العام لدراستها.` : `✅ Merci ! Idée envoyée au DG.`);
+    }
+
+    if (d === 'acc_final_send') {
+      const st = states.get(chatId);
+      if (!st) return;
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? (ar ? `${emp.lastName_ar} ${emp.firstName_ar}` : `${emp.lastName_fr} ${emp.firstName_fr}`) : 'Unknown';
+      const d = st.data;
+      
+      const report = ar 
+        ? `🚨 <b>تبليغ رسمي عن حادث عمل</b>\n━━━━━━━━━━━━━━\n👤 <b>المصاب:</b> ${empName}\n📅 <b>التاريخ:</b> ${d.date}\n📍 <b>المكان:</b> ${d.location}\n🤕 <b>الإصابة:</b> ${d.injury}\n👥 <b>الشهود:</b> ${d.witnesses}\n🏥 <b>المستشفى:</b> ${d.hospital}\n🏃 <b>الحالة:</b> ${d.status}\n📝 <b>الوصف:</b> ${d.description}\n━━━━━━━━━━━━━━\n👤 <b>بواسطة:</b> ${userData.name}\n⏰ ${new Date().toLocaleString()}`
+        : `🚨 <b>ACCIDENT DE TRAVAIL SIGNALÉ</b>\n━━━━━━━━━━━━━━\n👤 <b>Victime:</b> ${empName}\n📅 <b>Date:</b> ${d.date}\n📍 <b>Lieu:</b> ${d.location}\n🤕 <b>Blessure:</b> ${d.injury}\n👥 <b>Témoins:</b> ${d.witnesses}\n🏥 <b>Hôpital:</b> ${d.hospital}\n🏃 <b>Statut:</b> ${d.status}\n📝 <b>Description:</b> ${d.description}\n━━━━━━━━━━━━━━\n👤 <b>Par:</b> ${userData.name}\n⏰ ${new Date().toLocaleString()}`;
+
+      await notifyStaff(report, cfg, send);
+      states.delete(chatId);
+      return send(chatId, ar 
+        ? `✅ <b>تم إرسال التقرير بنجاح!</b>\nتم إخطار الإدارة والمدير العام بالحادث فوراً.` 
+        : `✅ <b>Rapport envoyé avec succès !</b>\nLa direction et le DG ont été informés immédiatement.`);
     }
 
     if (d === 'stats_menu') {
@@ -572,12 +800,95 @@ Pour garantir une fin de relation de travail légale et fluide :
         : (ar ? `✅ <b>تم تسجيل الغياب!</b>\n📊 ${st.typeName} | 📅 ${txt}` : `✅ <b>Absence enregistrée!</b>\n📊 ${st.typeName} | 📅 ${txt}`));
     }
 
-    if (st.step === 'accident_detail') {
-      await notifyStaff(`🚑 <b>تبليغ عن حادث عمل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📝 التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
-      return send(chatId, ar 
-        ? `✅ <b>تم إرسال التبليغ بنجاح!</b>\nسوف تتصل بك مصلحة الموارد البشرية فوراً.` 
-        : `✅ <b>Signalement envoyé avec succès !</b>\nLe service RH vous contactera immédiatement.`);
+    // --- 🚑 Accident Wizard Steps ---
+    // (Already implemented in previous turn)
+    
+    // --- 🛠️ 1. Resource Request Steps ---
+    if (st.step === 'res_item') {
+      st.data.item = txt; st.step = 'res_qty';
+      return send(chatId, ar ? `🔢 <b>الكمية (3/4)</b>\nما هي الكمية المطلوبة؟` : `🔢 <b>QUANTITÉ (3/4)</b>\nQuelle est la quantité ?`);
     }
+    if (st.step === 'res_qty') {
+      st.data.qty = txt; st.step = 'res_reason';
+      return send(chatId, ar ? `✍️ <b>السبب (4/4)</b>\nلماذا تحتاج هذه المعدات؟ (مثال: تلف القطعة القديمة)` : `✍️ <b>RAISON (4/4)</b>\nPourquoi en avez-vous besoin ?`);
+    }
+    if (st.step === 'res_reason') {
+      st.data.reason = txt; st.step = 'res_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `📦 <b>ملخص طلب معدات</b>\n━━━━━━━━━━━━━━\n📂 الفئة: ${d.category}\n🛠️ القطعة: ${d.item}\n🔢 الكمية: ${d.qty}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.reporter}`
+        : `📦 <b>RÉSUMÉ DEMANDE</b>\n━━━━━━━━━━━━━━\n📂 Cat: ${d.category}\n🛠️ Item: ${d.item}\n🔢 Qté: ${d.qty}\n✍️ Raison: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'res_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
+    }
+
+    // --- ⚙️ 2. Maintenance Report Steps ---
+    if (st.step === 'maint_eq') {
+      st.data.equipment = txt; st.step = 'maint_pri';
+      const kbd = { inline_keyboard: [[
+        { text: ar ? '🟢 عادي' : '🟢 Normal', callback_data: 'maintpri:Normal' },
+        { text: ar ? '🟡 متوسط' : '🟡 Moyen', callback_data: 'maintpri:Moyen' },
+        { text: ar ? '🔴 عاجل' : '🔴 Urgent', callback_data: 'maintpri:Urgent' }
+      ]]};
+      return send(chatId, ar ? `⚡ <b>مستوى الأهمية (3/4)</b>\nما مدى تأثير هذا العطب على العمل؟` : `⚡ <b>PRIORITÉ (3/4)</b>\nImportance de la panne ?`, kbd);
+    }
+    if (st.step === 'maint_desc') {
+      st.data.description = txt; st.step = 'maint_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `⚙️ <b>ملخص بلاغ عطب</b>\n━━━━━━━━━━━━━━\n📍 المكان: ${d.location}\n⚙️ الجهاز: ${d.equipment}\n⚡ الأولوية: ${d.priority}\n🛑 توقف العمل: ${d.stops_work}\n📝 الوصف: ${d.description}\n👤 المُبلِّغ: ${d.reporter}`
+        : `⚙️ <b>RÉSUMÉ PANNE</b>\n━━━━━━━━━━━━━━\n📍 Lieu: ${d.location}\n⚙️ Équip: ${d.equipment}\n⚡ Prio: ${d.priority}\n🛑 Arrêt travail: ${d.stops_work}\n📝 Desc: ${d.description}\n👤 Rapporteur: ${d.reporter}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال البلاغ' : '✅ Envoyer', callback_data: 'maint_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
+    }
+
+    // --- 💼 3. Recruitment Steps ---
+    if (st.step === 'hire_dept') {
+      st.data.department = txt; st.step = 'hire_title';
+      return send(chatId, ar ? `💼 <b>المسمى الوظيفي (2/4)</b>\nما هو المنصب المراد شغله؟` : `💼 <b>POSTE (2/4)</b>\nQuel est le poste ?`);
+    }
+    if (st.step === 'hire_title') {
+      st.data.title = txt; st.step = 'hire_type';
+      const kbd = { inline_keyboard: [[{ text: 'CDI (Titulaire)', callback_data: 'hiretype:CDI' }, { text: 'CDD (Contractuel)', callback_data: 'hiretype:CDD' }]]};
+      return send(chatId, ar ? `📜 <b>نوع العقد (3/4)</b>\nما هو نوع العقد المقترح؟` : `📜 <b>CONTRAT (3/4)</b>\nType de contrat ?`, kbd);
+    }
+    if (st.step === 'hire_reason') {
+      st.data.reason = txt; st.step = 'hire_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `💼 <b>ملخص طلب توظيف</b>\n━━━━━━━━━━━━━━\n🏢 القسم: ${d.department}\n💼 المنصب: ${d.title}\n📜 العقد: ${d.contract}\n✍️ التبرير: ${d.reason}\n👤 الطالب: ${d.reporter}`
+        : `💼 <b>RÉSUMÉ RECRUTEMENT</b>\n━━━━━━━━━━━━━━\n🏢 Dept: ${d.department}\n💼 Poste: ${d.title}\n📜 Contrat: ${d.contract}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'hire_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
+    }
+
+    // --- 📊 5. Daily Production Steps ---
+    if (st.step === 'prod_notes') {
+      st.data.notes = txt; st.step = 'prod_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `📊 <b>ملخص تقرير الإنتاج</b>\n━━━━━━━━━━━━━━\n🕒 الوردية: ${d.shift}\n✅ الهدف: ${d.target}\n📝 ملاحظات: ${d.notes}\n👤 المسؤول: ${d.reporter}`
+        : `📊 <b>RÉSUMÉ PRODUCTION</b>\n━━━━━━━━━━━━━━\n🕒 Shift: ${d.shift}\n✅ Objectif: ${d.target}\n📝 Notes: ${d.notes}\n👤 Resp: ${d.reporter}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال التقرير' : '✅ Envoyer', callback_data: 'prod_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
+    }
+
+    // --- 💡 6. Suggestion Steps ---
+    if (st.step === 'sug_idea') {
+      st.data.idea = txt; st.step = 'sug_benefit';
+      return send(chatId, ar ? `🚀 <b>الفائدة المتوقعة (3/3)</b>\nما هي الفائدة التي ستعود على الشركة من هذه الفكرة؟` : `🚀 <b>BÉNÉFICE (3/3)</b>\nQuel est le bénéfice attendu ?`);
+    }
+    if (st.step === 'sug_benefit') {
+      st.data.benefit = txt; st.step = 'sug_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `💡 <b>ملخص الاقتراح</b>\n━━━━━━━━━━━━━━\n📂 المجال: ${d.category}\n💡 الفكرة: ${d.idea}\n🚀 الفائدة: ${d.benefit}\n👤 صاحب الفكرة: ${d.reporter}`
+        : `💡 <b>RÉSUMÉ IDÉE</b>\n━━━━━━━━━━━━━━\n📂 Domaine: ${d.category}\n💡 Idée: ${d.idea}\n🚀 Bénéfice: ${d.benefit}\n👤 Auteur: ${d.reporter}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال الفكرة' : '✅ Envoyer', callback_data: 'sug_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
+    }
+
+    if (st.step === 'survey_detail') {
 
     if (st.step === 'survey_detail') {
       await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);

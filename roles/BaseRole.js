@@ -23,6 +23,7 @@ export default class BaseRole {
     
     const role = String(this.user.role).toLowerCase();
     if (this.isAdmin() || role === 'manager' || role === 'gestionnaire_rh' || role === 'general_manager') {
+      kbd.inline_keyboard.push([{ text: ar ? '🛠️ أدوات الإدارة' : '🛠️ Outils de Gestion', callback_data: 'mgmt_tools' }]);
       kbd.inline_keyboard.push([{ text: ar ? '📜 دليل العمل' : '📜 Guide Procédures', callback_data: 'end_work_guide' }]);
     }
 

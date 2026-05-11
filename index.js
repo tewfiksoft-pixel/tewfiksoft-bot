@@ -739,10 +739,43 @@ app.post('/api/database', (req, res) => {
   try {
     let data = req.rawBody;
     if (data[0] === 0x1f && data[1] === 0x8b) data = zlib.gunzipSync(data);
+    
+    // ✅ إضافة timestamp المزامنة لتمكين المقارنة الذكية بين الأجهزة
+    let db;
+    try {
+      db = JSON.parse(data.toString('utf8'));
+      db._last_updated = Date.now();
+      db._last_updated_iso = new Date().toISOString();
+      data = Buffer.from(JSON.stringify(db));
+    } catch (parseErr) {
+      log(`[DB] Warning: Could not inject timestamp: ${parseErr.message}`);
+    }
+    
     fs.writeFileSync(DB_PATH, data);
-    const db = JSON.parse(data.toString('utf8'));
-    log(`DB updated: ${db.hr_employees?.length || 0} employees`);
+    log(`DB updated: ${db?.hr_employees?.length || 0} employees | ts: ${db?._last_updated_iso || 'N/A'}`);
     res.sendStatus(200);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+// ✅ Endpoint خفيف لمقارنة الـ timestamp فقط (بدون تحميل كامل DB)
+app.get('/api/db-version', (req, res) => {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const stat = fs.statSync(DB_PATH);
+      // محاولة قراءة _last_updated من الـ DB مباشرة
+      try {
+        const raw = fs.readFileSync(DB_PATH, 'utf8');
+        const db = JSON.parse(raw);
+        return res.json({
+          last_updated: db._last_updated || stat.mtimeMs,
+          last_updated_iso: db._last_updated_iso || stat.mtime.toISOString(),
+          employee_count: db.hr_employees?.length || 0,
+          file_mtime: stat.mtimeMs
+        });
+      } catch (_) {}
+      return res.json({ last_updated: stat.mtimeMs, file_mtime: stat.mtimeMs, employee_count: 0 });
+    }
+    res.json({ last_updated: 0, employee_count: 0 });
   } catch (e) { res.status(500).send(e.message); }
 });
 

@@ -801,7 +801,42 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     // --- 🚑 Accident Wizard Steps ---
-    // (Already implemented in previous turn)
+    if (st.step === 'acc_date') {
+      st.data.date = txt;
+      st.step = 'acc_loc';
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🏭 الورشة' : '🏭 Atelier', callback_data: 'accloc:Atelier' }, { text: ar ? '🏢 المكتب' : '🏢 Bureau', callback_data: 'accloc:Bureau' }],
+        [{ text: ar ? '📦 المستودع' : '📦 Dépôt', callback_data: 'accloc:Depot' }, { text: ar ? '🚗 طريق (مهمة)' : '🚗 Route (Mission)', callback_data: 'accloc:Route' }],
+        [{ text: ar ? '🌐 مكان آخر' : '🌐 Autre lieu', callback_data: 'accloc:Autre' }]
+      ]};
+      return send(chatId, ar 
+        ? `📍 <b>مكان الحادث (خطوة 2/7)</b>\nأين وقع الحادث بالضبط؟` 
+        : `📍 <b>LIEU DE L'ACCIDENT (Étape 2/7)</b>\nOù l'accident s'est-il produit ?`, kbd);
+    }
+    if (st.step === 'acc_witnesses') {
+      st.data.witnesses = txt;
+      st.step = 'acc_hospital';
+      const kbd = { inline_keyboard: [[
+        { text: ar ? '✅ نعم' : '✅ Oui', callback_data: 'acchosp:Oui' },
+        { text: ar ? '❌ لا' : '❌ Non', callback_data: 'acchosp:Non' }
+      ]]};
+      return send(chatId, ar 
+        ? `🏥 <b>النقل للمستشفى (خطوة 5/7)</b>\nهل تم نقل الموظف للمستشفى أو تلقى إسعافات طبية؟` 
+        : `🏥 <b>TRANSFERT À L'HÔPITAL (Étape 5/7)</b>\nL'employé a-t-il été transféré à l'hôpital ?`, kbd);
+    }
+    if (st.step === 'acc_desc') {
+      st.data.description = txt;
+      st.step = 'acc_confirm';
+      const d = st.data;
+      const summary = ar 
+        ? `📋 <b>ملخص تقرير الحادث</b>\n━━━━━━━━━━━━━━\n👤 <b>المصاب:</b> ${empName}\n📅 <b>التاريخ:</b> ${d.date}\n📍 <b>المكان:</b> ${d.location}\n🤕 <b>الإصابة:</b> ${d.injury}\n👥 <b>الشهود:</b> ${d.witnesses}\n🏥 <b>المستشفى:</b> ${d.hospital}\n🏃 <b>الحالة:</b> ${d.status}\n📝 <b>الوصف:</b> ${d.description}\n━━━━━━━━━━━━━━\n👤 <b>المُبلِّغ:</b> ${d.reporter}`
+        : `📋 <b>RÉSUMÉ DU RAPPORT</b>\n━━━━━━━━━━━━━━\n👤 <b>Victime:</b> ${empName}\n📅 <b>Date:</b> ${d.date}\n📍 <b>Lieu:</b> ${d.location}\n🤕 <b>Blessure:</b> ${d.injury}\n👥 <b>Témoins:</b> ${d.witnesses}\n🏥 <b>Hôpital:</b> ${d.hospital}\n🏃 <b>Statut:</b> ${d.status}\n📝 <b>Description:</b> ${d.description}\n━━━━━━━━━━━━━━\n👤 <b>Rapporteur:</b> ${d.reporter}`;
+      const kbd = { inline_keyboard: [[
+        { text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'acc_final_send' },
+        { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }
+      ]]};
+      return send(chatId, summary, kbd);
+    }
     
     // --- 🛠️ 1. Resource Request Steps ---
     if (st.step === 'res_item') {

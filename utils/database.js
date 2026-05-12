@@ -65,4 +65,10 @@ export const saveDB = (db) => {
 };
 
 export const T = (s) => String(s || '').trim() || '—';
-export const log = (m) => console.log('[' + new Date().toISOString() + '] ' + m);
+export const log = (m) => {
+  const line = '[' + new Date().toISOString() + '] ' + m;
+  console.log(line);
+  try {
+    fs.appendFileSync(path.join(ROOT_DIR, 'bot_debug.log'), line + '\n');
+  } catch (e) {}
+};

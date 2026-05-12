@@ -4,6 +4,7 @@ import { send } from '../utils/telegram.js';
 export default class GestionnaireRhRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
+      [{ text: ar ? '🚪 تصريح خروج' : '🚪 Autorisation de Sortie', callback_data: 'start_exit_req' }],
       [{ text: ar ? '🛠️ أدوات الإدارة' : '🛠️ Outils de Gestion', callback_data: 'mgmt_tools' }],
       [{ text: ar ? '⏱️ حساب مدة العمل' : '⏱️ Temps de Travail', callback_data: 'calc_step_1' }],
       [{ text: ar ? '📝 تحويل المبالغ' : '📝 Chèque en Lettres', callback_data: 'cheque_step' }],

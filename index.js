@@ -25,6 +25,23 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 
 const langs = new Map();
+const LANGS_PATH = path.join(DATA_DIR, 'langs.json');
+const loadLangs = () => {
+  try {
+    if (fs.existsSync(LANGS_PATH)) {
+      const data = JSON.parse(fs.readFileSync(LANGS_PATH, 'utf8'));
+      for (const [k, v] of Object.entries(data)) langs.set(Number(k), v);
+    }
+  } catch (e) {}
+};
+const saveLangs = () => {
+  try {
+    const data = Object.fromEntries(langs);
+    fs.writeFileSync(LANGS_PATH, JSON.stringify(data));
+  } catch (e) {}
+};
+loadLangs();
+
 export const states = new Map();
 
 const STATES_PATH = path.join(DATA_DIR, 'states.json');
@@ -56,7 +73,7 @@ export async function handle(u) {
     return adId === fromId || (from.username && adId === from.username.toLowerCase());
   });
 
-  const ar = (userData?.lang || langs.get(chatId) || 'ar') === 'ar';
+  const ar = (langs.get(chatId) || userData?.lang || 'ar') === 'ar';
 
   // Public /id and /me command to help user find their Telegram ID
   if (txtLow === '/id' || (txtLow === '/me' && !userData)) {
@@ -81,9 +98,12 @@ export async function handle(u) {
     const d = cbq.data;
 
     if (d.startsWith('lang:')) {
-      userData.lang = d.split(':')[1];
+      const selectedLang = d.split(':')[1];
+      userData.lang = selectedLang;
+      langs.set(chatId, selectedLang);
+      saveLangs();
       await updateConfig(cfg);
-      const isAr = userData.lang === 'ar';
+      const isAr = selectedLang === 'ar';
       return roleObj.showMenu(chatId, isAr, getStatsMsg);
     }
 

@@ -385,10 +385,27 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d === 'start_exit_req') {
-      states.set(chatId, { step: 'exit_search', data: { managerId: fromId, managerName: userData.name } });
+      states.set(chatId, { step: 'exit_type_pre_search', data: { managerId: fromId, managerName: userData.name } });
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '💼 Raison de Service / مهمة عمل' : '💼 Raison de Service', callback_data: 'exittype_pre:Service' }],
+        [{ text: ar ? '👤 Sortie Personnelle / خروج شخصي' : '👤 Sortie Personnelle', callback_data: 'exittype_pre:Personnel' }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
       return send(chatId, ar 
-        ? `🚪 <b>تصريح خروج (1/4)</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:` 
-        : `🚪 <b>AUTORISATION DE SORTIE (1/4)</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> de l'employé :`);
+        ? `📂 <b>تصريح خروج (1/5)</b>\nاختر طبيعة الخروج أولاً:` 
+        : `📂 <b>AUTORISATION DE SORTIE (1/5)</b>\nChoisissez le type de sortie d'abord :`, kbd);
+    }
+
+    if (d.startsWith('exittype_pre:')) {
+      const type = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.type = type;
+      st.step = 'exit_search';
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `🔍 <b>البحث عن الموظف (2/5)</b>\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b>:` 
+        : `🔍 <b>RECHERCHE EMPLOYÉ (2/5)</b>\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> :`);
     }
 
     if (d.startsWith('exit_sel:')) {
@@ -396,29 +413,14 @@ Pour garantir une fin de relation de travail légale et fluide :
       const st = states.get(chatId);
       if (!st) return;
       st.empId = empId;
-      st.step = 'exit_type';
-      const kbd = { inline_keyboard: [
-        [{ text: ar ? '💼 Raison de Service / مهمة عمل' : '💼 Raison de Service', callback_data: 'exittype:Service' }],
-        [{ text: ar ? '👤 Sortie Personnelle / خروج شخصي' : '👤 Sortie Personnelle', callback_data: 'exittype:Personnel' }],
-        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
-      ]};
-      states.set(chatId, st);
-      return send(chatId, ar 
-        ? `📂 <b>نوع الخروج (2/4)</b>\nاختر طبيعة الخروج:` 
-        : `📂 <b>TYPE DE SORTIE (2/4)</b>\nChoisissez le type :`, kbd);
-    }
-
-    if (d.startsWith('exittype:')) {
-      const type = d.split(':')[1];
-      const st = states.get(chatId);
-      if (!st) return;
-      st.data.type = type;
       st.step = 'exit_reason';
       states.set(chatId, st);
       return send(chatId, ar 
-        ? `✍️ <b>السبب (3/4)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
-        : `✍️ <b>MOTIF (3/4)</b>\nVeuillez détailler le motif :`);
+        ? `✍️ <b>السبب (3/5)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
+        : `✍️ <b>MOTIF (3/5)</b>\nVeuillez détailler le motif :`);
     }
+
+    // Removed exittype callback handling here as it's now handled by exittype_pre
 
     if (d === 'exit_final_send') {
       const st = states.get(chatId);

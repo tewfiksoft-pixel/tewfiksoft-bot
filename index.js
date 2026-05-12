@@ -1348,7 +1348,7 @@ const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 
 app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.9.3 on port ${port} ===`);
+  log(`=== TewfikSoft HR Bot v8.9.5 [UPDATE-EXIT] on port ${port} ===`);
 
   // ... bootstrap code ...
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';

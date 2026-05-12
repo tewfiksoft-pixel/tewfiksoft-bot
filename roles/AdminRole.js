@@ -17,11 +17,9 @@ export default class AdminRole extends BaseRole {
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};
 
-    const header = ar
-      ? `💎 <b>أهلاً بك في نظام الإدارة العليا</b>\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n`
-      : `💎 <b>DASHBOARD DIRECTION GÉNÉRALE</b>\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n`;
-
-    return send(chatId, header, kbd);
+    return send(chatId, ar
+      ? `💎 <b>أهلاً بك [v8.9.5]</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
+      : `💎 <b>BIENVENUE [v8.9.5]</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
   }
 
   isAdmin() { return true; }

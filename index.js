@@ -31,7 +31,7 @@ async function handle(u) {
   log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
-  const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig();
+  const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig(), db = loadDB();
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
   const userData = cfg.authorized_users?.find(u => {
@@ -462,7 +462,6 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('exit_adm_app:')) {
       const reqId = d.split(':')[1];
-      const db = loadDB();
       const req = db.bot_requests?.find(r => r.id === reqId);
       if (!req || req.status !== 'pending_admin') return;
       
@@ -485,7 +484,6 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('exit_guard_conf:')) {
       const reqId = d.split(':')[1];
-      const db = loadDB();
       const req = db.bot_requests?.find(r => r.id === reqId);
       if (!req || req.status !== 'pending_guard') return;
       
@@ -1069,7 +1067,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (st.step === 'exit_search') {
-      const db = loadDB(), q = txtLow.trim();
+      const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();

@@ -24,8 +24,25 @@ const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 
-export const states = new Map();
 const langs = new Map();
+export const states = new Map();
+
+const STATES_PATH = path.join(DATA_DIR, 'states.json');
+const loadStates = () => {
+  try {
+    if (fs.existsSync(STATES_PATH)) {
+      const data = JSON.parse(fs.readFileSync(STATES_PATH, 'utf8'));
+      for (const [k, v] of Object.entries(data)) states.set(Number(k), v);
+    }
+  } catch (e) { log(`[States] Load error: ${e.message}`); }
+};
+const saveStates = () => {
+  try {
+    const data = Object.fromEntries(states);
+    fs.writeFileSync(STATES_PATH, JSON.stringify(data));
+  } catch (e) { log(`[States] Save error: ${e.message}`); }
+};
+loadStates();
 
 export async function handle(u) {
   log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
@@ -403,6 +420,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.data.type = type;
       st.step = 'exit_search';
       states.set(chatId, st);
+      saveStates();
       log(`[Exit] Step: Search Employee (2/5) for ${chatId}`);
       return send(chatId, ar 
         ? `🔍 <b>البحث عن الموظف (2/5)</b>\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b>:` 
@@ -416,6 +434,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.empId = empId;
       st.step = 'exit_reason';
       states.set(chatId, st);
+      saveStates();
       log(`[Exit] Step: Enter Reason (3/5) for ${chatId} | Emp: ${empId}`);
       return send(chatId, ar 
         ? `✍️ <b>السبب (3/5)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
@@ -941,6 +960,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '🌐 مكان آخر' : '🌐 Autre lieu', callback_data: 'accloc:Autre' }]
       ]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar 
         ? `📍 <b>مكان الحادث (خطوة 2/7)</b>\nأين وقع الحادث بالضبط؟` 
         : `📍 <b>LIEU DE L'ACCIDENT (Étape 2/7)</b>\nOù l'accident s'est-il produit ?`, kbd);
@@ -953,6 +973,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '❌ لا' : '❌ Non', callback_data: 'acchosp:Non' }
       ]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar 
         ? `🏥 <b>النقل للمستشفى (خطوة 5/7)</b>\nهل تم نقل الموظف للمستشفى أو تلقى إسعافات طبية؟` 
         : `🏥 <b>TRANSFERT À L'HÔPITAL (Étape 5/7)</b>\nL'employé a-t-il été transféré à l'hôpital ?`, kbd);
@@ -969,6 +990,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }
       ]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
     
@@ -976,11 +998,13 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'res_item') {
       st.data.item = txt; st.step = 'res_qty';
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `🔢 <b>الكمية (3/4)</b>\nما هي الكمية المطلوبة؟` : `🔢 <b>QUANTITÉ (3/4)</b>\nQuelle est la quantité ?`);
     }
     if (st.step === 'res_qty') {
       st.data.qty = txt; st.step = 'res_reason';
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `✍️ <b>السبب (4/4)</b>\nلماذا تحتاج هذه المعدات؟ (مثال: تلف القطعة القديمة)` : `✍️ <b>RAISON (4/4)</b>\nPourquoi en avez-vous besoin ?`);
     }
     if (st.step === 'res_reason') {
@@ -991,6 +1015,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `📦 <b>RÉSUMÉ DEMANDE</b>\n━━━━━━━━━━━━━━\n📂 Cat: ${d.category}\n🛠️ Item: ${d.item}\n🔢 Qté: ${d.qty}\n✍️ Raison: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'res_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 
@@ -1003,6 +1028,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         { text: ar ? '🔴 عاجل' : '🔴 Urgent', callback_data: 'maintpri:Urgent' }
       ]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `⚡ <b>مستوى الأهمية (3/4)</b>\nما مدى تأثير هذا العطب على العمل؟` : `⚡ <b>PRIORITÉ (3/4)</b>\nImportance de la panne ?`, kbd);
     }
     if (st.step === 'maint_desc') {
@@ -1013,6 +1039,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `⚙️ <b>RÉSUMÉ PANNE</b>\n━━━━━━━━━━━━━━\n📍 Lieu: ${d.location}\n⚙️ Équip: ${d.equipment}\n⚡ Prio: ${d.priority}\n🛑 Arrêt travail: ${d.stops_work}\n📝 Desc: ${d.description}\n👤 Rapporteur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال البلاغ' : '✅ Envoyer', callback_data: 'maint_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 
@@ -1020,12 +1047,14 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'hire_dept') {
       st.data.department = txt; st.step = 'hire_title';
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `💼 <b>المسمى الوظيفي (2/4)</b>\nما هو المنصب المراد شغله؟` : `💼 <b>POSTE (2/4)</b>\nQuel est le poste ?`);
     }
     if (st.step === 'hire_title') {
       st.data.title = txt; st.step = 'hire_type';
       const kbd = { inline_keyboard: [[{ text: 'CDI (Titulaire)', callback_data: 'hiretype:CDI' }, { text: 'CDD (Contractuel)', callback_data: 'hiretype:CDD' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `📜 <b>نوع العقد (3/4)</b>\nما هو نوع العقد المقترح؟` : `📜 <b>CONTRAT (3/4)</b>\nType de contrat ?`, kbd);
     }
     if (st.step === 'hire_reason') {
@@ -1036,6 +1065,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `💼 <b>RÉSUMÉ RECRUTEMENT</b>\n━━━━━━━━━━━━━━\n🏢 Dept: ${d.department}\n💼 Poste: ${d.title}\n📜 Contrat: ${d.contract}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد الطلب' : '✅ Confirmer', callback_data: 'hire_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 
@@ -1048,6 +1078,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `📊 <b>RÉSUMÉ PRODUCTION</b>\n━━━━━━━━━━━━━━\n🕒 Shift: ${d.shift}\n✅ Objectif: ${d.target}\n📝 Notes: ${d.notes}\n👤 Resp: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال التقرير' : '✅ Envoyer', callback_data: 'prod_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 
@@ -1055,6 +1086,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'sug_idea') {
       st.data.idea = txt; st.step = 'sug_benefit';
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `🚀 <b>الفائدة المتوقعة (3/3)</b>\nما هي الفائدة التي ستعود على الشركة من هذه الفكرة؟` : `🚀 <b>BÉNÉFICE (3/3)</b>\nQuel est le bénéfice attendu ?`);
     }
     if (st.step === 'sug_benefit') {
@@ -1065,6 +1097,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `💡 <b>RÉSUMÉ IDÉE</b>\n━━━━━━━━━━━━━━\n📂 Domaine: ${d.category}\n💡 Idée: ${d.idea}\n🚀 Bénéfice: ${d.benefit}\n👤 Auteur: ${d.reporter}`;
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال الفكرة' : '✅ Envoyer', callback_data: 'sug_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 
@@ -1089,6 +1122,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.data.reason = txt;
       st.step = 'exit_time';
       states.set(chatId, st);
+      saveStates();
       return send(chatId, ar 
         ? `📅 <b>اليوم والساعة (4/5)</b>\nيرجى كتابة تاريخ وساعة الخروج المتوقعة:\nمثال: <code>اليوم 14:30</code>` 
         : `📅 <b>JOUR ET HEURE (4/5)</b>\nVeuillez écrire le jour et l'heure de sortie :\nEx: <code>Aujourd'hui 14:30</code>`);
@@ -1107,6 +1141,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'exit_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
+      saveStates();
       return send(chatId, summary, kbd);
     }
 

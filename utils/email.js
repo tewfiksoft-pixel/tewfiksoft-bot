@@ -1,5 +1,10 @@
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { log } from './database.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function sendEmail(to, subject, text, attachments = []) {
   try {

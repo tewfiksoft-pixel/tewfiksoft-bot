@@ -1318,11 +1318,30 @@ async function generateAndSendExitAuth(req, cfg) {
   const subject = `Autorisation de Sortie - ${req.empName}`;
   const body = `Bonjour,\n\nVeuillez trouver ci-joint l'autorisation de sortie signée pour l'employé ${req.empName}.\n\nType: ${req.exitType}\nMotif: ${req.reason}\n\nSystème TewfikSoft HR.`;
 
-  const adminEmail = cfg.email_settings?.hr_notification_email || process.env.HR_EMAIL || 'rh@tewfiksoft.dz';
+  const recipients = [];
+
   
-  await sendEmail(adminEmail, subject, body, [
-    { filename: `Autorisation_Sortie_${req.empName.replace(/\s+/g, '_')}.pdf`, path: pdfPath }
-  ]);
+  // 1. Always send to global HR email
+  const hrEmail = cfg.email_settings?.hr_notification_email || process.env.HR_EMAIL || 'rh@tewfiksoft.dz';
+  if (hrEmail) recipients.push(hrEmail);
+
+  // 2. Send to the manager who initiated the request
+  const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
+  if (manager && manager.email) recipients.push(manager.email);
+
+  // 3. Send to the admin who approved it
+  const admin = cfg.authorized_users?.find(u => u.name === req.adminApprovedBy);
+  if (admin && admin.email) recipients.push(admin.email);
+
+  const finalRecipients = [...new Set(recipients.filter(Boolean))];
+  
+  if (finalRecipients.length > 0) {
+    await sendEmail(finalRecipients.join(','), subject, body, [
+      { filename: `Autorisation_Sortie_${req.empName.replace(/\s+/g, '_')}.pdf`, path: pdfPath }
+    ]);
+  } else {
+    log(`[Exit-Warn] No recipients found for ${req.empName}`);
+  }
 }
 
 const port = process.env.PORT || 10000;

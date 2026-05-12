@@ -451,15 +451,23 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d.startsWith('exit_sel:')) {
-      const empId = d.split(':')[1];
-      const st = states.get(chatId);
-      log(`[Exit-Debug] ChatId: ${chatId} | Found State: ${!!st} | All States: ${[...states.keys()]}`);
-      if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
-      st.empId = empId;
-      st.step = 'exit_reason';
+      const parts = d.split(':');
+      const type = parts[1];
+      const empId = parts[2];
+      let st = states.get(chatId);
+      
+      if (!st) {
+        // Reconstruct state if lost
+        st = { step: 'exit_reason', empId, data: { type, managerId: fromId, managerName: userData.name } };
+      } else {
+        st.empId = empId;
+        st.data.type = type;
+        st.step = 'exit_reason';
+      }
+      
       states.set(chatId, st);
       saveStates();
-      log(`[Exit] Step: Enter Reason (3/5) for ${chatId} | Emp: ${empId}`);
+      log(`[Exit] Step: Enter Reason (3/5) for ${chatId} | Type: ${type} | Emp: ${empId}`);
       return send(chatId, ar 
         ? `✍️ <b>السبب (3/5)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
         : `✍️ <b>MOTIF (3/5)</b>\nVeuillez détailler le motif :`);
@@ -1136,9 +1144,11 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
       
-      const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `exit_sel:${e.id}` }]) };
+      const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `exit_sel:${st.data.type}:${e.id}` }]) };
       kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
       
+      states.set(chatId, st);
+      saveStates();
       return send(chatId, ar ? `🔍 اختر الموظف المطلوب:` : `🔍 Sélectionnez l'employé :`, kbd);
     }
 

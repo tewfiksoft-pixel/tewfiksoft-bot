@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
+import { generateExitAuthPDF } from './utils/pdf.js';
+import { sendEmail } from './utils/email.js';
 import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
 import { convertAmountToWords } from './utils/cheque.js';
@@ -380,6 +382,132 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `🚑 <b>التبليغ عن حادث عمل (خطوة 1/7)</b>\n━━━━━━━━━━━━━━\n📅 يرجى كتابة <b>تاريخ ووقت</b> وقوع الحادث:\nمثال: <code>اليوم 10:30</code> أو <code>أمس المساء</code>` 
         : `🚑 <b>DÉCLARATION D'ACCIDENT (Étape 1/7)</b>\n━━━━━━━━━━━━━━\n📅 Veuillez écrire <b>la date et l'heure</b> de l'accident :\nEx: <code>Aujourd'hui 10:30</code>`);
+    }
+
+    if (d === 'start_exit_req') {
+      states.set(chatId, { step: 'exit_search', data: { managerId: fromId, managerName: userData.name } });
+      return send(chatId, ar 
+        ? `🚪 <b>تصريح خروج (1/4)</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b> للبحث عنه:` 
+        : `🚪 <b>AUTORISATION DE SORTIE (1/4)</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> de l'employé :`);
+    }
+
+    if (d.startsWith('exit_sel:')) {
+      const empId = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.empId = empId;
+      st.step = 'exit_type';
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '💼 مهمة عمل (Service)' : '💼 Mission de Service', callback_data: 'exittype:Service' }],
+        [{ text: ar ? '👤 شخصي (Personnel)' : '👤 Personnel', callback_data: 'exittype:Personnel' }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `📂 <b>نوع الخروج (2/4)</b>\nاختر طبيعة الخروج:` 
+        : `📂 <b>TYPE DE SORTIE (2/4)</b>\nChoisissez le type :`, kbd);
+    }
+
+    if (d.startsWith('exittype:')) {
+      const type = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.type = type;
+      st.step = 'exit_reason';
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `✍️ <b>السبب (3/4)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
+        : `✍️ <b>MOTIF (3/4)</b>\nVeuillez détailler le motif :`);
+    }
+
+    if (d === 'exit_final_send') {
+      const st = states.get(chatId);
+      if (!st) return;
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : 'Unknown';
+      
+      const reqId = crypto.randomBytes(4).toString('hex');
+      const request = {
+        id: reqId,
+        type: 'exit_auth',
+        empId: st.empId,
+        empName,
+        managerId: st.data.managerId,
+        managerName: st.data.managerName,
+        exitType: st.data.type,
+        reason: st.data.reason,
+        status: 'pending_admin',
+        createdAt: new Date().toISOString()
+      };
+      
+      if (!db.bot_requests) db.bot_requests = [];
+      db.bot_requests.push(request);
+      saveDB(db);
+
+      const msg = ar 
+        ? `🚪 <b>طلب تصريح خروج جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${st.data.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${st.data.reason}\n👤 من طرف: ${st.data.managerName}`
+        : `🚪 <b>DEMANDE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${st.data.type}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver', callback_data: `exit_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `exit_adm_rej:${reqId}` }]
+      ]};
+
+      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
+      states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال طلبك للإدارة للموافقة.` : `✅ Demande envoyée à l'administration.`);
+    }
+
+    if (d.startsWith('exit_adm_app:')) {
+      const reqId = d.split(':')[1];
+      const db = loadDB();
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_admin') return;
+      
+      req.status = 'pending_guard';
+      req.adminApprovedBy = userData.name;
+      req.adminApprovedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msg = ar 
+        ? `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
+        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
+      
+      const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الخروج الفعلي' : '🏁 Confirmer le Départ', callback_data: `exit_guard_conf:${reqId}` }]] };
+      
+      const guards = cfg.authorized_users?.filter(u => u.role === 'poste_garde') || [];
+      for (const g of guards) { if (g.id) await send(g.id, msg, kbd); }
+      
+      return send(chatId, ar ? `✅ تم تحويل الطلب لمركز الحراسة.` : `✅ Demande transmise au Poste de Garde.`);
+    }
+
+    if (d.startsWith('exit_guard_conf:')) {
+      const reqId = d.split(':')[1];
+      const db = loadDB();
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_guard') return;
+      
+      req.status = 'completed';
+      req.guardConfirmedBy = userData.name;
+      req.guardConfirmedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msgFinal = ar 
+        ? `✅ <b>تأكيد خروج عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> قد خرج الآن من المؤسسة.\n👮 حارس المناوبة: ${userData.name}`
+        : `✅ <b>SORTIE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> a quitté l'entreprise.\n👮 Garde: ${userData.name}`;
+
+      // Notify Manager
+      if (req.managerId) await send(req.managerId, msgFinal);
+      // Notify Admins/HR
+      await notifyStaff(msgFinal, cfg, send);
+
+      // Generate PDF & Send Email
+      // This part will call a utility function we'll create
+      try {
+        await generateAndSendExitAuth(req, cfg); 
+        log(`[Exit] Flow completed for ${req.empName}. PDF/Email sent.`);
+      } catch (e) { log(`[Exit-Error] PDF/Email failed: ${e.message}`); }
+
+      return send(chatId, ar ? `✅ تم تأكيد الخروج وإرسال الإخطارات.` : `✅ Sortie confirmée et notifications envoyées.`);
     }
 
     if (d === 'mgmt_tools') {
@@ -937,6 +1065,39 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, summary, kbd);
     }
 
+    if (st.step === 'exit_search') {
+      const db = loadDB(), q = txtLow.trim();
+      const results = (db.hr_employees || []).filter(e => {
+        const cid = String(e.clockingId || '').toLowerCase().trim();
+        const lnf = String(e.lastName_fr || '').toLowerCase();
+        const fnf = String(e.firstName_fr || '').toLowerCase();
+        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+      }).slice(0, 5);
+
+      if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
+      
+      const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `exit_sel:${e.id}` }]) };
+      kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
+      
+      return send(chatId, ar ? `🔍 اختر الموظف المطلوب:` : `🔍 Sélectionnez l'employé :`, kbd);
+    }
+
+    if (st.step === 'exit_reason') {
+      st.data.reason = txt;
+      st.step = 'exit_confirm';
+      const d = st.data;
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr}` : 'Unknown';
+      
+      const summary = ar 
+        ? `📋 <b>ملخص تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${d.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.managerName}`
+        : `📋 <b>RÉSUMÉ AUTORISATION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${d.type}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
+      
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'exit_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st);
+      return send(chatId, summary, kbd);
+    }
+
     if (st.step === 'survey_detail') {
       await notifyStaff(`🗳️ <b>إعلام عن مخالفة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📊 السبب: <b>${st.reasonName}</b>\n✍️ التفاصيل: ${txt}\n👤 من طرف: ${userData.name}`, cfg, send);
       return send(chatId, isManager
@@ -1136,6 +1297,23 @@ app.get('/api/db-version', (req, res) => {
     res.json({ last_updated: 0, employee_count: 0 });
   } catch (e) { res.status(500).send(e.message); }
 });
+
+async function generateAndSendExitAuth(req, cfg) {
+  const tempDir = path.join(__dirname, 'temp');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+  
+  const pdfPath = path.join(tempDir, `exit_${req.id}.pdf`);
+  await generateExitAuthPDF(req, pdfPath);
+
+  const subject = `Autorisation de Sortie - ${req.empName}`;
+  const body = `Bonjour,\n\nVeuillez trouver ci-joint l'autorisation de sortie signée pour l'employé ${req.empName}.\n\nType: ${req.exitType}\nMotif: ${req.reason}\n\nSystème TewfikSoft HR.`;
+
+  const adminEmail = cfg.email_settings?.hr_notification_email || process.env.HR_EMAIL || 'rh@tewfiksoft.dz';
+  
+  await sendEmail(adminEmail, subject, body, [
+    { filename: `Autorisation_Sortie_${req.empName.replace(/\s+/g, '_')}.pdf`, path: pdfPath }
+  ]);
+}
 
 const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';

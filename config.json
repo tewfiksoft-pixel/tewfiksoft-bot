@@ -75,5 +75,12 @@
     "salary_slip": true,
     "leave_title": true,
     "work_contract": true
+  },
+  "email_settings": {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "your-email@gmail.com",
+    "smtp_pass": "your-password",
+    "hr_notification_email": "rh@tewfiksoft.dz"
   }
 }

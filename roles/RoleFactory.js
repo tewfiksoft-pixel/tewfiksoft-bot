@@ -4,6 +4,7 @@ import ManagerRole from './ManagerRole.js';
 import GeneralManagerRole from './GeneralManagerRole.js';
 import EmployeeRole from './EmployeeRole.js';
 import GestionnaireRhRole from './GestionnaireRhRole.js';
+import PosteGardeRole from './PosteGardeRole.js';
 
 export default class RoleFactory {
   static create(user) {
@@ -15,6 +16,7 @@ export default class RoleFactory {
       case 'general_manager': return new GeneralManagerRole(user);
       case 'employee': return new EmployeeRole(user);
       case 'gestionnaire_rh': return new GestionnaireRhRole(user);
+      case 'poste_garde': return new PosteGardeRole(user);
       default: return new BaseRole(user);
     }
   }

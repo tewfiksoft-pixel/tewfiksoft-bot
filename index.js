@@ -399,7 +399,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.step = 'exit_type';
       const kbd = { inline_keyboard: [
         [{ text: ar ? '💼 مهمة عمل (Service)' : '💼 Mission de Service', callback_data: 'exittype:Service' }],
-        [{ text: ar ? '👤 شخصي (Personnel)' : '👤 Personnel', callback_data: 'exittype:Personnel' }],
+        [{ text: ar ? '👤 شخصي (Personnel)' : '👤 Sortie Personnel', callback_data: 'exittype:Personnel' }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       states.set(chatId, st);
@@ -436,6 +436,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         managerName: st.data.managerName,
         exitType: st.data.type,
         reason: st.data.reason,
+        exitTime: st.data.exitTime,
         status: 'pending_admin',
         createdAt: new Date().toISOString()
       };
@@ -445,8 +446,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveDB(db);
 
       const msg = ar 
-        ? `🚪 <b>طلب تصريح خروج جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${st.data.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${st.data.reason}\n👤 من طرف: ${st.data.managerName}`
-        : `🚪 <b>DEMANDE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${st.data.type}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+        ? `🚪 <b>طلب تصريح خروج جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${st.data.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${st.data.exitTime}\n✍️ السبب: ${st.data.reason}\n👤 من طرف: ${st.data.managerName}`
+        : `🚪 <b>DEMANDE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${st.data.type === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${st.data.exitTime}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
       
       const kbd = { inline_keyboard: [
         [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver', callback_data: `exit_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `exit_adm_rej:${reqId}` }]
@@ -469,8 +470,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveDB(db);
 
       const msg = ar 
-        ? `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
-        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
+        ? `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${req.exitTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
+        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${req.exitTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
       
       const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الخروج الفعلي' : '🏁 Confirmer le Départ', callback_data: `exit_guard_conf:${reqId}` }]] };
       
@@ -1084,14 +1085,23 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (st.step === 'exit_reason') {
       st.data.reason = txt;
+      st.step = 'exit_time';
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `📅 <b>اليوم والساعة (4/5)</b>\nيرجى كتابة تاريخ وساعة الخروج المتوقعة:\nمثال: <code>اليوم 14:30</code>` 
+        : `📅 <b>JOUR ET HEURE (4/5)</b>\nVeuillez écrire le jour et l'heure de sortie :\nEx: <code>Aujourd'hui 14:30</code>`);
+    }
+
+    if (st.step === 'exit_time') {
+      st.data.exitTime = txt;
       st.step = 'exit_confirm';
       const d = st.data;
       const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr}` : 'Unknown';
       
       const summary = ar 
-        ? `📋 <b>ملخص تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${d.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.managerName}`
-        : `📋 <b>RÉSUMÉ AUTORISATION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${d.type}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
+        ? `📋 <b>ملخص تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${d.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${d.exitTime}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.managerName}`
+        : `📋 <b>RÉSUMÉ AUTORISATION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${d.type === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${d.exitTime}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
       
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'exit_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);

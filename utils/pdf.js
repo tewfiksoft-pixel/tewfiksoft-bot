@@ -26,7 +26,8 @@ export async function generateExitAuthPDF(data, outputPath) {
 
       // --- Exit Details ---
       doc.fontSize(14).text('DÉTAILS DE LA SORTIE', { underline: true });
-      doc.fontSize(12).text(`Type de sortie: ${data.exitType}`);
+      doc.fontSize(12).text(`Type de sortie: ${data.exitType === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}`);
+      doc.fontSize(12).text(`Heure de Sortie: ${data.exitTime || '—'}`);
       doc.fontSize(12).text(`Motif: ${data.reason}`);
       doc.fontSize(12).text(`Date de demande: ${new Date(data.createdAt).toLocaleString()}`);
       doc.moveDown(2);

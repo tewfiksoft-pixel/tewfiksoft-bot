@@ -398,8 +398,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.empId = empId;
       st.step = 'exit_type';
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '💼 مهمة عمل (Service)' : '💼 Raison de Service', callback_data: 'exittype:Service' }],
-        [{ text: ar ? '👤 خروج شخصي (Personnel)' : '👤 Sortie Personnelle', callback_data: 'exittype:Personnel' }],
+        [{ text: ar ? '💼 Raison de Service / مهمة عمل' : '💼 Raison de Service', callback_data: 'exittype:Service' }],
+        [{ text: ar ? '👤 Sortie Personnelle / خروج شخصي' : '👤 Sortie Personnelle', callback_data: 'exittype:Personnel' }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       states.set(chatId, st);

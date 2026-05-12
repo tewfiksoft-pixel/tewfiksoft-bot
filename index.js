@@ -447,7 +447,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       const msg = ar 
         ? `🚪 <b>طلب تصريح خروج جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${st.data.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${st.data.exitTime}\n✍️ السبب: ${st.data.reason}\n👤 من طرف: ${st.data.managerName}`
-        : `🚪 <b>DEMANDE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${st.data.type === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${st.data.exitTime}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+        : `🚪 <b>DEMANDE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${st.data.type === 'Service' ? 'Raison de Service' : 'Sortie Personnelle'}\n📅 Heure Sortie: ${st.data.exitTime}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
       
       const kbd = { inline_keyboard: [
         [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver', callback_data: `exit_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `exit_adm_rej:${reqId}` }]
@@ -471,7 +471,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       const msg = ar 
         ? `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${req.exitTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
-        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${req.exitTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
+        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType === 'Service' ? 'Raison de Service' : 'Sortie Personnelle'}\n📅 Heure Sortie: ${req.exitTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
       
       const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الخروج الفعلي' : '🏁 Confirmer le Départ', callback_data: `exit_guard_conf:${reqId}` }]] };
       
@@ -1101,7 +1101,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       
       const summary = ar 
         ? `📋 <b>ملخص تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📂 النوع: ${d.type === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${d.exitTime}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.managerName}`
-        : `📋 <b>RÉSUMÉ AUTORISATION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${d.type === 'Service' ? 'Mission de Service' : 'Sortie Personnel'}\n📅 Heure Sortie: ${d.exitTime}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
+        : `📋 <b>RÉSUMÉ AUTORISATION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📂 Type: ${d.type === 'Service' ? 'Raison de Service' : 'Sortie Personnelle'}\n📅 Heure Sortie: ${d.exitTime}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
       
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'exit_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);

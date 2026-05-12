@@ -24,10 +24,10 @@ const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 
+export const states = new Map();
 const langs = new Map();
-const states = new Map();
 
-async function handle(u) {
+export async function handle(u) {
   log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
@@ -403,6 +403,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.data.type = type;
       st.step = 'exit_search';
       states.set(chatId, st);
+      log(`[Exit] Step: Search Employee (2/5) for ${chatId}`);
       return send(chatId, ar 
         ? `🔍 <b>البحث عن الموظف (2/5)</b>\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b>:` 
         : `🔍 <b>RECHERCHE EMPLOYÉ (2/5)</b>\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> :`);
@@ -415,6 +416,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.empId = empId;
       st.step = 'exit_reason';
       states.set(chatId, st);
+      log(`[Exit] Step: Enter Reason (3/5) for ${chatId} | Emp: ${empId}`);
       return send(chatId, ar 
         ? `✍️ <b>السبب (3/5)</b>\nيرجى كتابة سبب الخروج بالتفصيل:` 
         : `✍️ <b>MOTIF (3/5)</b>\nVeuillez détailler le motif :`);
@@ -1249,7 +1251,9 @@ app.get('/health', (req, res) => {
 
 app.get('/api/logs', (req, res) => {
   try {
-    const logs = fs.readFileSync(path.join(__dirname, 'bot_debug.log'), 'utf8');
+    const logPath = path.join(__dirname, 'bot_debug.log');
+    if (!fs.existsSync(logPath)) return res.type('text/plain').send('No logs yet.');
+    const logs = fs.readFileSync(logPath, 'utf8');
     res.type('text/plain').send(logs.split('\n').slice(-100).join('\n'));
   } catch (e) { res.status(500).send(e.message); }
 });

@@ -73,7 +73,9 @@ export async function handle(u) {
     return adId === fromId || (from.username && adId === from.username.toLowerCase());
   });
 
-  const ar = (langs.get(chatId) || userData?.lang || 'ar') === 'ar';
+  const detectedLang = langs.get(chatId) || userData?.lang || 'ar';
+  const ar = detectedLang === 'ar';
+  log(`[Lang-Debug] ChatId: ${chatId} | Detected: ${detectedLang} | Source: ${langs.has(chatId) ? 'Map' : 'Config'}`);
 
   // Public /id and /me command to help user find their Telegram ID
   if (txtLow === '/id' || (txtLow === '/me' && !userData)) {

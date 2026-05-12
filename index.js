@@ -48,7 +48,7 @@ export async function handle(u) {
   log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
   const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
-  const chatId = msg.chat.id, fromId = String(from.id), cfg = loadConfig(), db = loadDB();
+  const chatId = Number(msg.chat.id), fromId = String(from.id), cfg = loadConfig(), db = loadDB();
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
 
   const userData = cfg.authorized_users?.find(u => {
@@ -403,6 +403,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'start_exit_req') {
       states.set(chatId, { step: 'exit_type_pre_search', data: { managerId: fromId, managerName: userData.name } });
+      saveStates();
       const kbd = { inline_keyboard: [
         [{ text: ar ? '💼 Raison de Service / مهمة عمل' : '💼 Raison de Service', callback_data: 'exittype_pre:Service' }],
         [{ text: ar ? '👤 Sortie Personnelle / خروج شخصي' : '👤 Sortie Personnelle', callback_data: 'exittype_pre:Personnel' }],
@@ -430,6 +431,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('exit_sel:')) {
       const empId = d.split(':')[1];
       const st = states.get(chatId);
+      log(`[Exit-Debug] ChatId: ${chatId} | Found State: ${!!st} | All States: ${[...states.keys()]}`);
       if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
       st.empId = empId;
       st.step = 'exit_reason';

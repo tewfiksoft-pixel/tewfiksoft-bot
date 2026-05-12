@@ -399,7 +399,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('exittype_pre:')) {
       const type = d.split(':')[1];
       const st = states.get(chatId);
-      if (!st) return;
+      if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
       st.data.type = type;
       st.step = 'exit_search';
       states.set(chatId, st);
@@ -412,7 +412,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('exit_sel:')) {
       const empId = d.split(':')[1];
       const st = states.get(chatId);
-      if (!st) return;
+      if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
       st.empId = empId;
       st.step = 'exit_reason';
       states.set(chatId, st);

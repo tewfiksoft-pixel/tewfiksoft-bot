@@ -77,10 +77,10 @@
     "work_contract": true
   },
   "email_settings": {
-    "smtp_host": "smtp.gmail.com",
+    "smtp_host": "smtp-relay.brevo.com",
     "smtp_port": 587,
-    "smtp_user": "your-email@gmail.com",
-    "smtp_pass": "your-password",
-    "hr_notification_email": "rh@tewfiksoft.dz"
+    "smtp_user": "ab23a7001@smtp-brevo.com",
+    "smtp_pass": "K0QcwMtUqzhSgX75",
+    "hr_notification_email": "tewfik.nouar@alver.dz, email2@example.com, email3@example.com"
   }
 }

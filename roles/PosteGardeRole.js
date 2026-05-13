@@ -4,6 +4,7 @@ import { send } from '../utils/telegram.js';
 export default class PosteGardeRole extends BaseRole {
   showMenu(chatId, ar) {
     const kbd = { inline_keyboard: [
+      [{ text: ar ? '🚪 العمال المتواجدون في الخارج' : '🚪 Employés en SORTIE', callback_data: 'list_out_emps' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};

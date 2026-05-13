@@ -12,6 +12,8 @@
             "node": ">=18.0.0"
       },
       "dependencies": {
+            "arabic-reshaper": "^1.1.0",
+            "bidi-js": "^1.0.3",
             "crypto-js": "^4.2.0",
             "express": "^4.18.2",
             "google-auth-library": "^9.0.0",

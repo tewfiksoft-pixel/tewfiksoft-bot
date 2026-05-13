@@ -11,28 +11,38 @@ export async function sendEmail(to, subject, text, attachments = []) {
     const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8'));
     const s = config.email_settings || {};
     
+    const host = s.smtp_host || process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+    const port = parseInt(s.smtp_port || process.env.SMTP_PORT || 587);
+    const user = s.smtp_user || process.env.SMTP_USER;
+    const pass = s.smtp_pass || process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+      log(`[Email-Error] SMTP credentials missing (User: ${user ? 'OK' : 'MISSING'}, Pass: ${pass ? 'OK' : 'MISSING'})`);
+      return false;
+    }
+
     const transporter = nodemailer.createTransport({
-      host: s.smtp_host || process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: s.smtp_port || process.env.SMTP_PORT || 587,
-      secure: s.smtp_port === 465,
-      auth: {
-        user: s.smtp_user || process.env.SMTP_USER || 'your-email@gmail.com',
-        pass: s.smtp_pass || process.env.SMTP_PASS || 'your-password',
-      },
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false // Helps with some shared hosting environments
+      }
     });
 
     const info = await transporter.sendMail({
-      from: `"TewfikSoft HR" <${s.smtp_user || process.env.SMTP_USER || 'your-email@gmail.com'}>`,
+      from: `"TewfikSoft HR" <tewfiksoft@gmail.com>`,
       to,
       subject,
       text,
       attachments
     });
 
-    log(`[Email] Message sent: ${info.messageId}`);
+    log(`[Email] Success: Sent to ${to} | ID: ${info.messageId}`);
     return true;
   } catch (error) {
-    log(`[Email-Error] ${error.message}`);
+    log(`[Email-Error] Failed to send to ${to}: ${error.message}`);
     return false;
   }
 }

@@ -481,12 +481,19 @@ Pour garantir une fin de relation de travail légale et fluide :
       const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : 'Unknown';
       
+      let companyName = 'ALVER / TEWFIKSOFT';
+      if (emp && emp.companyId && db.hr_companies && db.hr_companies[emp.companyId]) {
+        const comp = db.hr_companies[emp.companyId];
+        companyName = comp.fr?.name || comp.name || companyName;
+      }
+
       const reqId = crypto.randomBytes(4).toString('hex');
       const request = {
         id: reqId,
         type: 'exit_auth',
         empId: st.empId,
         empName,
+        companyName, // Added dynamic company name
         managerId: st.data.managerId,
         managerName: st.data.managerName,
         exitType: st.data.type,
@@ -540,28 +547,60 @@ Pour garantir une fin de relation de travail légale et fluide :
       const req = db.bot_requests?.find(r => r.id === reqId);
       if (!req || req.status !== 'pending_guard') return;
       
-      req.status = 'completed';
+      req.status = 'out';
       req.guardConfirmedBy = userData.name;
       req.guardConfirmedAt = new Date().toISOString();
       saveDB(db);
 
       const msgFinal = ar 
-        ? `✅ <b>تأكيد خروج عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> قد خرج الآن من المؤسسة.\n👮 حارس المناوبة: ${userData.name}`
-        : `✅ <b>SORTIE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> a quitté l'entreprise.\n👮 Garde: ${userData.name}`;
+        ? `✅ <b>تأكيد خروج عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> قد خرج الآن من المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n\n⏳ <i>بانتظار تسجيل العودة...</i>`
+        : `✅ <b>SORTIE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> a quitté l'entreprise.\n👮 Garde: ${userData.name}\n\n⏳ <i>En attente de retour...</i>`;
 
-      // Notify Manager
       if (req.managerId) await send(req.managerId, msgFinal);
-      // Notify Admins/HR
       await notifyStaff(msgFinal, cfg, send);
 
-      // Generate PDF & Send Email
-      // This part will call a utility function we'll create
       try {
         await generateAndSendExitAuth(req, cfg); 
-        log(`[Exit] Flow completed for ${req.empName}. PDF/Email sent.`);
+        log(`[Exit] Exit confirmed for ${req.empName}. PDF/Email sent.`);
       } catch (e) { log(`[Exit-Error] PDF/Email failed: ${e.message}`); }
 
-      return send(chatId, ar ? `✅ تم تأكيد الخروج وإرسال الإخطارات.` : `✅ Sortie confirmée et notifications envoyées.`);
+      const returnKbd = { inline_keyboard: [[{ text: ar ? '🏠 تأكيد العودة الآن' : '🏠 Confirmer le RETOUR', callback_data: `exit_guard_return:${reqId}` }]] };
+      return send(chatId, ar ? `✅ تم تأكيد الخروج. اضغط الزر أدناه عند عودة الموظف:` : `✅ Sortie confirmée. Appuyez ci-dessous au retour :`, returnKbd);
+    }
+
+    if (d.startsWith('exit_guard_return:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'out') return;
+      
+      req.status = 'completed';
+      req.returnedAt = new Date().toISOString();
+      req.returnConfirmedBy = userData.name;
+      saveDB(db);
+
+      const msgReturn = ar 
+        ? `🏁 <b>تأكيد عودة عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> عاد الآن إلى المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n⏰ وقت العودة: ${new Date(req.returnedAt).toLocaleTimeString()}`
+        : `🏁 <b>RETOUR CONFIRMÉ</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> est de retour.\n👮 Garde: ${userData.name}\n⏰ Heure: ${new Date(req.returnedAt).toLocaleTimeString()}`;
+
+      if (req.managerId) await send(req.managerId, msgReturn);
+      await notifyStaff(msgReturn, cfg, send);
+
+      return send(chatId, ar ? `✅ تم تسجيل عودة الموظف بنجاح.` : `✅ Retour enregistré avec succès.`);
+    }
+
+    if (d === 'list_out_emps') {
+      const outRequests = (db.bot_requests || []).filter(r => r.status === 'out');
+      if (outRequests.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا يوجد أي موظف في الخارج حالياً.' : 'ℹ️ Aucun employé en sortie pour le moment.');
+      }
+
+      for (const req of outRequests) {
+        const kbd = { inline_keyboard: [[{ text: ar ? `🏠 تأكيد عودة: ${req.empName}` : `🏠 Confirmer retour: ${req.empName}`, callback_data: `exit_guard_return:${req.id}` }]] };
+        await send(chatId, ar 
+          ? `👤 <b>${req.empName}</b>\n⏰ خرج في: ${new Date(req.guardConfirmedAt).toLocaleTimeString()}\n📝 السبب: ${req.reason}`
+          : `👤 <b>${req.empName}</b>\n⏰ Sorti à: ${new Date(req.guardConfirmedAt).toLocaleTimeString()}\n📝 Motif: ${req.reason}`, kbd);
+      }
+      return;
     }
 
     if (d === 'mgmt_tools') {
@@ -1381,37 +1420,64 @@ app.get('/api/db-version', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
-async function generateAndSendExitAuth(req, cfg) {
+export async function generateAndSendExitAuth(req, cfg) {
   const tempDir = path.join(__dirname, 'temp');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
   
   const pdfPath = path.join(tempDir, `exit_${req.id}.pdf`);
   await generateExitAuthPDF(req, pdfPath);
 
-  const subject = `Autorisation de Sortie - ${req.empName}`;
-  const body = `Bonjour,\n\nVeuillez trouver ci-joint l'autorisation de sortie signée pour l'employé ${req.empName}.\n\nType: ${req.exitType}\nMotif: ${req.reason}\n\nSystème TewfikSoft HR.`;
+  const subject = `📄 Autorisation de Sortie / تصريح خروج - ${req.empName}`;
+  const body = `
+🌟 Bonjour / السلام عليكم,
+
+Nous vous informons qu'une nouvelle autorisation de sortie a été générée avec succès via le système TewfikSoft HR.
+نحيطكم علماً بأنه قد تم إصدار تصريح خروج جديد بنجاح عبر نظام توفيق سوفت للموارد البشرية.
+
+👤 Employé(e) / الموظف(ة): ${req.empName}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 Détails de l'autorisation / تفاصيل التصريح:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Type / النوع: ${req.exitType === 'Service' ? 'Mission de Service / مهمة عمل' : 'Sortie Personnelle / خروج شخصي'}
+📝 Motif / السبب: ${req.reason}
+⏰ Heure / الوقت: ${req.exitTime}
+✍️ Approuvé par / وافق عليه: ${req.adminApprovedBy || 'Admin'}
+👮 Confirmé par / أكده: ${req.guardConfirmedBy || 'Garde'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Veuillez trouver le document officiel en pièce jointe (PDF).
+يرجى الاطلاع على الوثيقة الرسمية المرفقة (PDF).
+
+Cordialement / مع خالص التقدير،
+🤖 Système TewfikSoft HR Automatisé
+نظام توفيق سوفت للموارد البشرية المؤتمت
+  `;
 
   const recipients = [];
 
-  
-  // 1. Always send to global HR email
-  const hrEmail = cfg.email_settings?.hr_notification_email || process.env.HR_EMAIL || 'rh@tewfiksoft.dz';
-  if (hrEmail) recipients.push(hrEmail);
+  // 1. Always send to global HR email(s) - supports comma separated list
+  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  if (hrEmails.length > 0) recipients.push(...hrEmails);
 
-  // 2. Send to the manager who initiated the request
+  // 2. Send to the manager who initiated the request (if email exists)
   const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
-  if (manager && manager.email) recipients.push(manager.email);
+  if (manager?.email) recipients.push(manager.email);
 
-  // 3. Send to the admin who approved it
+  // 3. Send to the admin who approved it (if email exists)
   const admin = cfg.authorized_users?.find(u => u.name === req.adminApprovedBy);
-  if (admin && admin.email) recipients.push(admin.email);
+  if (admin?.email) recipients.push(admin.email);
 
   const finalRecipients = [...new Set(recipients.filter(Boolean))];
   
   if (finalRecipients.length > 0) {
-    await sendEmail(finalRecipients.join(','), subject, body, [
-      { filename: `Autorisation_Sortie_${req.empName.replace(/\s+/g, '_')}.pdf`, path: pdfPath }
+    const success = await sendEmail(finalRecipients.join(','), subject, body, [
+      { filename: `Autorisation_Sortie_${req.id}.pdf`, path: pdfPath }
     ]);
+    if (success) {
+      log(`[Exit] Email sent successfully to ${finalRecipients.join(', ')}`);
+      // Cleanup temp file
+      try { fs.unlinkSync(pdfPath); } catch (e) {}
+    }
   } else {
     log(`[Exit-Warn] No recipients found for ${req.empName}`);
   }
@@ -1420,54 +1486,66 @@ async function generateAndSendExitAuth(req, cfg) {
 const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 
-app.listen(port, () => {
-  log(`=== TewfikSoft HR Bot v8.9.5 [UPDATE-EXIT] on port ${port} ===`);
+const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].includes('node_modules')); 
 
-  // ... bootstrap code ...
-  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
-  const bootstrapFromCloud = async () => {
-    try {
-      if (fs.existsSync(DB_PATH)) {
-        const existing = loadDB();
-        if ((existing.hr_employees || []).length > 0) {
-          log(`DB already has ${existing.hr_employees.length} employees — skipping Google Drive bootstrap.`);
-          return;
+if (isMain) {
+  app.listen(port, () => {
+    log(`=== TewfikSoft HR Bot v8.9.5 [UPDATE-EXIT] on port ${port} ===`);
+    // ... rest of the bootstrap ...
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
+    const bootstrapFromCloud = async () => {
+        try {
+          if (fs.existsSync(DB_PATH)) {
+            const existing = loadDB();
+            if ((existing.hr_employees || []).length > 0) {
+              log(`DB already has ${existing.hr_employees.length} employees — skipping Google Drive bootstrap.`);
+              return;
+            }
+          }
+          log('DB is empty — attempting one-time bootstrap from Google Drive...');
+          const res = await fetch(GOOGLE_SCRIPT_URL);
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          const data = await res.text();
+          if (data && data.includes('hr_employees')) {
+            fs.writeFileSync(DB_PATH, data);
+            log(`Bootstrap OK: DB saved. Size: ${data.length} bytes.`);
+          } else {
+            log('Bootstrap Warning: Fetched data is invalid or empty.');
+          }
+        } catch (e) {
+          log(`Bootstrap Error: ${e.message}`);
         }
-      }
-      log('DB is empty — attempting one-time bootstrap from Google Drive...');
-      const res = await fetch(GOOGLE_SCRIPT_URL);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.text();
-      if (data && data.includes('hr_employees')) {
-        fs.writeFileSync(DB_PATH, data);
-        log(`Bootstrap OK: DB saved. Size: ${data.length} bytes.`);
-      } else {
-        log('Bootstrap Warning: Fetched data is invalid or empty.');
-      }
-    } catch (e) {
-      log(`Bootstrap Error: ${e.message}`);
-    }
-  };
-
-  bootstrapFromCloud();
-
-  // ─── Sequential Long Polling ───
-  let offset = 0;
-  const poll = async () => {
-    try {
-      const res = await tg('getUpdates', { offset, timeout: 30 });
-      if (res.ok && res.result && res.result.length > 0) {
-        for (const u of res.result) {
-          handle(u).catch(e => log(`Handle Err: ${e.message}`));
-          offset = Math.max(offset, u.update_id + 1);
+      };
+    
+      bootstrapFromCloud();
+    
+      // ─── Sequential Long Polling ───
+      let offset = 0;
+      const poll = async () => {
+        try {
+          const res = await tg('getUpdates', { offset, timeout: 30 });
+          if (res.ok && res.result && res.result.length > 0) {
+            for (const u of res.result) {
+              handle(u).catch(e => log(`Handle Err: ${e.message}`));
+              offset = Math.max(offset, u.update_id + 1);
+            }
+          } else if (!res.ok && res.error_code === 409) {
+            log(`[CRITICAL] CONFLICT: Another bot is running on a DIFFERENT computer! Emails might fail.`);
+            // Try to wait a bit longer to not spam the API
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        } catch (e) {
+          if (!e.message.includes('timeout')) {
+             if (e.message.includes('409')) {
+                log(`[CRITICAL] CONFLICT: Another bot instance is active elsewhere!`);
+             } else {
+                log(`Polling Err: ${e.message}`);
+             }
+          }
         }
-      }
-    } catch (e) {
-      if (!e.message.includes('timeout')) log(`Polling Err: ${e.message}`);
-    }
-    setTimeout(poll, 100); // 100ms delay between polls
-  };
-
-  poll();
-
-});
+        setTimeout(poll, 200); 
+      };
+    
+      poll();
+  });
+}

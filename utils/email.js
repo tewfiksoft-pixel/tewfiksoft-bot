@@ -32,7 +32,7 @@ export async function sendEmail(to, subject, text, attachments = []) {
     });
 
     const fromName = "TewfikSoft HR";
-    const fromEmail = s.smtp_user || "tewfiksoft@gmail.com";
+    const fromEmail = "tewfiksoft@gmail.com";
 
     const info = await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,

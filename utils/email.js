@@ -10,45 +10,44 @@ export async function sendEmail(to, subject, text, attachments = []) {
   try {
     const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8'));
     const s = config.email_settings || {};
-    
-    const host = s.smtp_host || process.env.SMTP_HOST || 'smtp-relay.brevo.com';
-    const port = parseInt(s.smtp_port || process.env.SMTP_PORT || 587);
-    const user = s.smtp_user || process.env.SMTP_USER;
-    const pass = s.smtp_pass || process.env.SMTP_PASS;
+    const apiKey = s.smtp_pass || process.env.BREVO_API_KEY;
 
-    if (!user || !pass) {
-      log(`[Email-Error] SMTP credentials missing (User: ${user ? 'OK' : 'MISSING'}, Pass: ${pass ? 'OK' : 'MISSING'})`);
+    if (!apiKey) {
+      log("[Email-Error] Brevo API Key (smtp_pass) is missing.");
       return false;
     }
 
-    const transporter = nodemailer.createTransport({
-      host,
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-      tls: {
-        rejectUnauthorized: false
-      }
+    const payload = {
+      sender: { name: "TewfikSoft HR", email: "tewfiksoft@gmail.com" },
+      to: [{ email: to }],
+      subject: subject,
+      textContent: text,
+      attachment: attachments.map(a => ({
+        content: fs.readFileSync(a.path).toString('base64'),
+        name: a.filename
+      }))
+    };
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
 
-    const fromName = s.hr_notification_email ? "TewfikSoft HR" : "HR System";
-    const fromEmail = s.smtp_user || "tewfiksoft@gmail.com";
-
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to,
-      subject,
-      text,
-      attachments
-    });
-
-    log(`[Email] Success: Sent to ${to} | ID: ${info.messageId}`);
-    return true;
+    const result = await response.json();
+    if (response.ok) {
+      log(`[Email] API Success: Sent to ${to} | MsgID: ${result.messageId}`);
+      return true;
+    } else {
+      log(`[Email-API-Error] ${JSON.stringify(result)}`);
+      return false;
+    }
   } catch (error) {
-    log(`[Email-Error] Failed to send to ${to}: ${error.message}`);
+    log(`[Email-Error] API Exception: ${error.message}`);
     return false;
   }
 }

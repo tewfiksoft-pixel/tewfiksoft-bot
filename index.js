@@ -1509,7 +1509,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v8.9.5 [UPDATE-EXIT] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v9.0.0 [API-FINAL] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

@@ -1321,6 +1321,19 @@ app.get('/api/debug-config', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+app.get('/api/logs', (req, res) => {
+  try {
+    const logPath = path.join(__dirname, 'bot_debug.log');
+    if (fs.existsSync(logPath)) {
+      const logs = fs.readFileSync(logPath, 'utf8');
+      res.header('Content-Type', 'text/plain');
+      res.send(logs);
+    } else {
+      res.send('Log file not found.');
+    }
+  } catch (e) { res.status(500).send(e.message); }
+});
+
 app.post('/api/config', (req, res) => {
   try {
     let data = req.rawBody;

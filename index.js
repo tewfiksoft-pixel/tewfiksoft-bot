@@ -478,7 +478,12 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'exit_final_send') {
       const st = states.get(chatId);
-      if (!st) return;
+      if (!st || st.processing) return;
+      
+      // Mark as processing to block double-clicks
+      st.processing = true;
+      states.set(chatId, st);
+      
       const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : 'Unknown';
       
@@ -546,8 +551,9 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('exit_guard_conf:')) {
       const reqId = d.split(':')[1];
       const req = db.bot_requests?.find(r => r.id === reqId);
-      if (!req || req.status !== 'pending_guard') return;
+      if (!req || req.status !== 'pending_guard' || req.processing) return;
       
+      req.processing = true;
       req.status = 'out';
       req.guardConfirmedBy = userData.name;
       req.guardConfirmedAt = new Date().toISOString();

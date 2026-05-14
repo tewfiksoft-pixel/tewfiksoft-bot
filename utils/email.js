@@ -23,11 +23,14 @@ export async function sendEmail(to, subject, text, attachments = []) {
 
     const transporter = nodemailer.createTransport({
       host,
-      port,
-      secure: port === 465,
+      port: 465,
+      secure: true,
       auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
       tls: {
-        rejectUnauthorized: false // Helps with some shared hosting environments
+        rejectUnauthorized: false
       }
     });
 

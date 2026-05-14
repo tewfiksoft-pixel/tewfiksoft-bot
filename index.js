@@ -148,13 +148,6 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `🟢 <b>أرسل وقت الدخول الآن</b>\nمثال: <code>08:15</code>` 
         : `🟢 <b>Envoyez l'heure d'entrée</b>\nExemple: <code>08:15</code>`);
     }
-}
-
-// --- 🌐 WEBHOOK ENDPOINT ---
-app.post('/api/telegram-webhook', (req, res) => {
-  handle(req.body).catch(e => log(`Webhook Err: ${e.message}`));
-  res.sendStatus(200);
-});
 
     if (d === 'cheque_step') {
       states.set(chatId, { step: 'cheque_amount' });
@@ -664,7 +657,7 @@ app.post('/api/telegram-webhook', (req, res) => {
         ? `🚨 <b>تصريح دخول معتمد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📅 وقت الدخول: ${req.entryTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
         : `🚨 <b>ENTRÉE APPROUVÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📅 Heure Entrée: ${req.entryTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
       
-      const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الدخول الفعلي' : '🏁 Confirmer l'Entrée', callback_data: `entry_guard_conf:${reqId}` }]] };
+      const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الدخول الفعلي' : '🏁 Confirmer l\'Entrée', callback_data: `entry_guard_conf:${reqId}` }]] };
       
       const guards = cfg.authorized_users?.filter(u => u.role === 'poste_garde') || [];
       for (const g of guards) { if (g.id) await send(g.id, msg, kbd); }
@@ -1665,6 +1658,12 @@ Cordialement / مع خالص التقدير،
     log(`[Exit-Warn] No recipients found for ${req.empName}`);
   }
 }
+
+// --- 🌐 WEBHOOK ENDPOINT ---
+app.post('/api/telegram-webhook', (req, res) => {
+  handle(req.body).catch(e => log(`Webhook Err: ${e.message}`));
+  res.sendStatus(200);
+});
 
 const port = process.env.PORT || 10000;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || '';

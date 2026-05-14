@@ -431,17 +431,18 @@ app.post('/api/telegram-webhook', (req, res) => {
         : `🚑 <b>DÉCLARATION D'ACCIDENT (Étape 1/7)</b>\n━━━━━━━━━━━━━━\n📅 Veuillez écrire <b>la date et l'heure</b> de l'accident :\nEx: <code>Aujourd'hui 10:30</code>`);
     }
 
-    if (d === 'start_exit_req') {
-      states.set(chatId, { step: 'exit_type_pre_search', data: { managerId: fromId, managerName: userData.name } });
+    if (d === 'auth_menu') {
+      states.set(chatId, { step: 'auth_menu_sel', data: { managerId: fromId, managerName: userData.name } });
       saveStates();
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '💼 Raison de Service / مهمة عمل' : '💼 Raison de Service', callback_data: 'exittype_pre:Service' }],
-        [{ text: ar ? '👤 Sortie Personnelle / خروج شخصي' : '👤 Sortie Personnelle', callback_data: 'exittype_pre:Personnel' }],
+        [{ text: ar ? '💼 تصريح خروج (مهمة عمل)' : '💼 Sortie (Raison de Service)', callback_data: 'exittype_pre:Service' }],
+        [{ text: ar ? '👤 تصريح خروج (شخصي)' : '👤 Sortie (Personnelle)', callback_data: 'exittype_pre:Personnel' }],
+        [{ text: ar ? '📥 تصريح دخول إلى الشركة' : '📥 Demande d\'Entrée', callback_data: 'entry_type_pre' }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       return send(chatId, ar 
-        ? `📂 <b>تصريح خروج (1/5)</b>\nاختر طبيعة الخروج أولاً:` 
-        : `📂 <b>AUTORISATION DE SORTIE (1/5)</b>\nChoisissez le type de sortie d'abord :`, kbd);
+        ? `🚪 <b>إدارة التصاريح</b>\nالرجاء اختيار نوع التصريح المطلوب:` 
+        : `🚪 <b>GESTION DES AUTORISATIONS</b>\nVeuillez choisir le type d'autorisation :`, kbd);
     }
 
     if (d.startsWith('exittype_pre:')) {

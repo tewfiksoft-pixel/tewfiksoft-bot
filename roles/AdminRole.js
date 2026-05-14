@@ -6,8 +6,7 @@ export default class AdminRole extends BaseRole {
   showMenu(chatId, ar, getStatsMsg) {
     const db = loadDB();
     const kbd = { inline_keyboard: [
-      [{ text: ar ? '🚪 تصريح خروج' : '🚪 Autorisation de Sortie', callback_data: 'start_exit_req' }],
-      [{ text: ar ? '📥 تصريح دخول' : '📥 Autorisation d\'Entrée', callback_data: 'entry_type_pre' }],
+      [{ text: ar ? '🚪 إدارة التصاريح (دخول/خروج)' : '🚪 Gestion des Accès', callback_data: 'auth_menu' }],
       [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
       [{ text: ar ? '🛠️ أدوات الإدارة' : '🛠️ Outils de Gestion', callback_data: 'mgmt_tools' }],
       [{ text: ar ? '📈 إحصائيات المديريات' : '📈 Stats par Directions', callback_data: 'effectifs_dir' }],

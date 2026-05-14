@@ -602,6 +602,98 @@ app.post('/api/telegram-webhook', (req, res) => {
       return send(chatId, ar ? `✅ تم تسجيل عودة الموظف بنجاح.` : `✅ Retour enregistré avec succès.`);
     }
 
+    if (d.startsWith('entry_sel:')) {
+      const parts = d.split(':');
+      const empId = parts[2];
+      states.set(chatId, { step: 'entry_reason', empId, data: { type: 'Entry', managerId: fromId, managerName: userData.name } });
+      saveStates();
+      return send(chatId, ar 
+        ? `✍️ <b>سبب الدخول (3/5)</b>\nيرجى كتابة سبب دخول الموظف بالتفصيل (مثلاً: عمل إضافي):` 
+        : `✍️ <b>MOTIF D'ENTRÉE (3/5)</b>\nVeuillez détailler le motif (Ex: Heures Supp) :`);
+    }
+
+    if (d === 'entry_final_send') {
+      const st = states.get(chatId);
+      if (!st || st.processing) return;
+      st.processing = true; states.set(chatId, st);
+      
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : 'Unknown';
+      const reqId = crypto.randomBytes(4).toString('hex');
+      const request = {
+        id: reqId,
+        type: 'entry_auth',
+        empId: st.empId,
+        empName,
+        managerId: st.data.managerId,
+        managerName: st.data.managerName,
+        reason: st.data.reason,
+        entryTime: st.data.entryTime,
+        status: 'pending_admin_entry',
+        createdAt: new Date().toISOString()
+      };
+      
+      if (!db.bot_requests) db.bot_requests = [];
+      db.bot_requests.push(request);
+      saveDB(db);
+
+      const msg = ar 
+        ? `📥 <b>طلب تصريح دخول جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📅 وقت الدخول: ${st.data.entryTime}\n✍️ السبب: ${st.data.reason}\n👤 من طرف: ${st.data.managerName}`
+        : `📥 <b>DEMANDE D'ENTRÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📅 Heure Entrée: ${st.data.entryTime}\n✍️ Motif: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ موافقة' : '✅ Approuver', callback_data: `entry_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `entry_adm_rej:${reqId}` }]
+      ]};
+
+      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
+      states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال طلب الدخول للإدارة.` : `✅ Demande d'entrée envoyée.`);
+    }
+
+    if (d.startsWith('entry_adm_app:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_admin_entry') return;
+      
+      req.status = 'pending_guard_entry';
+      req.adminApprovedBy = userData.name;
+      saveDB(db);
+
+      const msg = ar 
+        ? `🚨 <b>تصريح دخول معتمد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📅 وقت الدخول: ${req.entryTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
+        : `🚨 <b>ENTRÉE APPROUVÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📅 Heure Entrée: ${req.entryTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
+      
+      const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الدخول الفعلي' : '🏁 Confirmer l'Entrée', callback_data: `entry_guard_conf:${reqId}` }]] };
+      
+      const guards = cfg.authorized_users?.filter(u => u.role === 'poste_garde') || [];
+      for (const g of guards) { if (g.id) await send(g.id, msg, kbd); }
+      
+      return send(chatId, ar ? `✅ تم إرسال الموافقة لمركز الحراسة.` : `✅ Approbation transmise au Poste de Garde.`);
+    }
+
+    if (d.startsWith('entry_guard_conf:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_guard_entry' || req.processing) return;
+      
+      req.processing = true; req.status = 'completed';
+      req.guardConfirmedBy = userData.name;
+      req.guardConfirmedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msgFinal = ar 
+        ? `✅ <b>تأكيد دخول عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> دخل المؤسسة الآن.\n👮 حارس المناوبة: ${userData.name}`
+        : `✅ <b>ENTRÉE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> est entré.\n👮 Garde: ${userData.name}`;
+
+      await notifyStaff(msgFinal, cfg, send);
+      
+      // Send Email Notification
+      const subject = `📥 Confirmation d'Entrée - ${req.empName}`;
+      await sendEmail(cfg.hr_notification_email || 'tewfik.nouar@alver.dz', subject, msgFinal.replace(/<[^>]*>/g, ''));
+
+      return send(chatId, ar ? `✅ تم تأكيد الدخول وإشعار الإدارة.` : `✅ Entrée confirmée et direction notifiée.`);
+    }
+
     if (d === 'list_out_emps') {
       const outRequests = (db.bot_requests || []).filter(r => r.status === 'out');
       if (outRequests.length === 0) {
@@ -613,6 +705,21 @@ app.post('/api/telegram-webhook', (req, res) => {
         await send(chatId, ar 
           ? `👤 <b>${req.empName}</b>\n⏰ خرج في: ${new Date(req.guardConfirmedAt).toLocaleTimeString()}\n📝 السبب: ${req.reason}`
           : `👤 <b>${req.empName}</b>\n⏰ Sorti à: ${new Date(req.guardConfirmedAt).toLocaleTimeString()}\n📝 Motif: ${req.reason}`, kbd);
+      }
+      return;
+    }
+
+    if (d === 'list_in_emps') {
+      const inRequests = (db.bot_requests || []).filter(r => r.status === 'pending_guard_entry');
+      if (inRequests.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا يوجد أي موظف متوقع دخوله حالياً.' : 'ℹ️ Aucun employé prévu pour l\'entrée pour le moment.');
+      }
+
+      for (const req of inRequests) {
+        const kbd = { inline_keyboard: [[{ text: ar ? `🏁 تأكيد دخول: ${req.empName}` : `🏁 Confirmer l'entrée: ${req.empName}`, callback_data: `entry_guard_conf:${req.id}` }]] };
+        await send(chatId, ar 
+          ? `👤 <b>${req.empName}</b>\n📅 وقت الدخول المتوقع: ${req.entryTime}\n📝 السبب: ${req.reason}`
+          : `👤 <b>${req.empName}</b>\n📅 Heure prévue: ${req.entryTime}\n📝 Motif: ${req.reason}`, kbd);
       }
       return;
     }
@@ -1192,6 +1299,49 @@ app.post('/api/telegram-webhook', (req, res) => {
       const kbd = { inline_keyboard: [[{ text: ar ? '✅ إرسال الفكرة' : '✅ Envoyer', callback_data: 'sug_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
       states.set(chatId, st);
       saveStates();
+      return send(chatId, summary, kbd);
+    }
+
+    if (st.step === 'entry_search') {
+      const q = txtLow.trim();
+      const results = (db.hr_employees || []).filter(e => {
+        const cid = String(e.clockingId || '').toLowerCase().trim();
+        const lnf = String(e.lastName_fr || '').toLowerCase();
+        const fnf = String(e.firstName_fr || '').toLowerCase();
+        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+      }).slice(0, 5);
+
+      if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
+      
+      const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `entry_sel:${st.data.type}:${e.id}` }]) };
+      kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
+      
+      states.set(chatId, st); saveStates();
+      return send(chatId, ar ? `🔍 اختر الموظف المطلوب للدخول:` : `🔍 Sélectionnez l'employé pour l'entrée :`, kbd);
+    }
+
+    if (st.step === 'entry_reason') {
+      st.data.reason = txt;
+      st.step = 'entry_time';
+      states.set(chatId, st); saveStates();
+      return send(chatId, ar 
+        ? `📅 <b>اليوم والساعة (4/5)</b>\nيرجى كتابة التاريخ والوقت المتوقع للدخول:\nمثال: <code>غداً 08:00</code>` 
+        : `📅 <b>JOUR ET HEURE (4/5)</b>\nVeuillez écrire la date et l'heure d'entrée :\nEx: <code>Demain 08:00</code>`);
+    }
+
+    if (st.step === 'entry_time') {
+      st.data.entryTime = txt;
+      st.step = 'entry_confirm';
+      const d = st.data;
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr}` : 'Unknown';
+      
+      const summary = ar 
+        ? `📋 <b>ملخص تصريح الدخول</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📅 وقت الدخول: ${d.entryTime}\n✍️ السبب: ${d.reason}\n👤 الطالب: ${d.managerName}`
+        : `📋 <b>RÉSUMÉ ENTRÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📅 Heure Entrée: ${d.entryTime}\n✍️ Motif: ${d.reason}\n👤 Demandeur: ${d.managerName}`;
+      
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال' : '✅ Confirmer & Envoyer', callback_data: 'entry_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      states.set(chatId, st); saveStates();
       return send(chatId, summary, kbd);
     }
 

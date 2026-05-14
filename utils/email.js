@@ -34,8 +34,8 @@ export async function sendEmail(to, subject, text, attachments = []) {
       }
     });
 
-    const fromName = "TewfikSoft HR";
-    const fromEmail = "tewfiksoft@gmail.com";
+    const fromName = s.hr_notification_email ? "TewfikSoft HR" : "HR System";
+    const fromEmail = s.smtp_user || "tewfiksoft@gmail.com";
 
     const info = await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,

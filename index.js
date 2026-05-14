@@ -1661,7 +1661,12 @@ Cordialement / مع خالص التقدير،
 
 // --- 🌐 WEBHOOK ENDPOINT ---
 app.post('/api/telegram-webhook', (req, res) => {
-  handle(req.body).catch(e => log(`Webhook Err: ${e.message}`));
+  try {
+    const body = req.body || (req.rawBody ? JSON.parse(req.rawBody.toString()) : {});
+    handle(body).catch(e => log(`Webhook Err: ${e.message}`));
+  } catch (e) {
+    log(`Webhook Parse Err: ${e.message}`);
+  }
   res.sendStatus(200);
 });
 

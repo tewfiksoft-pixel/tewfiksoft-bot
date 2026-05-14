@@ -148,6 +148,13 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `🟢 <b>أرسل وقت الدخول الآن</b>\nمثال: <code>08:15</code>` 
         : `🟢 <b>Envoyez l'heure d'entrée</b>\nExemple: <code>08:15</code>`);
     }
+}
+
+// --- 🌐 WEBHOOK ENDPOINT ---
+app.post('/api/telegram-webhook', (req, res) => {
+  handle(req.body).catch(e => log(`Webhook Err: ${e.message}`));
+  res.sendStatus(200);
+});
 
     if (d === 'cheque_step') {
       states.set(chatId, { step: 'cheque_amount' });
@@ -1544,33 +1551,17 @@ if (isMain) {
     
       bootstrapFromCloud();
     
-      // ─── Sequential Long Polling ───
-      let offset = 0;
-      const poll = async () => {
-        try {
-          const res = await tg('getUpdates', { offset, timeout: 30 });
-          if (res.ok && res.result && res.result.length > 0) {
-            for (const u of res.result) {
-              handle(u).catch(e => log(`Handle Err: ${e.message}`));
-              offset = Math.max(offset, u.update_id + 1);
-            }
-          } else if (!res.ok && res.error_code === 409) {
-            log(`[CRITICAL] CONFLICT: Another bot is running on a DIFFERENT computer! Emails might fail.`);
-            // Try to wait a bit longer to not spam the API
-            await new Promise(r => setTimeout(r, 2000));
-          }
-        } catch (e) {
-          if (!e.message.includes('timeout')) {
-             if (e.message.includes('409')) {
-                log(`[CRITICAL] CONFLICT: Another bot instance is active elsewhere!`);
-             } else {
-                log(`Polling Err: ${e.message}`);
-             }
-          }
-        }
-        setTimeout(poll, 200); 
-      };
+      bootstrapFromCloud();
     
-      poll();
+      // ─── 🌐 WEBHOOK MODE ───
+      const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://tewfiksoft-hr-bot.onrender.com';
+      const webhookUrl = `${RENDER_URL}/api/telegram-webhook`;
+      
+      tg('setWebhook', { url: webhookUrl })
+        .then(res => log(`Webhook set to: ${webhookUrl} | Success: ${res.ok}`))
+        .catch(e => log(`Webhook Set Error: ${e.message}`));
+      
+      // Polling is DISABLED when webhook is active
+      // poll(); 
   });
 }

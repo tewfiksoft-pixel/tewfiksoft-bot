@@ -1228,12 +1228,11 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, summary, kbd);
     }
 
+    if (st.step === 'survey_detail') {
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName} \n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم إرسال البلاغ!</b>\n📊 ${st.reasonName}\n✍️ ${txt}` : `✅ <b>Rapport envoyé!</b>\n📊 ${st.reasonName}\n✍️ ${txt}`));
     }
-    
-    // Safety return to prevent fall-through to global search
     return;
   } else if (txt && !txt.startsWith('/')) {
     const role = String(userData.role).toLowerCase();

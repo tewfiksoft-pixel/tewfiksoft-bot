@@ -31,8 +31,11 @@ export async function sendEmail(to, subject, text, attachments = []) {
       }
     });
 
+    const fromName = "TewfikSoft HR";
+    const fromEmail = s.smtp_user || "tewfiksoft@gmail.com";
+
     const info = await transporter.sendMail({
-      from: `"TewfikSoft HR" <tewfiksoft@gmail.com>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       text,

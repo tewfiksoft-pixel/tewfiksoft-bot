@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
@@ -885,6 +886,15 @@ Pour garantir une fin de relation de travail légale et fluide :
     return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
   }
 
+  if (txtLow === '/test_email') {
+    const role = String(userData.role).toLowerCase();
+    if (role !== 'admin' && role !== 'manager') return;
+    
+    await send(chatId, '📧 <b>جاري إرسال بريد تجريبي...</b>');
+    const success = await sendEmail(userData.email || 'tewfik.nouar@alver.dz', 'Test Bot Email', 'Ceci est un test de la configuration SMTP Cloud.');
+    return send(chatId, success ? '✅ تم إرسال البريد التجريبي بنجاح!' : '❌ فشل إرسال البريد. تحقق من الإعدادات.');
+  }
+
   if (txtLow === '/me' || txtLow === '/id') {
     const isAdminRole = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'manager';
     const db = isAdminRole ? loadDB() : null;
@@ -1421,9 +1431,7 @@ app.get('/api/db-version', (req, res) => {
 });
 
 export async function generateAndSendExitAuth(req, cfg) {
-  const tempDir = path.join(__dirname, 'temp');
-  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-  
+  const tempDir = os.tmpdir();
   const pdfPath = path.join(tempDir, `exit_${req.id}.pdf`);
   await generateExitAuthPDF(req, pdfPath);
 

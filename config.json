@@ -10,7 +10,8 @@
       "allowed_company": null,
       "allowed_employees": [],
       "clockingId": null,
-      "phone": null
+      "phone": null,
+      "email": "tewfik.nouar@alver.dz"
     },
     {
       "id": "8451362669",
@@ -50,7 +51,8 @@
         "70041"
       ],
       "clockingId": "70041",
-      "phone": null
+      "phone": null,
+      "email": "tewfik.nouar@alver.dz"
     }
   ],
   "is_enabled": true,
@@ -81,6 +83,6 @@
     "smtp_port": 587,
     "smtp_user": "ab23a7001@smtp-brevo.com",
     "smtp_pass": "K0QcwMtUqzhSgX75",
-    "hr_notification_email": "tewfik.nouar@alver.dz, email2@example.com, email3@example.com"
+    "hr_notification_email": "tewfik.nouar@alver.dz"
   }
 }

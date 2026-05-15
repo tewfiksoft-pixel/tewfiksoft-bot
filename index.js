@@ -7,12 +7,12 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
-import { generateExitAuthPDF } from './utils/pdf.js';
+import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF } from './utils/pdf.js';
 import { sendEmail } from './utils/email.js';
 import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
 import { convertAmountToWords } from './utils/cheque.js';
-import { DOC_TYPES, DOSSIER_REASONS } from './utils/constants.js';
+import { DOC_TYPES, DOSSIER_REASONS, WILAYAS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -431,6 +431,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '💼 تصريح خروج (مهمة عمل)' : '💼 Sortie (Raison de Service)', callback_data: 'exittype_pre:Service' }],
         [{ text: ar ? '👤 تصريح خروج (شخصي)' : '👤 Sortie (Personnelle)', callback_data: 'exittype_pre:Personnel' }],
         [{ text: ar ? '📥 تصريح دخول إلى الشركة' : '📥 Demande d\'Entrée', callback_data: 'entry_type_pre' }],
+        [{ text: ar ? '📝 أمر بمهمة (Ordre de Mission)' : '📝 Ordre de Mission', callback_data: 'om_start' }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       return send(chatId, ar 
@@ -450,6 +451,197 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `🔍 <b>البحث عن الموظف (2/5)</b>\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b>:` 
         : `🔍 <b>RECHERCHE EMPLOYÉ (2/5)</b>\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> :`);
+    }
+
+    if (d === 'entry_type_pre') {
+      const st = states.get(chatId);
+      if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
+      st.data.type = 'Entry';
+      st.step = 'entry_search';
+      states.set(chatId, st);
+      saveStates();
+      log(`[Entry] Step: Search Employee (2/5) for ${chatId}`);
+      return send(chatId, ar 
+        ? `🔍 <b>البحث عن الموظف للدخول (2/5)</b>\nيرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b>:` 
+        : `🔍 <b>RECHERCHE EMPLOYÉ ENTRÉE (2/5)</b>\nVeuillez envoyer le <b>Nom</b> ou <b>Matricule</b> :`);
+    }
+
+    if (d === 'om_start') {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin' && role !== 'manager' && role !== 'gestionnaire_rh') {
+         return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للإدارة فقط.</b>' : '❌ <b>Accès réservé à l\'administration.</b>');
+      }
+      states.set(chatId, { step: 'om_search', data: { managerId: fromId, managerName: userData.name, destinations: [] } });
+      saveStates();
+      return send(chatId, ar ? '🔍 <b>أمر بمهمة:</b> يرجى إرسال <b>اسم الموظف</b> أو <b>رقمه</b> :' : '🔍 <b>Ordre de Mission:</b> Entrez <b>Nom</b> ou <b>ID</b> :');
+    }
+
+    if (d.startsWith('om_sel:')) {
+      const empId = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.empId = empId;
+      st.step = 'om_motifs';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar ? '📝 <b>أرسل سبب المهمة (Motifs) :</b>' : '📝 <b>Entrez les motifs de la mission :</b>');
+    }
+
+    if (d.startsWith('om_dest:')) {
+      const parts = d.split(':');
+      const action = parts[1]; // toggle, page, done
+      const st = states.get(chatId);
+      if (!st) return;
+
+      if (action === 'toggle') {
+        const val = parts[2];
+        if (st.data.destinations.includes(val)) {
+          st.data.destinations = st.data.destinations.filter(x => x !== val);
+        } else {
+          st.data.destinations.push(val);
+        }
+      }
+
+      let page = parseInt(parts[3] || '0', 10);
+      if (action === 'page') page = parseInt(parts[2], 10);
+      
+      if (action === 'done') {
+        if (st.data.destinations.length === 0) {
+          return send(chatId, ar ? '⚠️ يرجى اختيار ولاية واحدة على الأقل.' : '⚠️ Sélectionnez au moins une wilaya.');
+        }
+        st.step = 'om_date_start';
+        states.set(chatId, st);
+        saveStates();
+        return send(chatId, ar ? '📅 <b>تاريخ الذهاب (مثال: 2026/05/20) :</b>' : '📅 <b>Date de départ (Ex: 2026/05/20) :</b>');
+      }
+
+      // Show Wilayas Grid
+      const pageSize = 10;
+      const start = page * pageSize;
+      const end = start + pageSize;
+      const totalPages = Math.ceil(WILAYAS.length / pageSize);
+      
+      const rows = [];
+      for (let i = start; i < end && i < WILAYAS.length; i += 2) {
+        const row = [];
+        [WILAYAS[i], WILAYAS[i+1]].forEach(w => {
+          if (w) {
+            const isSel = st.data.destinations.includes(w);
+            row.push({ text: (isSel ? '✅ ' : '') + w, callback_data: `om_dest:toggle:${w}:${page}` });
+          }
+        });
+        rows.push(row);
+      }
+
+      const navRow = [];
+      if (page > 0) navRow.push({ text: '⬅️ السابق', callback_data: `om_dest:page:${page - 1}` });
+      navRow.push({ text: `📄 ${page + 1}/${totalPages}`, callback_data: 'none' });
+      if (end < WILAYAS.length) navRow.push({ text: 'التالي ➡️', callback_data: `om_dest:page:${page + 1}` });
+      rows.push(navRow);
+      rows.push([{ text: ar ? '🏁 تأكيد الوجهات' : '🏁 Confirmer les Destinations', callback_data: 'om_dest:done' }]);
+
+      const msg = ar 
+        ? `📍 <b>اختر وجهات المهمة (يمكنك اختيار عدة ولايات):</b>\n━━━━━━━━━━━━━━\nالوجهات المختارة: ${st.data.destinations.join(', ') || '—'}`
+        : `📍 <b>Choisissez les destinations (Multi-sélection):</b>\n━━━━━━━━━━━━━━\nSélection: ${st.data.destinations.join(', ') || '—'}`;
+      
+      return send(chatId, msg, { inline_keyboard: rows });
+    }
+
+    if (d === 'om_final_send') {
+      const st = states.get(chatId);
+      if (!st || st.processing) return;
+      st.processing = true; states.set(chatId, st);
+      
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr}` : 'Unknown';
+      const reqId = crypto.randomBytes(4).toString('hex');
+      
+      const request = {
+        id: reqId,
+        type: 'ordre_mission',
+        empId: st.empId,
+        empName,
+        companyId: emp?.companyId || 'alver',
+        managerId: st.data.managerId,
+        managerName: st.data.managerName,
+        reason: st.data.reason,
+        destinations: st.data.destinations,
+        startDate: st.data.startDate,
+        endDate: st.data.endDate,
+        transport: st.data.transport,
+        status: 'pending_gm',
+        createdAt: new Date().toISOString()
+      };
+      
+      if (!db.bot_requests) db.bot_requests = [];
+      db.bot_requests.push(request);
+      saveDB(db);
+
+      const msg = ar 
+        ? `📝 <b>طلب "أمر بمهمة" جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📍 الوجهات: ${st.data.destinations.join(', ')}\n📅 الفترة: من ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n👤 الطالب: ${st.data.managerName}`
+        : `📝 <b>DEMANDE D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(', ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ موافقة المدير العام' : '✅ Approuver par DG', callback_data: `om_gm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `om_gm_rej:${reqId}` }]
+      ]};
+
+      // Notify General Manager and Admins
+      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
+      states.delete(chatId);
+      return send(chatId, ar ? `✅ تم إرسال طلب المهمة للمدير العام للموافقة.` : `✅ Demande envoyée au Directeur Général.`);
+    }
+
+    if (d.startsWith('om_gm_app:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_gm') return;
+      
+      req.status = 'completed';
+      req.gmApprovedBy = userData.name;
+      req.gmApprovedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msg = ar 
+        ? `✅ <b>تم اعتماد "أمر بمهمة"</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📍 الوجهات: ${req.destinations.join(', ')}\n📅 الفترة: ${req.startDate} - ${req.endDate}\n✅ اعتمدها المدير العام: ${userData.name}`
+        : `✅ <b>ORDRE DE MISSION APPROUVÉ</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📍 Destinations: ${req.destinations.join(', ')}\n📅 Période: ${req.startDate} - ${req.endDate}\n✅ Approuvé par DG: ${userData.name}`;
+      
+      await notifyStaff(msg, cfg, send);
+
+      // Generate and Send PDF
+      try {
+        await generateAndSendMissionAuth(req, cfg);
+        log(`[OM] PDF generated and sent for ${req.empName}`);
+      } catch (e) { log(`[OM-Error] PDF failed: ${e.message}`); }
+
+      return send(chatId, ar ? `✅ تم اعتماد المهمة بنجاح وإرسال الملف للبريد.` : `✅ Mission approuvée et PDF envoyé.`);
+    }
+
+    if (d.startsWith('om_gm_rej:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_gm') return;
+      
+      req.status = 'rejected_gm';
+      req.gmRejectedBy = userData.name;
+      saveDB(db);
+
+      const msg = ar ? `❌ تم رفض طلب المهمة لـ <b>${req.empName}</b> من طرف المدير العام.` : `❌ Ordre de mission rejeté par le DG pour <b>${req.empName}</b>.`;
+      if (req.managerId) await send(req.managerId, msg);
+      return send(chatId, ar ? `✅ تم تسجيل الرفض.` : `✅ Rejet enregistré.`);
+    }
+
+    if (d.startsWith('om_trans:')) {
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.transport = d.split(':')[1];
+      st.step = 'om_confirm';
+      states.set(chatId, st); saveStates();
+      const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
+      const summary = ar 
+        ? `📋 <b>ملخص أمر بمهمة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${emp?.lastName_fr} ${emp?.firstName_fr}</b>\n📍 الوجهات: ${st.data.destinations.join(', ')}\n📅 الفترة: ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n🚗 النقل: ${st.data.transport}`
+        : `📋 <b>RÉSUMÉ MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${emp?.lastName_fr} ${emp?.firstName_fr}</b>\n📍 Destinations: ${st.data.destinations.join(', ')}\n📅 Période: ${st.data.startDate} - ${st.data.endDate}\n✍️ Motif: ${st.data.reason}\n🚗 Transport: ${st.data.transport}`;
+      const kbd = { inline_keyboard: [[{ text: ar ? '✅ تأكيد وإرسال للمدير العام' : '✅ Confirmer & Envoyer au DG', callback_data: 'om_final_send' }, { text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]]};
+      return send(chatId, summary, kbd);
     }
 
     if (d.startsWith('exit_sel:')) {
@@ -547,6 +739,24 @@ Pour garantir une fin de relation de travail légale et fluide :
       for (const g of guards) { if (g.id) await send(g.id, msg, kbd); }
       
       return send(chatId, ar ? `✅ تم تحويل الطلب لمركز الحراسة.` : `✅ Demande transmise au Poste de Garde.`);
+    }
+
+    if (d.startsWith('exit_adm_rej:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_admin') return;
+      
+      req.status = 'rejected';
+      req.rejectedBy = userData.name;
+      req.rejectedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msg = ar 
+        ? `❌ <b>تم رفض طلب تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n🚫 الرفض من طرف: ${userData.name}`
+        : `❌ <b>DEMANDE DE SORTIE REJETÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n🚫 Rejeté par: ${userData.name}`;
+      
+      if (req.managerId) await send(req.managerId, msg);
+      return send(chatId, ar ? `✅ تم رفض الطلب وإبلاغ المسؤول.` : `✅ Demande rejetée et responsable notifié.`);
     }
 
     if (d.startsWith('exit_guard_conf:')) {
@@ -665,6 +875,24 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar ? `✅ تم إرسال الموافقة لمركز الحراسة.` : `✅ Approbation transmise au Poste de Garde.`);
     }
 
+    if (d.startsWith('entry_adm_rej:')) {
+      const reqId = d.split(':')[1];
+      const req = db.bot_requests?.find(r => r.id === reqId);
+      if (!req || req.status !== 'pending_admin_entry') return;
+      
+      req.status = 'rejected_entry';
+      req.rejectedBy = userData.name;
+      req.rejectedAt = new Date().toISOString();
+      saveDB(db);
+
+      const msg = ar 
+        ? `❌ <b>تم رفض طلب تصريح الدخول</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n🚫 الرفض من طرف: ${userData.name}`
+        : `❌ <b>DEMANDE D'ENTRÉE REJETÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n🚫 Rejeté par: ${userData.name}`;
+      
+      if (req.managerId) await send(req.managerId, msg);
+      return send(chatId, ar ? `✅ تم رفض الطلب وإبلاغ المسؤول.` : `✅ Demande rejetée et responsable notifié.`);
+    }
+
     if (d.startsWith('entry_guard_conf:')) {
       const reqId = d.split(':')[1];
       const req = db.bot_requests?.find(r => r.id === reqId);
@@ -681,9 +909,10 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       await notifyStaff(msgFinal, cfg, send);
       
-      // Send Email Notification
-      const subject = `📥 Confirmation d'Entrée - ${req.empName}`;
-      await sendEmail(cfg.hr_notification_email || 'tewfik.nouar@alver.dz', subject, msgFinal.replace(/<[^>]*>/g, ''));
+      try {
+        await generateAndSendEntryAuth(req, cfg);
+        log(`[Entry] Entry confirmed for ${req.empName}. PDF/Email sent.`);
+      } catch (e) { log(`[Entry-Error] PDF/Email failed: ${e.message}`); }
 
       return send(chatId, ar ? `✅ تم تأكيد الدخول وإشعار الإدارة.` : `✅ Entrée confirmée et direction notifiée.`);
     }
@@ -1296,7 +1525,49 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, summary, kbd);
     }
 
-    if (st.step === 'entry_search') {
+    }
+
+    // --- 📝 Ordre de Mission Steps ---
+    if (st.step === 'om_search') {
+      const q = txtLow.trim();
+      const results = (db.hr_employees || []).filter(e => {
+        const cid = String(e.clockingId || '').toLowerCase().trim();
+        const lnf = String(e.lastName_fr || '').toLowerCase();
+        const fnf = String(e.firstName_fr || '').toLowerCase();
+        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+      }).slice(0, 5);
+
+      if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
+      const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `om_sel:${e.id}` }]) };
+      kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
+      return send(chatId, ar ? `🔍 اختر الموظف للمهمة:` : `🔍 Sélectionnez l'employé pour la mission :`, kbd);
+    }
+
+    if (st.step === 'om_motifs') {
+      st.data.reason = txt;
+      st.step = 'om_dest_select';
+      states.set(chatId, st); saveStates();
+      return handle({ callback_query: { from: { id: fromId }, message: { chat: { id: chatId } }, data: 'om_dest:page:0' } });
+    }
+
+    if (st.step === 'om_date_start') {
+      st.data.startDate = txt;
+      st.step = 'om_date_end';
+      states.set(chatId, st); saveStates();
+      return send(chatId, ar ? '📅 <b>تاريخ العودة (مثال: 2026/05/22) :</b>' : '📅 <b>Date de retour (Ex: 2026/05/22) :</b>');
+    }
+
+    if (st.step === 'om_date_end') {
+      st.data.endDate = txt;
+      st.step = 'om_transport';
+      states.set(chatId, st); saveStates();
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🚗 سيارة المصلحة' : '🚗 Véhicule de service', callback_data: 'om_trans:Service' }],
+        [{ text: ar ? '👤 سيارة خاصة' : '👤 Véhicule personnel', callback_data: 'om_trans:Personnel' }],
+        [{ text: ar ? '🚌 حافلة / أخرى' : '🚌 Bus / Autre', callback_data: 'om_trans:Autre' }]
+      ]};
+      return send(chatId, ar ? '🚗 <b>وسيلة النقل :</b>' : '🚗 <b>Moyen de transport :</b>', kbd);
+    }
       const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
         const cid = String(e.clockingId || '').toLowerCase().trim();
@@ -1656,6 +1927,116 @@ Cordialement / مع خالص التقدير،
     }
   } else {
     log(`[Exit-Warn] No recipients found for ${req.empName}`);
+  }
+}
+
+export async function generateAndSendEntryAuth(req, cfg) {
+  const tempDir = os.tmpdir();
+  const pdfPath = path.join(tempDir, `entry_${req.id}.pdf`);
+  await generateEntryAuthPDF(req, pdfPath);
+
+  const subject = `📥 Confirmation d'Entrée / تأكيد دخول - ${req.empName}`;
+  const body = `
+🌟 Bonjour / السلام عليكم,
+
+Nous vous informons qu'une nouvelle confirmation d'entrée a été générée via le système TewfikSoft HR.
+نحيطكم علماً بأنه قد تم تأكيد دخول الموظف بنجاح عبر نظام توفيق سوفت للموارد البشرية.
+
+👤 Employé(e) / الموظف(ة): ${req.empName}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 Détails de l'entrée / تفاصيل الدخول:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Motif / السبب: ${req.reason}
+⏰ Heure / الوقت: ${req.entryTime}
+✍️ Approuvé par / وافق عليه: ${req.adminApprovedBy || 'Admin'}
+👮 Confirmé par / أكده: ${req.guardConfirmedBy || 'Garde'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Veuillez trouver le document officiel en pièce jointe (PDF).
+يرجى الاطلاع على الوثيقة الرسمية المرفقة (PDF).
+
+Cordialement / مع خالص التقدير،
+🤖 Système TewfikSoft HR Automatisé
+نظام توفيق سوفت للموارد البشرية المؤتمت
+  `;
+
+  const recipients = [];
+  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  if (hrEmails.length > 0) recipients.push(...hrEmails);
+
+  const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
+  if (manager?.email) recipients.push(manager.email);
+
+  const admin = cfg.authorized_users?.find(u => u.name === req.adminApprovedBy);
+  if (admin?.email) recipients.push(admin.email);
+
+  const finalRecipients = [...new Set(recipients.filter(Boolean))];
+  
+  if (finalRecipients.length > 0) {
+    const success = await sendEmail(finalRecipients.join(','), subject, body, [
+      { filename: `Confirmation_Entree_${req.id}.pdf`, path: pdfPath }
+    ]);
+    if (success) {
+      log(`[Entry] Email sent successfully to ${finalRecipients.join(', ')}`);
+      try { fs.unlinkSync(pdfPath); } catch (e) {}
+    }
+  } else {
+    log(`[Entry-Warn] No recipients found for ${req.empName}`);
+  }
+}
+
+  } else {
+    log(`[Entry-Warn] No recipients found for ${req.empName}`);
+  }
+}
+
+export async function generateAndSendMissionAuth(req, cfg) {
+  const tempDir = os.tmpdir();
+  const pdfPath = path.join(tempDir, `mission_${req.id}.pdf`);
+  const db = loadDB();
+  const emp = db.hr_employees?.find(e => String(e.id) === req.empId);
+  
+  await generateMissionPDF({ ...req, emp }, pdfPath);
+
+  const subject = `📝 Ordre de Mission / أمر بمهمة - ${req.empName}`;
+  const body = `
+🌟 Bonjour / السلام عليكم,
+
+Nous vous informons qu'un nouvel ordre de mission a été généré et approuvé via le système TewfikSoft HR.
+نحيطكم علماً بأنه قد تم إصدار واعتماد أمر بمهمة جديد بنجاح عبر نظام توفيق سوفت للموارد البشرية.
+
+👤 Employé(e) / الموظف(ة): ${req.empName}
+📍 Destinations / الوجهات: ${req.destinations.join(', ')}
+📅 Période / الفترة: du ${req.startDate} au ${req.endDate}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Veuillez trouver le document officiel en pièce jointe (PDF).
+يرجى الاطلاع على الوثيقة الرسمية المرفقة (PDF).
+
+Cordialement / مع خالص التقدير،
+🤖 Système TewfikSoft HR Automatisé
+نظام توفيق سوفت للموارد البشرية المؤتمت
+  `;
+
+  const recipients = [];
+  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  if (hrEmails.length > 0) recipients.push(...hrEmails);
+
+  const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
+  if (manager?.email) recipients.push(manager.email);
+
+  const finalRecipients = [...new Set(recipients.filter(Boolean))];
+  
+  if (finalRecipients.length > 0) {
+    const success = await sendEmail(finalRecipients.join(','), subject, body, [
+      { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }
+    ]);
+    if (success) {
+      log(`[OM] Email sent successfully to ${finalRecipients.join(', ')}`);
+      try { fs.unlinkSync(pdfPath); } catch (e) {}
+    }
+  } else {
+    log(`[OM-Warn] No recipients found for ${req.empName}`);
   }
 }
 

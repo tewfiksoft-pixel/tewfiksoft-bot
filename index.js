@@ -1525,8 +1525,6 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, summary, kbd);
     }
 
-    }
-
     // --- 📝 Ordre de Mission Steps ---
     if (st.step === 'om_search') {
       const q = txtLow.trim();

@@ -1566,6 +1566,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       ]};
       return send(chatId, ar ? '🚗 <b>وسيلة النقل :</b>' : '🚗 <b>Moyen de transport :</b>', kbd);
     }
+    if (st.step === 'entry_search') {
       const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
         const cid = String(e.clockingId || '').toLowerCase().trim();
@@ -1978,11 +1979,6 @@ Cordialement / مع خالص التقدير،
       log(`[Entry] Email sent successfully to ${finalRecipients.join(', ')}`);
       try { fs.unlinkSync(pdfPath); } catch (e) {}
     }
-  } else {
-    log(`[Entry-Warn] No recipients found for ${req.empName}`);
-  }
-}
-
   } else {
     log(`[Entry-Warn] No recipients found for ${req.empName}`);
   }

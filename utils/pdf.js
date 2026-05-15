@@ -211,94 +211,89 @@ export async function generateMissionPDF(data, outputPath) {
       const fontBold = 'Helvetica-Bold';
       const fontNormal = 'Helvetica';
 
-      // --- Header Box ---
-      doc.rect(40, 40, 515, 80).strokeColor('#000').lineWidth(1.5).stroke();
-      doc.moveTo(140, 40).lineTo(140, 120).stroke();
-      doc.moveTo(430, 40).lineTo(430, 120).stroke();
+      // --- Header Box (Three compartments) ---
+      doc.rect(40, 40, 515, 80).strokeColor('#000').lineWidth(1).stroke();
+      doc.moveTo(145, 40).lineTo(145, 120).stroke();
+      doc.moveTo(425, 40).lineTo(425, 120).stroke();
 
-      // Company Info (Left)
-      const company = String(data.companyId).toLowerCase() === 'vt' ? 'VERRE TECH / FARTAK' : 'ALVER Spa';
-      doc.font(fontBold).fontSize(14).fillColor('#2d5a27').text(company, 45, 60, { width: 90, align: 'center' });
+      // Left Compartment: Company Branding
+      const isFartak = String(data.companyId).toLowerCase() === 'vt';
+      if (isFartak) {
+        doc.font(fontBold).fontSize(14).fillColor('#c0392b').text('VERRE TECH', 45, 65, { width: 95, align: 'center' });
+        doc.fontSize(10).fillColor('#2c3e50').text('FARTAK', 45, 85, { width: 95, align: 'center' });
+      } else {
+        // ALVER Style
+        doc.font(fontBold).fontSize(16).fillColor('#1b5e20').text('ALVER', 45, 65, { width: 95, align: 'center' });
+        doc.fontSize(8).fillColor('#333').text('Spa', 105, 65);
+      }
       
-      // Title (Center)
-      doc.font(fontBold).fontSize(22).fillColor('#4b0082').text('ORDRE DE MISSION', 145, 70, { width: 280, align: 'center' });
+      // Center Compartment: Title
+      doc.font(fontBold).fontSize(20).fillColor('#1a237e').text('ORDRE DE MISSION', 150, 75, { width: 270, align: 'center' });
 
-      // Right Box (Logo or Ref)
-      doc.font(fontBold).fontSize(10).fillColor('#000').text(data.companyId === 'vt' ? 'FARTAK' : 'ALVER', 435, 60, { width: 115, align: 'center' });
-      doc.font(fontNormal).fontSize(8).text('N° ER.216.R0', 435, 80, { width: 115, align: 'center' });
+      // Right Compartment: Secondary Logo/Reference
+      doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
+      doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 85, { width: 115, align: 'center' });
 
       doc.moveDown(4);
 
-      // --- Form Fields ---
+      // --- Body Section ---
       const labelX = 50;
-      const valueX = 160;
-      const drawLine = (y) => doc.moveTo(valueX, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
+      const valueX = 180;
+      const drawField = (label, value, yOffset = 0, isBoldValue = false) => {
+        const y = doc.y + yOffset;
+        doc.font(fontBold).fontSize(11).fillColor('#000').text(label, labelX, y);
+        doc.font(isBoldValue ? fontBold : fontNormal).text(value || '—', valueX, y);
+        doc.moveTo(valueX, y + 12).lineTo(530, y + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
+        doc.moveDown(1.2);
+      };
 
-      doc.font(fontBold).fontSize(11).fillColor('#000');
+      const emp = data.emp || {};
       
       // Réf
-      doc.text('Réf :', labelX, doc.y);
-      doc.font(fontNormal).text(`......../DRH/${new Date().getFullYear()}`, valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Nom & Prénom
-      const emp = data.emp || {};
-      doc.font(fontBold).text('Nom :', labelX, doc.y);
-      doc.font(fontBold).text(String(emp.lastName_fr || '').toUpperCase(), valueX, doc.y - 11);
-      doc.font(fontBold).text('Prénom :', 350, doc.y - 11);
-      doc.font(fontBold).text(String(emp.firstName_fr || ''), 420, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Fonction
-      doc.font(fontBold).text('Fonction :', labelX, doc.y);
-      doc.font(fontNormal).text(String(emp.csp || 'Agent'), valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Structure
-      doc.font(fontBold).text('Structure :', labelX, doc.y);
-      doc.font(fontNormal).text(String(emp.department_fr || 'Direction Générale'), valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Motifs
-      doc.font(fontBold).text('Motifs de la Mission :', labelX, doc.y);
-      doc.font(fontNormal).text(data.reason, valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Destination
-      doc.font(fontBold).text('Destination :', labelX, doc.y);
-      doc.font(fontBold).text(data.destinations.join(', '), valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Date de départ
-      doc.font(fontBold).text('Date de départ :', labelX, doc.y);
-      doc.font(fontNormal).text(data.startDate, valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Date de retour
-      doc.font(fontBold).text('Date de retour :', labelX, doc.y);
-      doc.font(fontNormal).text(data.endDate, valueX, doc.y - 11);
-      drawLine(doc.y);
-      doc.moveDown(1.5);
-
-      // Moyen de Transport
-      doc.font(fontBold).text('Moyen de Transport :', labelX, doc.y);
-      doc.font(fontNormal).text(data.transport, valueX, doc.y - 11);
-      drawLine(doc.y);
+      drawField('Réf :', `......../DRH/${new Date().getFullYear()}`, 10);
       
+      // Nom & Prénom
+      const nameY = doc.y;
+      doc.font(fontBold).text('Nom :', labelX, nameY);
+      doc.font(fontBold).text(String(emp.lastName_fr || '').toUpperCase(), valueX, nameY);
+      doc.text('Prénom :', 350, nameY);
+      doc.text(String(emp.firstName_fr || ''), 420, nameY);
+      doc.moveTo(valueX, nameY + 12).lineTo(340, nameY + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
+      doc.moveTo(420, nameY + 12).lineTo(530, nameY + 12).stroke();
+      doc.moveDown(1.5);
+
+      drawField('Fonction :', String(emp.csp || 'Agent'));
+      drawField('Structure :', String(emp.department_fr || emp.direction_fr || 'Direction Générale'));
+      drawField('Motifs de la Mission :', data.reason);
+      drawField('Destination :', data.destinations.join(', '), 0, true);
+      drawField('Date de départ :', data.startDate);
+      drawField('Date de retour :', data.endDate);
+      drawField('Moyen de Transport :', data.transport);
+      
+      doc.moveDown(2);
+
+      // --- Date/Location ---
+      doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
+
+      // --- Signatures Section ---
       doc.moveDown(4);
+      const sigY = doc.y;
+      const sigWidth = 140;
+      
+      const drawSigBox = (x, label, signer) => {
+        doc.rect(x, sigY, sigWidth, 80).strokeColor('#ccc').lineWidth(0.5).stroke();
+        doc.rect(x, sigY, sigWidth, 15).fill('#eee');
+        doc.font(fontBold).fontSize(8).fillColor('#333').text(label, x, sigY + 4, { width: sigWidth, align: 'center' });
+        doc.font(fontBold).fontSize(9).fillColor('#1a237e').text(signer, x + 5, sigY + 50, { width: sigWidth - 10, align: 'center' });
+        doc.font(fontNormal).fontSize(6).fillColor('#999').text('Signature Électronique', x, sigY + 68, { width: sigWidth, align: 'center' });
+      };
+
+      drawSigBox(50, 'LE MANAGER', data.managerName);
+      drawSigBox(50 + sigWidth + 25, "L'ADMINISTRATION", data.adminApprovedBy || 'RH');
+      drawSigBox(50 + (sigWidth + 25) * 2, 'DIRECTEUR GÉNÉRAL', data.gmApprovedBy || 'DG');
 
       // --- Footer ---
-      doc.font(fontBold).fontSize(12).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 350, doc.y);
-
-      doc.moveDown(6);
-      doc.font(fontNormal).fontSize(8).fillColor('#999').text('Elle ne peut être diffusée en externe sans l’autorisation écrite du Directeur Général', 40, 780, { align: 'center', width: 515 });
+      doc.font(fontNormal).fontSize(8).fillColor('#999').text('Elle ne peut être diffusée en externe sans l’autorisation écrite du Directeur Général', 40, 790, { align: 'center', width: 515 });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));

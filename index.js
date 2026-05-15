@@ -97,7 +97,7 @@ export async function handle(u) {
   if (!roleObj) return;
 
   if (cbq) {
-    await answerCallbackQuery(cbq.id);
+    if (cbq.id) await answerCallbackQuery(cbq.id);
     const d = cbq.data;
 
     if (d.startsWith('lang:')) {
@@ -493,6 +493,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       const st = states.get(chatId);
       if (!st) return;
 
+      if (!st.data.destinations) st.data.destinations = [];
+
       if (action === 'toggle') {
         const val = parts[2];
         if (st.data.destinations.includes(val)) {
@@ -500,6 +502,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         } else {
           st.data.destinations.push(val);
         }
+      }
+
+      if (action === 'clear') {
+        st.data.destinations = [];
       }
 
       let page = parseInt(parts[3] || '0', 10);
@@ -516,7 +522,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
 
       // Show Wilayas Grid
-      const pageSize = 10;
+      const pageSize = 12;
       const start = page * pageSize;
       const end = start + pageSize;
       const totalPages = Math.ceil(WILAYAS.length / pageSize);
@@ -538,11 +544,15 @@ Pour garantir une fin de relation de travail légale et fluide :
       navRow.push({ text: `📄 ${page + 1}/${totalPages}`, callback_data: 'none' });
       if (end < WILAYAS.length) navRow.push({ text: 'التالي ➡️', callback_data: `om_dest:page:${page + 1}` });
       rows.push(navRow);
-      rows.push([{ text: ar ? '🏁 تأكيد الوجهات' : '🏁 Confirmer les Destinations', callback_data: 'om_dest:done' }]);
+      
+      rows.push([
+        { text: ar ? '🧹 مسح الكل' : '🧹 Effacer', callback_data: `om_dest:clear:0:${page}` },
+        { text: ar ? '🏁 تأكيد الوجهات' : '🏁 Confirmer', callback_data: 'om_dest:done' }
+      ]);
 
       const msg = ar 
-        ? `📍 <b>اختر وجهات المهمة (يمكنك اختيار عدة ولايات):</b>\n━━━━━━━━━━━━━━\nالوجهات المختارة: ${st.data.destinations.join(', ') || '—'}`
-        : `📍 <b>Choisissez les destinations (Multi-sélection):</b>\n━━━━━━━━━━━━━━\nSélection: ${st.data.destinations.join(', ') || '—'}`;
+        ? `📍 <b>اختر وجهات المهمة (يمكنك اختيار عدة ولايات):</b>\n━━━━━━━━━━━━━━\nالوجهات المختارة: ${st.data.destinations.join(', ') || '—'}\n\n💡 <i>اضغط على الولاية للاختيار، ثم اضغط "تأكيد" عند الانتهاء.</i>`
+        : `📍 <b>Choisissez les destinations (Multi-sélection):</b>\n━━━━━━━━━━━━━━\nSélection: ${st.data.destinations.join(', ') || '—'}\n\n💡 <i>Appuyez pour choisir, puis sur "Confirmer" une fois fini.</i>`;
       
       return send(chatId, msg, { inline_keyboard: rows });
     }
@@ -1223,10 +1233,14 @@ Pour garantir une fin de relation de travail légale et fluide :
 
 
   if (txtLow === '/start' || txtLow === '/m') {
-    if (userData.lang) {
-      return roleObj.showMenu(chatId, userData.lang === 'ar', getStatsMsg);
+    // Check saved language: 1st from persistent Map, 2nd from config, 3rd default to Arabic
+    const savedLang = langs.get(chatId) || userData?.lang || 'ar';
+    // Always sync the lang map to avoid losing it after Render restarts
+    if (!langs.has(chatId)) {
+      langs.set(chatId, savedLang);
+      saveLangs();
     }
-    return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { inline_keyboard: [[{ text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, { text: 'Français 🇫🇷', callback_data: 'lang:fr' }]] });
+    return roleObj.showMenu(chatId, savedLang === 'ar', getStatsMsg);
   }
 
   if (txtLow === '/test_email') {
@@ -1545,7 +1559,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.data.reason = txt;
       st.step = 'om_dest_select';
       states.set(chatId, st); saveStates();
-      return handle({ callback_query: { from: { id: fromId }, message: { chat: { id: chatId } }, data: 'om_dest:page:0' } });
+      // Directly call the destination selection logic instead of a fake callback
+      return handle({ callback_query: { from: { id: from.id }, message: { chat: { id: chatId } }, data: 'om_dest:page:0' } });
     }
 
     if (st.step === 'om_date_start') {

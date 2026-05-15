@@ -10,8 +10,7 @@
       "allowed_company": null,
       "allowed_employees": [],
       "clockingId": null,
-      "phone": null,
-      "email": "tewfik.nouar@alver.dz"
+      "phone": null
     },
     {
       "id": "8451362669",
@@ -51,8 +50,7 @@
         "70041"
       ],
       "clockingId": "70041",
-      "phone": null,
-      "email": "tewfik.nouar@alver.dz"
+      "phone": null
     },
     {
       "id": "123456789",
@@ -85,26 +83,19 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_hiring_date": true,
-    "show_contract_end": true,
-    "show_department": true,
-    "show_probation_end": true,
-    "show_contract_type": true,
     "show_job_title": true,
-    "show_photo": true,
+    "show_probation_end": true,
+    "show_contract_end": true,
     "show_phone": true,
-    "show_social_number": false
+    "show_department": true,
+    "show_photo": true,
+    "show_social_number": false,
+    "show_contract_type": true,
+    "show_hiring_date": true
   },
   "allowed_documents": {
     "work_contract": true,
     "leave_title": true,
     "salary_slip": true
-  },
-  "email_settings": {
-    "smtp_host": "smtp-relay.brevo.com",
-    "smtp_port": 587,
-    "smtp_user": "ab23a7001@smtp-brevo.com",
-    "smtp_pass": "K0QcwMtUqzhSgX75",
-    "hr_notification_email": "tewfik.nouar@alver.dz"
   }
 }

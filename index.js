@@ -450,8 +450,10 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('exittype_pre:')) {
       const type = d.split(':')[1];
-      const st = states.get(chatId);
-      if (!st) return send(chatId, ar ? '❌ انتهت الجلسة، يرجى البدء من جديد:' : '❌ Session expirée, veuillez recommencer:', { inline_keyboard: [[{ text: ar ? '🏠 القائمة' : '🏠 Menu', callback_data: 'menu' }]] });
+      let st = states.get(chatId);
+      if (!st) {
+         st = { step: 'auth_menu_sel', data: { managerId: fromId, managerName: userData.name } };
+      }
       st.data.type = type;
       st.step = 'exit_search';
       states.set(chatId, st);
@@ -487,8 +489,11 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('om_sel:')) {
       const empId = d.split(':')[1];
-      const st = states.get(chatId);
-      if (!st) return;
+      let st = states.get(chatId);
+      if (!st) {
+        // Try to recover state if possible
+        st = { step: 'om_search', data: { managerId: fromId, managerName: userData.name, destinations: [] } };
+      }
       st.empId = empId;
       st.step = 'om_motifs';
       states.set(chatId, st);
@@ -828,7 +833,16 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('entry_sel:')) {
       const parts = d.split(':');
       const empId = parts[2];
-      states.set(chatId, { step: 'entry_reason', empId, data: { type: 'Entry', managerId: fromId, managerName: userData.name } });
+      let st = states.get(chatId);
+      if (!st) {
+        st = { step: 'entry_reason', empId, data: { type: 'Entry', managerId: fromId, managerName: userData.name } };
+      } else {
+        st.step = 'entry_reason';
+        st.empId = empId;
+        if (!st.data) st.data = {};
+        st.data.type = 'Entry';
+      }
+      states.set(chatId, st);
       saveStates();
       return send(chatId, ar 
         ? `✍️ <b>سبب الدخول (3/5)</b>\nيرجى كتابة سبب دخول الموظف بالتفصيل (مثلاً: عمل إضافي):` 
@@ -842,12 +856,20 @@ Pour garantir une fin de relation de travail légale et fluide :
       
       const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : 'Unknown';
+      
+      let companyName = 'ALVER / TEWFIKSOFT';
+      if (emp && emp.companyId && db.hr_companies && db.hr_companies[emp.companyId]) {
+        const comp = db.hr_companies[emp.companyId];
+        companyName = comp.fr?.name || comp.name || companyName;
+      }
+
       const reqId = crypto.randomBytes(4).toString('hex');
       const request = {
         id: reqId,
         type: 'entry_auth',
         empId: st.empId,
         empName,
+        companyName,
         managerId: st.data.managerId,
         managerName: st.data.managerName,
         reason: st.data.reason,
@@ -1574,8 +1596,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.data.reason = txt;
       st.step = 'om_dest_select';
       states.set(chatId, st); saveStates();
-      // Directly call the destination selection logic instead of a fake callback
-      return handle({ callback_query: { from: { id: from.id }, message: { chat: { id: chatId } }, data: 'om_dest:page:0' } });
+      // Use callback_data trigger for destinations
+      return handle({ callback_query: { from: { id: fromId }, message: { chat: { id: chatId } }, data: 'om_dest:page:0' } });
     }
 
     if (st.step === 'om_date_start') {
@@ -2000,6 +2022,7 @@ Cordialement / مع خالص التقدير،
   if (admin?.email) recipients.push(admin.email);
 
   const finalRecipients = [...new Set(recipients.filter(Boolean))];
+  log(`[Entry] Dispatching email to: ${finalRecipients.join(', ') || 'NONE'}`);
   
   if (finalRecipients.length > 0) {
     const success = await sendEmail(finalRecipients.join(','), subject, body, [
@@ -2050,7 +2073,8 @@ Cordialement / مع خالص التقدير،
   if (manager?.email) recipients.push(manager.email);
 
   const finalRecipients = [...new Set(recipients.filter(Boolean))];
-  
+  log(`[Mission] Dispatching email to: ${finalRecipients.join(', ') || 'NONE'}`);
+
   if (finalRecipients.length > 0) {
     const success = await sendEmail(finalRecipients.join(','), subject, body, [
       { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }

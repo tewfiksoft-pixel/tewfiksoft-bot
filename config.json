@@ -5,6 +5,7 @@
       "id": "8626592284",
       "name": "NOUAR Tewfik (Admin)",
       "role": "admin",
+      "email": "tewfik.nouar@alver.dz",
       "scope": "custom_employees",
       "allowed_departments": null,
       "allowed_company": null,
@@ -97,5 +98,8 @@
     "work_contract": true,
     "leave_title": true,
     "salary_slip": true
+  },
+  "email_settings": {
+    "hr_notification_email": "tewfik.nouar@alver.dz"
   }
 }

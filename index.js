@@ -1813,10 +1813,7 @@ app.use((req, res, next) => {
   req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });
 });
 
-app.get('/', (req, res) => {
-  const db = loadDB();
-  res.status(200).send(`TewfikSoft HR Bot v8.9.3 | Server is running OK (Polling Mode) | ${db.hr_employees?.length || 0} employees loaded.`);
-});
+
 
 app.get('/api/debug-config', (req, res) => {
   try {

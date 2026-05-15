@@ -110,6 +110,15 @@ export async function handle(u) {
       return roleObj.showMenu(chatId, isAr, getStatsMsg);
     }
 
+    if (d === 'choose_lang') {
+      return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { 
+        inline_keyboard: [[
+          { text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, 
+          { text: 'Français 🇫🇷', callback_data: 'lang:fr' }
+        ]] 
+      });
+    }
+
     if (d === 'end_work_guide') {
       const guideAr = `📜 <b>دليل نهاية العمل (إجراءات المغادرة)</b>
 ━━━━━━━━━━━━━━
@@ -1233,14 +1242,20 @@ Pour garantir une fin de relation de travail légale et fluide :
 
 
   if (txtLow === '/start' || txtLow === '/m') {
-    // Check saved language: 1st from persistent Map, 2nd from config, 3rd default to Arabic
-    const savedLang = langs.get(chatId) || userData?.lang || 'ar';
-    // Always sync the lang map to avoid losing it after Render restarts
-    if (!langs.has(chatId)) {
-      langs.set(chatId, savedLang);
-      saveLangs();
+    // Check saved language: 1st from persistent Map, 2nd from config
+    const savedLang = langs.get(chatId) || userData?.lang;
+    
+    if (savedLang) {
+      return roleObj.showMenu(chatId, savedLang === 'ar', getStatsMsg);
     }
-    return roleObj.showMenu(chatId, savedLang === 'ar', getStatsMsg);
+
+    // If no language is found, show the selection keyboard
+    return send(chatId, '🌐 <b>الرجاء اختيار اللغة / Choisissez la langue</b>', { 
+      inline_keyboard: [[
+        { text: 'العربية 🇩🇿', callback_data: 'lang:ar' }, 
+        { text: 'Français 🇫🇷', callback_data: 'lang:fr' }
+      ]] 
+    });
   }
 
   if (txtLow === '/test_email') {

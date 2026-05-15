@@ -17,8 +17,8 @@ export async function sendEmail(to, subject, text, attachments = []) {
 
     const transporter = nodemailer.createTransport({
       host: host,
-      port: s.smtp_port || 587,
-      secure: (s.smtp_port === 465),
+      port: s.smtp_port || 465,
+      secure: true, // Port 465 usually requires secure: true
       auth: { user, pass },
       debug: true,
       logger: true,

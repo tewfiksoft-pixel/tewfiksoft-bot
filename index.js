@@ -2115,6 +2115,22 @@ Cordialement / مع خالص التقدير،
   }
 }
 
+// --- 🌐 WEB INTERFACE / STATUS ---
+app.get('/', (req, res) => {
+  const db = loadDB();
+  const count = db.hr_employees?.length || 0;
+  res.send(`
+    <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.1 ☁️</h1>
+      <p style="font-size: 1.2em;">Status: <span style="color: green; font-weight: bold;">ONLINE</span></p>
+      <p>Mode: <b>Webhook (Render-Optimized)</b></p>
+      <p>Database: <b>${count} Employees Loaded</b></p>
+      <hr style="width: 200px;">
+      <p style="color: #666;">© 2026 TewfikSoft Professional HR System</p>
+    </div>
+  `);
+});
+
 // --- 🌐 WEBHOOK ENDPOINT ---
 app.post('/api/telegram-webhook', (req, res) => {
   try {
@@ -2133,7 +2149,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v9.0.1 [SMTP-DEBUG] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v9.1 [SMTP-DEBUG] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

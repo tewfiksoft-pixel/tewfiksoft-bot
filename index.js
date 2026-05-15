@@ -606,28 +606,28 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `📝 <b>DEMANDE D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(', ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
       
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '✅ موافقة المدير العام' : '✅ Approuver par DG', callback_data: `om_gm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `om_gm_rej:${reqId}` }]
+        [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver par Admin', callback_data: `om_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `om_adm_rej:${reqId}` }]
       ]};
 
-      // Notify General Manager and Admins
-      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
+      // Notify Staff (Admins get buttons, others get text)
+      await notifyStaff(msg, cfg, (id, t, userKbd) => send(id, t, userKbd), kbd);
       states.delete(chatId);
-      return send(chatId, ar ? `✅ تم إرسال طلب المهمة للمدير العام للموافقة.` : `✅ Demande envoyée au Directeur Général.`);
+      return send(chatId, ar ? `✅ تم إرسال طلب المهمة للإدارة للموافقة.` : `✅ Demande envoyée à l'administration.`);
     }
 
-    if (d.startsWith('om_gm_app:')) {
+    if (d.startsWith('om_adm_app:')) {
       const reqId = d.split(':')[1];
       const req = db.bot_requests?.find(r => r.id === reqId);
       if (!req || req.status !== 'pending_gm') return;
       
       req.status = 'completed';
-      req.gmApprovedBy = userData.name;
-      req.gmApprovedAt = new Date().toISOString();
+      req.adminApprovedBy = userData.name;
+      req.adminApprovedAt = new Date().toISOString();
       saveDB(db);
 
       const msg = ar 
-        ? `✅ <b>تم اعتماد "أمر بمهمة"</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📍 الوجهات: ${req.destinations.join(', ')}\n📅 الفترة: ${req.startDate} - ${req.endDate}\n✅ اعتمدها المدير العام: ${userData.name}`
-        : `✅ <b>ORDRE DE MISSION APPROUVÉ</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📍 Destinations: ${req.destinations.join(', ')}\n📅 Période: ${req.startDate} - ${req.endDate}\n✅ Approuvé par DG: ${userData.name}`;
+        ? `✅ <b>تم اعتماد "أمر بمهمة"</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📍 الوجهات: ${req.destinations.join(', ')}\n📅 الفترة: ${req.startDate} - ${req.endDate}\n✅ اعتمدها: ${userData.name}`
+        : `✅ <b>ORDRE DE MISSION APPROUVÉ</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📍 Destinations: ${req.destinations.join(', ')}\n📅 Période: ${req.startDate} - ${req.endDate}\n✅ Approuvé par: ${userData.name}`;
       
       await notifyStaff(msg, cfg, send);
 
@@ -635,21 +635,24 @@ Pour garantir une fin de relation de travail légale et fluide :
       try {
         await generateAndSendMissionAuth(req, cfg);
         log(`[OM] PDF generated and sent for ${req.empName}`);
-      } catch (e) { log(`[OM-Error] PDF failed: ${e.message}`); }
+      } catch (e) { 
+        log(`[OM-Error] PDF failed: ${e.message}`);
+        await send(chatId, `❌ Error sending email: ${e.message}`);
+      }
 
       return send(chatId, ar ? `✅ تم اعتماد المهمة بنجاح وإرسال الملف للبريد.` : `✅ Mission approuvée et PDF envoyé.`);
     }
 
-    if (d.startsWith('om_gm_rej:')) {
+    if (d.startsWith('om_adm_rej:')) {
       const reqId = d.split(':')[1];
       const req = db.bot_requests?.find(r => r.id === reqId);
       if (!req || req.status !== 'pending_gm') return;
       
-      req.status = 'rejected_gm';
-      req.gmRejectedBy = userData.name;
+      req.status = 'rejected_adm';
+      req.adminRejectedBy = userData.name;
       saveDB(db);
 
-      const msg = ar ? `❌ تم رفض طلب المهمة لـ <b>${req.empName}</b> من طرف المدير العام.` : `❌ Ordre de mission rejeté par le DG pour <b>${req.empName}</b>.`;
+      const msg = ar ? `❌ تم رفض طلب المهمة لـ <b>${req.empName}</b> من طرف الإدارة.` : `❌ Ordre de mission rejeté par l'Admin pour <b>${req.empName}</b>.`;
       if (req.managerId) await send(req.managerId, msg);
       return send(chatId, ar ? `✅ تم تسجيل الرفض.` : `✅ Rejet enregistré.`);
     }
@@ -1262,6 +1265,30 @@ Pour garantir une fin de relation de travail légale et fluide :
     return;
   }
 
+
+  if (txtLow === '/get_logs') {
+    if (userData.role !== 'admin') return;
+    const logPath = path.join(ROOT_DIR, 'bot_debug.log');
+    if (!fs.existsSync(logPath)) return send(chatId, 'Log file not found.');
+    
+    // Send as document via direct fetch
+    const BOT_TOKEN = cfg.bot_token || process.env.BOT_TOKEN;
+    const fsData = fs.readFileSync(logPath);
+    const formData = new FormData();
+    formData.append('chat_id', String(chatId));
+    formData.append('document', new Blob([fsData]), 'bot_debug.log');
+    
+    try {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+        method: 'POST',
+        body: formData
+      });
+    } catch (e) {
+      log(`[Logs-Error] Failed to send logs: ${e.message}`);
+      await send(chatId, `❌ Error sending logs: ${e.message}`);
+    }
+    return;
+  }
 
   if (txtLow === '/start' || txtLow === '/m') {
     // Check saved language: 1st from persistent Map, 2nd from config

@@ -52,12 +52,24 @@ export const answerCallbackQuery = (callbackQueryId) => tg('answerCallbackQuery'
   callback_query_id: callbackQueryId 
 });
 
-export async function notifyStaff(txt, cfg, sendFn) {
-  const admins = cfg.authorized_users?.filter(u => u.role === 'admin' || u.role === 'general_manager') || [];
-  for (const a of admins) { if (a.id) await sendFn(a.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`); }
-  const rh = cfg.authorized_users?.filter(u => u.role === 'gestionnaire_rh') || [];
-  for (const r of rh) { if (r.id) await sendFn(r.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`); }
-  const ADMIN_ID = process.env.ADMIN_CHAT_ID;
-  if (ADMIN_ID && !admins.find(a => String(a.id) === String(ADMIN_ID))) await sendFn(ADMIN_ID, `🔔 <b>إشعار جديد:</b>\n${txt}`);
+export async function notifyStaff(txt, cfg, sendFn, kbd = null) {
+  const allStaff = cfg.authorized_users || [];
+  for (const u of allStaff) {
+    if (!u.id) continue;
+    try {
+      const isAdmin = (u.role === 'admin' || u.role === 'general_manager');
+      const isRH = (u.role === 'gestionnaire_rh');
+      
+      if (isAdmin) {
+        // Admins get the buttons if provided
+        await sendFn(u.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`, kbd);
+      } else if (isRH) {
+        // RH gets only the text notification
+        await sendFn(u.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`);
+      }
+    } catch (e) {
+      log(`[Notify-Error] Failed to notify user ${u.id}: ${e.message}`);
+    }
+  }
 }
 

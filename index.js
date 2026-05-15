@@ -1311,9 +1311,13 @@ Pour garantir une fin de relation de travail légale et fluide :
     const role = String(userData.role).toLowerCase();
     if (role !== 'admin' && role !== 'manager') return;
     
-    await send(chatId, '📧 <b>جاري إرسال بريد تجريبي...</b>');
-    const success = await sendEmail(userData.email || 'tewfik.nouar@alver.dz', 'Test Bot Email', 'Ceci est un test de la configuration SMTP Cloud.');
-    return send(chatId, success ? '✅ تم إرسال البريد التجريبي بنجاح!' : '❌ فشل إرسال البريد. تحقق من الإعدادات.');
+    await send(chatId, '📧 <b>جاري إرسال بريد تجريبي (Port 2525)...</b>');
+    try {
+      const success = await sendEmail(userData.email || 'tewfik.nouar@alver.dz', 'Test Bot Email', 'Ceci est un test de la configuration SMTP Cloud via Port 2525.');
+      return send(chatId, success ? '✅ تم إرسال البريد التجريبي بنجاح!' : '❌ فشل إرسال البريد. تأكد من إعدادات السيرفر.');
+    } catch (e) {
+      return send(chatId, `❌ خطأ تقني: ${e.message}`);
+    }
   }
 
   if (txtLow === '/me' || txtLow === '/id') {

@@ -842,6 +842,12 @@ Pour garantir une fin de relation de travail légale et fluide :
       // Ensure all admins/staff get the return notification
       await notifyStaff(msgReturn, cfg, send);
 
+      // --- SEND EMAIL NOTIFICATION FOR RETURN ---
+      try {
+        await generateAndSendReturnNotify(req, cfg);
+        log(`[Return] Email notification sent for request ${reqId}`);
+      } catch (e) { log(`[Return-Email-Err] ${e.message}`); }
+
       return send(chatId, ar ? `✅ تم تسجيل عودة الموظف بنجاح.` : `✅ Retour enregistré avec succès.`);
     }
 
@@ -1323,9 +1329,9 @@ Pour garantir une fin de relation de travail légale et fluide :
     const role = String(userData.role).toLowerCase();
     if (role !== 'admin' && role !== 'manager') return;
     
-    await send(chatId, '📧 <b>جاري إرسال بريد تجريبي (Port 2525)...</b>');
+    await send(chatId, '📧 <b>جاري إرسال بريد تجريبي (Port 465)...</b>');
     try {
-      const success = await sendEmail(userData.email || 'tewfik.nouar@alver.dz', 'Test Bot Email', 'Ceci est un test de la configuration SMTP Cloud via Port 2525.');
+      const success = await sendEmail(userData.email || 'tewfik.nouar@alver.dz', 'Test Bot Email', 'Ceci est un test de la configuration SMTP Cloud via Port 465.');
       return send(chatId, success ? '✅ تم إرسال البريد التجريبي بنجاح!' : '❌ فشل إرسال البريد. تأكد من إعدادات السيرفر.');
     } catch (e) {
       return send(chatId, `❌ خطأ تقني: ${e.message}`);
@@ -1758,6 +1764,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, summary, kbd);
     }
 
+
     if (st.step === 'survey_detail') {
       return send(chatId, isManager
         ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName} \n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
@@ -1969,6 +1976,23 @@ app.get('/api/db-version', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+async function dispatchEmails(recipients, subject, body, attachments = []) {
+  const finalRecipients = [...new Set(recipients.filter(Boolean))];
+  if (finalRecipients.length > 0) {
+    log(`[Email-Dispatch] Sending to ${finalRecipients.length} recipients: ${finalRecipients.join(', ')}`);
+    const success = await sendEmail(finalRecipients, subject, body, attachments);
+    if (!success) {
+      log(`[Email-Dispatch-Retry] Individual retry mode...`);
+      for (const recipient of finalRecipients) {
+        await sendEmail(recipient, subject, body, attachments);
+      }
+    }
+    return success;
+  }
+  log(`[Email-Warn] No recipients found for: ${subject}`);
+  return false;
+}
+
 export async function generateAndSendExitAuth(req, cfg) {
   const tempDir = os.tmpdir();
   const pdfPath = path.join(tempDir, `exit_${req.id}.pdf`);
@@ -2016,19 +2040,10 @@ Cordialement / مع خالص التقدير،
   if (admin?.email) recipients.push(admin.email);
 
   const finalRecipients = [...new Set(recipients.filter(Boolean))];
-  
-  if (finalRecipients.length > 0) {
-    const success = await sendEmail(finalRecipients.join(','), subject, body, [
-      { filename: `Autorisation_Sortie_${req.id}.pdf`, path: pdfPath }
-    ]);
-    if (success) {
-      log(`[Exit] Email sent successfully to ${finalRecipients.join(', ')}`);
-      // Cleanup temp file
-      try { fs.unlinkSync(pdfPath); } catch (e) {}
-    }
-  } else {
-    log(`[Exit-Warn] No recipients found for ${req.empName}`);
-  }
+  await dispatchEmails(recipients, subject, body, [
+    { filename: `Autorisation_Sortie_${req.id}.pdf`, path: pdfPath }
+  ]);
+  try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
 }
 
 export async function generateAndSendEntryAuth(req, cfg) {
@@ -2072,20 +2087,62 @@ Cordialement / مع خالص التقدير،
   const admin = cfg.authorized_users?.find(u => u.name === req.adminApprovedBy);
   if (admin?.email) recipients.push(admin.email);
 
-  const finalRecipients = [...new Set(recipients.filter(Boolean))];
-  log(`[Entry] Dispatching email to: ${finalRecipients.join(', ') || 'NONE'}`);
+  await dispatchEmails(recipients, subject, body, [
+    { filename: `Confirmation_Entree_${req.id}.pdf`, path: pdfPath }
+  ]);
   
-  if (finalRecipients.length > 0) {
-    const success = await sendEmail(finalRecipients.join(','), subject, body, [
-      { filename: `Confirmation_Entree_${req.id}.pdf`, path: pdfPath }
-    ]);
-    if (success) {
-      log(`[Entry] Email sent successfully to ${finalRecipients.join(', ')}`);
-      try { fs.unlinkSync(pdfPath); } catch (e) {}
-    }
-  } else {
-    log(`[Entry-Warn] No recipients found for ${req.empName}`);
+  try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
+}
+
+export async function generateAndSendReturnNotify(req, cfg) {
+  log(`[Return-Notify] Starting notification for ${req.empName} (ID: ${req.id})`);
+  const subject = `🏁 Retour Confirmé / تأكيد عودة - ${req.empName}`;
+  
+  let duration = req.actualDuration;
+  if (!duration && req.guardConfirmedAt && req.returnedAt) {
+    const start = new Date(req.guardConfirmedAt);
+    const end = new Date(req.returnedAt);
+    const diffMs = end - start;
+    const diffHrs = Math.floor(diffMs / 3600000);
+    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+    duration = `${diffHrs}h ${diffMins}m`;
   }
+
+  const body = `
+🌟 Bonjour / السلام عليكم,
+
+Nous vous informons que le retour de l'employé a été confirmé via le système TewfikSoft HR.
+نحيطكم علماً بأنه قد تم تأكيد عودة الموظف بنجاح عبر نظام توفيق سوفت للموارد البشرية.
+
+👤 Employé(e) / الموظف(ة): ${req.empName}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 Détails du retour / تفاصيل العودة:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Motif / السبب: ${req.reason || '—'}
+⏰ Heure de retour / وقت العودة: ${req.actualReturnTime || (req.returnedAt ? new Date(req.returnedAt).toLocaleString() : '—')}
+⏳ Durée totale / المدة الإجمالية: ${duration || '—'}
+✍️ Approuvé par / وافق عليه: ${req.adminApprovedBy || 'Admin'}
+👮 Confirmé par / أكده: ${req.guardConfirmedByReturn || req.returnConfirmedBy || 'Garde'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cordialement / مع خالص التقدير،
+🤖 Système TewfikSoft HR Automatisé
+نظام توفيق سوفت للموارد البشرية المؤتمت
+  `;
+
+  const recipients = [];
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz';
+  const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
+  if (hrEmails.length > 0) recipients.push(...hrEmails);
+
+  const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
+  if (manager?.email) recipients.push(manager.email);
+
+  const admin = cfg.authorized_users?.find(u => u.name === req.adminApprovedBy);
+  if (admin?.email) recipients.push(admin.email);
+
+  log(`[Return-Notify] Final recipients list: ${recipients.join(', ')}`);
+  await dispatchEmails(recipients, subject, body);
 }
 
 export async function generateAndSendMissionAuth(req, cfg) {
@@ -2125,25 +2182,11 @@ Cordialement / مع خالص التقدير،
   const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
   if (manager?.email) recipients.push(manager.email);
 
-  const finalRecipients = [...new Set(recipients.filter(Boolean))];
-  log(`[Mission] Dispatching individual emails to: ${finalRecipients.join(', ') || 'NONE'}`);
-
-  if (finalRecipients.length > 0) {
-    let sentCount = 0;
-    for (const recipient of finalRecipients) {
-      const success = await sendEmail(recipient, subject, body, [
-        { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }
-      ]);
-      if (success) sentCount++;
-    }
-    
-    if (sentCount > 0) {
-      log(`[OM] Email sent successfully to ${sentCount}/${finalRecipients.length} recipients`);
-      try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
-    }
-  } else {
-    log(`[OM-Warn] No recipients found for ${req.empName}`);
-  }
+  await dispatchEmails(recipients, subject, body, [
+    { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }
+  ]);
+  
+  try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
 }
 
 // --- 🌐 WEB INTERFACE / STATUS ---

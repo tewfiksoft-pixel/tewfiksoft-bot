@@ -7,6 +7,7 @@ import { log } from './database.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function sendEmail(to, subject, text, attachments = []) {
+  const recipients = Array.isArray(to) ? to.join(', ') : to;
   try {
     const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8'));
     const s = config.email_settings || {};
@@ -17,8 +18,8 @@ export async function sendEmail(to, subject, text, attachments = []) {
 
     const transporter = nodemailer.createTransport({
       host: host,
-      port: s.smtp_port || 2525, // Try 2525 as a last resort for cloud
-      secure: false, // 2525 usually doesn't use SSL immediately
+      port: s.smtp_port || 465, 
+      secure: s.smtp_port ? (s.smtp_port === 465) : true, 
       auth: { user, pass },
       debug: true,
       logger: true,
@@ -27,18 +28,21 @@ export async function sendEmail(to, subject, text, attachments = []) {
 
     const fromEmail = "tewfiksoft@gmail.com";
 
+    log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 465} (user: ${user})...`);
+    
     const info = await transporter.sendMail({
       from: `"TewfikSoft HR" <${fromEmail}>`,
-      to,
+      to: recipients,
       subject,
       text,
       attachments
     });
 
-    log(`[Email] SMTP Success: Sent to ${to} | ID: ${info.messageId}`);
+    log(`[Email] SMTP Success: Sent to [${recipients}] | ID: ${info.messageId}`);
     return true;
   } catch (error) {
-    log(`[Email-Error] SMTP Exception: ${error.message}`);
+    log(`[Email-Error] SMTP Exception for [${recipients}]: ${error.message}`);
+    if (error.response) log(`[Email-Error-Response] ${error.response}`);
     return false;
   }
 }

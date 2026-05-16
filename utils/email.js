@@ -26,7 +26,7 @@ export async function sendEmail(to, subject, text, attachments = []) {
       connectionTimeout: 15000
     });
 
-    const fromEmail = "tewfiksoft@gmail.com";
+    const fromEmail = user; // Match the SMTP user for best deliverability
 
     log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 465} (user: ${user})...`);
     

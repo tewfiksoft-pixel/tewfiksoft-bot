@@ -221,24 +221,25 @@ export async function generateMissionPDF(data, outputPath) {
 
       // Left Compartment: Company Branding
       const isFartak = String(data.companyId || '').toLowerCase() === 'vt' || 
-                       String(data.companyName || '').toLowerCase().includes('fartak');
+                       String(data.companyName || '').toLowerCase().includes('fartak') ||
+                       String(data.companyName || '').toLowerCase().includes('verre tech');
       
-      if (fs.existsSync(logoLeft) && !isFartak) {
+      if (isFartak) {
+        // Verre Tech: left compartment stays EMPTY (no logo, no text)
+        // Just leave the box blank
+      } else if (fs.existsSync(logoLeft)) {
+        // ALVER: show ALVER logo on the left
         doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
-      } else if (!isFartak) {
-        // ALVER Style Fallback (only if not Fartak)
+      } else {
+        // ALVER fallback text if image not found
         doc.font(fontBold).fontSize(16).fillColor('#1b5e20').text('ALVER', 45, 65, { width: 95, align: 'center' });
         doc.fontSize(8).fillColor('#333').text('Spa', 105, 65);
-      } else {
-        // Fartak Branding (No left logo)
-        doc.font(fontBold).fontSize(14).fillColor('#c0392b').text('VERRE TECH', 45, 65, { width: 95, align: 'center' });
-        doc.fontSize(10).fillColor('#2c3e50').text('FARTAK', 45, 85, { width: 95, align: 'center' });
       }
       
       // Center Compartment: Title
       doc.font(fontBold).fontSize(20).fillColor('#1a237e').text('ORDRE DE MISSION', 150, 75, { width: 270, align: 'center' });
 
-      // Right Compartment: Secondary Logo/Reference
+      // Right Compartment: Condor logo always (for both companies)
       if (fs.existsSync(logoRight)) {
         doc.image(logoRight, 430, 45, { width: 105, height: 50, fit: [105, 50], align: 'center', valign: 'center' });
         doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 100, { width: 115, align: 'center' });

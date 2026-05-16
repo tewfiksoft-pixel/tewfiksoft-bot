@@ -1333,7 +1333,7 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (txtLow === '/version') {
-    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.3</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
+    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.4</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
   }
 
   const st = states.get(chatId);
@@ -2077,6 +2077,7 @@ export async function generateAndSendMissionAuth(req, cfg) {
   
   await generateMissionPDF({ ...req, emp }, pdfPath);
 
+  const cleanDestinations = req.destinations.map(d => d.includes(' - ') ? d.split(' - ')[1] : d);
   const subject = `📝 Ordre de Mission / أمر بمهمة - ${req.empName}`;
   const body = `
 🌟 Bonjour / السلام عليكم,
@@ -2085,7 +2086,7 @@ Nous vous informons qu'un nouvel ordre de mission a été généré et approuvé
 نحيطكم علماً بأنه قد تم إصدار واعتماد أمر بمهمة جديد بنجاح عبر نظام توفيق سوفت للموارد البشرية.
 
 👤 Employé(e) / الموظف(ة): ${req.empName}
-📍 Destinations / الوجهات: ${req.destinations.join(', ')}
+📍 Destinations / الوجهات: ${cleanDestinations.join(', ')}
 📅 Période / الفترة: du ${req.startDate} au ${req.endDate}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2105,15 +2106,20 @@ Cordialement / مع خالص التقدير،
   if (manager?.email) recipients.push(manager.email);
 
   const finalRecipients = [...new Set(recipients.filter(Boolean))];
-  log(`[Mission] Dispatching email to: ${finalRecipients.join(', ') || 'NONE'}`);
+  log(`[Mission] Dispatching individual emails to: ${finalRecipients.join(', ') || 'NONE'}`);
 
   if (finalRecipients.length > 0) {
-    const success = await sendEmail(finalRecipients.join(','), subject, body, [
-      { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }
-    ]);
-    if (success) {
-      log(`[OM] Email sent successfully to ${finalRecipients.join(', ')}`);
-      try { fs.unlinkSync(pdfPath); } catch (e) {}
+    let sentCount = 0;
+    for (const recipient of finalRecipients) {
+      const success = await sendEmail(recipient, subject, body, [
+        { filename: `Ordre_Mission_${req.id}.pdf`, path: pdfPath }
+      ]);
+      if (success) sentCount++;
+    }
+    
+    if (sentCount > 0) {
+      log(`[OM] Email sent successfully to ${sentCount}/${finalRecipients.length} recipients`);
+      try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
     }
   } else {
     log(`[OM-Warn] No recipients found for ${req.empName}`);
@@ -2126,7 +2132,7 @@ app.get('/', (req, res) => {
   const count = db.hr_employees?.length || 0;
   res.send(`
     <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.3 ☁️</h1>
+      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.4 ☁️</h1>
       <p style="font-size: 1.2em;">Status: <span style="color: green; font-weight: bold;">ONLINE</span></p>
       <p>Mode: <b>Webhook (Render-Optimized)</b></p>
       <p>Database: <b>${count} Employees Loaded</b></p>

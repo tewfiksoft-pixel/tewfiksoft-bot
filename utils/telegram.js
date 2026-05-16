@@ -74,8 +74,14 @@ export async function notifyStaff(msg, cfg, sendFn, kbd = null) {
       }
       
       if (isAdmin) {
-        await sendFn(u.id, `${prefix}\n${txt}`, kbd);
-      } else if (isRH || isGuard) {
+        if (u.role === 'general_manager') {
+          const txtLow = txt.toLowerCase();
+          const isOM = txtLow.includes('أمر بمهمة') || txtLow.includes('ordre de mission') || txtLow.includes('طلب المهمة');
+          if (isOM) await sendFn(u.id, `${prefix}\n${txt}`, kbd);
+        } else {
+          await sendFn(u.id, `${prefix}\n${txt}`, kbd);
+        }
+      } else if (isRH) {
         const rhPre = lang === 'ar' ? '🔔 <b>إشعار للموارد البشرية:</b>' : '🔔 <b>NOTIFICATION RH:</b>';
         await sendFn(u.id, `${rhPre}\n${txt}`);
       }

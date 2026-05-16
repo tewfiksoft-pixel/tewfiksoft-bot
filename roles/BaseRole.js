@@ -65,14 +65,16 @@ export default class BaseRole {
       [{ text: ar ? '📜 العقود' : '📜 Contrats', callback_data: 'docs:' + emp.id }, { text: ar ? '🏖️ العطل' : '🏖️ Congés', callback_data: 'leave:' + emp.id }]
     ]};
     
-    if (role !== 'employee' && role !== 'gestionnaire_rh') {
+    if (role !== 'employee' && role !== 'gestionnaire_rh' && role !== 'poste_garde') {
       kbd.inline_keyboard.push([{ text: ar ? '🚨 الغيابات' : '🚨 Absences', callback_data: 'abs:' + emp.id }, { text: ar ? '🗳️ المخالفات' : '🗳️ Incidents', callback_data: 'survey:' + emp.id }]);
     }
     
     kbd.inline_keyboard.push([{ text: ar ? '📄 طلب وثيقة' : '📄 Demander Doc', callback_data: 'reqmenu:' + emp.id }]);
     
     // زر حادث العمل للعامل والمدير وgestionnaire RH
-    kbd.inline_keyboard.push([{ text: ar ? '🚑 تبليغ عن حادث عمل' : '🚑 Déclarer Accident de Travail', callback_data: 'accident:' + emp.id }]);
+    if (role !== 'poste_garde' && role !== 'employee') {
+      kbd.inline_keyboard.push([{ text: ar ? '🚑 تبليغ عن حادث عمل' : '🚑 Déclarer Accident de Travail', callback_data: 'accident:' + emp.id }]);
+    }
     
     if (role === 'admin' || role === 'manager') {
       kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Recherche', callback_data: 'search' }]);

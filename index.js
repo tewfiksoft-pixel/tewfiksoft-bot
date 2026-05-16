@@ -741,7 +741,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver', callback_data: `exit_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `exit_adm_rej:${reqId}` }]
       ]};
 
-      await notifyStaff(msgObj, cfg, (id, t) => send(id, t, kbd));
+      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
       states.delete(chatId);
       return send(chatId, ar ? `✅ تم إرسال طلبك للإدارة للموافقة.` : `✅ Demande envoyée à l'administration.`);
     }

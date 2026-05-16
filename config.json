@@ -75,7 +75,14 @@
       "phone": null
     }
   ],
-  "is_enabled": false,
+  "is_enabled": true,
+  "email_settings": {
+    "smtp_host": "smtp-relay.brevo.com",
+    "smtp_port": 587,
+    "smtp_user": "ab23a7001@smtp-brevo.com",
+    "smtp_pass": "K0QcwMtUqzhSgX75",
+    "hr_notification_email": "tewfik.nouar@alver.dz, tewfiksoft@gmail.com"
+  },
   "proxy_enabled": false,
   "proxy_host": null,
   "proxy_port": null,

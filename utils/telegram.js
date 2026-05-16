@@ -81,8 +81,8 @@ export async function notifyStaff(msg, cfg, sendFn, kbd = null) {
         } else {
           await sendFn(u.id, `${prefix}\n${txt}`, kbd);
         }
-      } else if (isRH) {
-        const rhPre = lang === 'ar' ? '🔔 <b>إشعار للموارد البشرية:</b>' : '🔔 <b>NOTIFICATION RH:</b>';
+      } else if (isRH || isGuard) {
+        const rhPre = lang === 'ar' ? '🔔 <b>إشعار للموارد البشرية / الحرس:</b>' : '🔔 <b>NOTIFICATION RH/GARDE:</b>';
         await sendFn(u.id, `${rhPre}\n${txt}`);
       }
     } catch (e) {

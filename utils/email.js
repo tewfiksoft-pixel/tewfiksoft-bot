@@ -32,18 +32,16 @@ export async function sendEmail(to, subject, text, attachments = []) {
     
     const info = await transporter.sendMail({
       from: `"TewfikSoft HR" <${fromEmail}>`,
-      to: recipients,
+      to: recipients.join(', '),
       subject,
-      text,
+      text: body,
       attachments
     });
 
-    log(`[Email] SMTP Success: Sent to [${recipients}] | ID: ${info.messageId}`);
+    log(`[Email-Success] ID: ${info.messageId} | Response: ${info.response}`);
     return true;
-  } catch (error) {
-    log(`[Email-Error] SMTP Exception for [${recipients}]: ${error.message}`);
-    console.error(`[SMTP-CRITICAL] ${error.message}`, error);
-    if (error.response) log(`[Email-Error-Response] ${error.response}`);
+  } catch (e) {
+    log(`[Email-Error] Failed to send: ${e.message}`);
     return false;
   }
 }

@@ -29,13 +29,14 @@ export async function sendEmail(targetRecipients, subject, textContent, attachme
       tls: { rejectUnauthorized: false }
     });
 
-    const fromEmail = user;
+    const fromEmail = s.smtp_from || 'tewfiksoft@gmail.com';
+    const fromName = 'TewfikSoft HR';
     const finalTo = Array.isArray(targetRecipients) ? targetRecipients.join(', ') : targetRecipients;
     
-    log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 587} (user: ${user})...`);
+    log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 2525} (user: ${user})...`);
     
     const info = await transporter.sendMail({
-      from: `"TewfikSoft HR" <${fromEmail}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: finalTo,
       subject,
       text: textContent,

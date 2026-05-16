@@ -741,7 +741,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver', callback_data: `exit_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `exit_adm_rej:${reqId}` }]
       ]};
 
-      await notifyStaff(msg, cfg, (id, t) => send(id, t, kbd));
+      await notifyStaff(msgObj, cfg, (id, t) => send(id, t, kbd));
       states.delete(chatId);
       return send(chatId, ar ? `✅ تم إرسال طلبك للإدارة للموافقة.` : `✅ Demande envoyée à l'administration.`);
     }
@@ -756,14 +756,20 @@ Pour garantir une fin de relation de travail légale et fluide :
       req.adminApprovedAt = new Date().toISOString();
       saveDB(db);
 
-      const msg = ar 
-        ? `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${req.exitTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`
-        : `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType === 'Service' ? 'Raison de Service' : 'Sortie Personnelle'}\n📅 Heure Sortie: ${req.exitTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`;
+      const msgObj = {
+        ar: `🚨 <b>تصريح خروج معتمد - يرجى التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n📂 النوع: ${req.exitType === 'Service' ? 'مهمة عمل' : 'شخصي'}\n📅 وقت الخروج: ${req.exitTime}\n✍️ السبب: ${req.reason}\n✅ وافقت الإدارة: ${userData.name}`,
+        fr: `🚨 <b>SORTIE APPROUVÉE - À CONFIRMER</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n📂 Type: ${req.exitType === 'Service' ? 'Raison de Service' : 'Sortie Personnelle'}\n📅 Heure Sortie: ${req.exitTime}\n✍️ Motif: ${req.reason}\n✅ Approuvé par: ${userData.name}`
+      };
       
       const kbd = { inline_keyboard: [[{ text: ar ? '🏁 تأكيد الخروج الفعلي' : '🏁 Confirmer le Départ', callback_data: `exit_guard_conf:${reqId}` }]] };
       
       const guards = cfg.authorized_users?.filter(u => u.role === 'poste_garde') || [];
-      for (const g of guards) { if (g.id) await send(g.id, msg, kbd); }
+      for (const g of guards) { 
+        if (g.id) {
+          const gLang = g.lang || 'ar';
+          await send(g.id, msgObj[gLang] || msgObj['ar'], kbd); 
+        }
+      }
       
       return send(chatId, ar ? `✅ تم تحويل الطلب لمركز الحراسة.` : `✅ Demande transmise au Poste de Garde.`);
     }
@@ -778,9 +784,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       req.rejectedAt = new Date().toISOString();
       saveDB(db);
 
-      const msg = ar 
-        ? `❌ <b>تم رفض طلب تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n🚫 الرفض من طرف: ${userData.name}`
-        : `❌ <b>DEMANDE DE SORTIE REJETÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n🚫 Rejeté par: ${userData.name}`;
+      const msg = ar ? `❌ <b>تم رفض طلب تصريح الخروج</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b>\n🚫 الرفض من طرف: ${userData.name}` : `❌ <b>DEMANDE DE SORTIE REJETÉE</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${req.empName}</b>\n🚫 Rejeté par: ${userData.name}`;
       
       if (req.managerId) await send(req.managerId, msg);
       return send(chatId, ar ? `✅ تم رفض الطلب وإبلاغ المسؤول.` : `✅ Demande rejetée et responsable notifié.`);
@@ -797,11 +801,12 @@ Pour garantir une fin de relation de travail légale et fluide :
       req.guardConfirmedAt = new Date().toISOString();
       saveDB(db);
 
-      const msgFinal = ar 
-        ? `✅ <b>تأكيد خروج عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> قد خرج الآن من المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n\n⏳ <i>بانتظار تسجيل العودة...</i>`
-        : `✅ <b>SORTIE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> a quitté l'entreprise.\n👮 Garde: ${userData.name}\n\n⏳ <i>En attente de retour...</i>`;
+      const msgFinal = {
+        ar: `✅ <b>تأكيد خروج عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> قد خرج الآن من المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n\n⏳ <i>بانتظار تسجيل العودة...</i>`,
+        fr: `✅ <b>SORTIE CONFIRMÉE</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> a quitté l'entreprise.\n👮 Garde: ${userData.name}\n\n⏳ <i>En attente de retour...</i>`
+      };
 
-      if (req.managerId) await send(req.managerId, msgFinal);
+      if (req.managerId) await send(req.managerId, ar ? msgFinal.ar : msgFinal.fr);
       await notifyStaff(msgFinal, cfg, send);
 
       try {
@@ -823,27 +828,24 @@ Pour garantir une fin de relation de travail légale et fluide :
       req.returnConfirmedBy = userData.name;
       saveDB(db);
 
-      let durationStr = '';
-      if (req.guardConfirmedAt) {
-        const start = new Date(req.guardConfirmedAt);
-        const end = new Date(req.returnedAt);
-        const diffMs = end - start;
-        const diffHrs = Math.floor(diffMs / 3600000);
-        const diffMins = Math.floor((diffMs % 3600000) / 60000);
-        durationStr = ar ? `\n⏱️ مدة الخروج: ${diffHrs} ساعة و ${diffMins} دقيقة` : `\n⏱️ Durée: ${diffHrs}h ${diffMins}m`;
-      }
+      const start = new Date(req.guardConfirmedAt);
+      const end = new Date(req.returnedAt);
+      const diffMs = end - start;
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const durationStr = `${diffHrs}h ${diffMins}m`;
 
-      const msgReturn = ar 
-        ? `🏁 <b>تأكيد عودة عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> عاد الآن إلى المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n⏰ وقت العودة: ${new Date(req.returnedAt).toLocaleTimeString()}${durationStr}`
-        : `🏁 <b>RETOUR CONFIRMÉ</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> est de retour.\n👮 Garde: ${userData.name}\n⏰ Heure: ${new Date(req.returnedAt).toLocaleTimeString()}${durationStr}`;
+      const msgReturn = {
+        ar: `🏁 <b>تأكيد عودة عامل</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${req.empName}</b> عاد الآن إلى المؤسسة.\n👮 حارس المناوبة: ${userData.name}\n⏰ وقت العودة: ${new Date(req.returnedAt).toLocaleTimeString()}\n⏱️ مدة الخروج: ${diffHrs} ساعة و ${diffMins} دقيقة`,
+        fr: `🏁 <b>RETOUR CONFIRMÉ</b>\n━━━━━━━━━━━━━━\n👤 L'employé <b>${req.empName}</b> est de retour.\n👮 Garde: ${userData.name}\n⏰ Heure: ${new Date(req.returnedAt).toLocaleTimeString()}\n⏱️ Durée: ${diffHrs}h ${diffMins}m`
+      };
 
-      if (req.managerId) await send(req.managerId, msgReturn);
-      
-      // Ensure all admins/staff get the return notification
+      if (req.managerId) await send(req.managerId, ar ? msgReturn.ar : msgReturn.fr);
       await notifyStaff(msgReturn, cfg, send);
 
-      // --- SEND EMAIL NOTIFICATION FOR RETURN ---
       try {
+        req.actualReturnTime = new Date(req.returnedAt).toLocaleTimeString();
+        req.actualDuration = durationStr;
         await generateAndSendReturnNotify(req, cfg);
         log(`[Return] Email notification sent for request ${reqId}`);
       } catch (e) { log(`[Return-Email-Err] ${e.message}`); }

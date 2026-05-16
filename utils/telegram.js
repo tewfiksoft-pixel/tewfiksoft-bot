@@ -52,20 +52,32 @@ export const answerCallbackQuery = (callbackQueryId) => tg('answerCallbackQuery'
   callback_query_id: callbackQueryId 
 });
 
-export async function notifyStaff(txt, cfg, sendFn, kbd = null) {
+export async function notifyStaff(msg, cfg, sendFn, kbd = null) {
   const allStaff = cfg.authorized_users || [];
   for (const u of allStaff) {
     if (!u.id) continue;
     try {
       const isAdmin = (u.role === 'admin' || u.role === 'general_manager');
       const isRH = (u.role === 'gestionnaire_rh');
+      const isGuard = (u.role === 'poste_garde');
+      
+      const lang = u.lang || 'ar';
+      let txt = '';
+      let prefix = '';
+      
+      if (typeof msg === 'string') {
+        txt = msg;
+        prefix = lang === 'ar' ? '🔔 <b>إشعار:</b>' : '🔔 <b>NOTIFICATION:</b>';
+      } else {
+        txt = msg[lang] || msg['ar'] || msg['fr'] || '';
+        prefix = lang === 'ar' ? '🔔 <b>إشعار للإدارة:</b>' : '🔔 <b>NOTIFICATION ADMIN:</b>';
+      }
       
       if (isAdmin) {
-        // Admins get the buttons if provided
-        await sendFn(u.id, `🔔 <b>إشعار للإدارة:</b>\n${txt}`, kbd);
-      } else if (isRH) {
-        // RH gets only the text notification
-        await sendFn(u.id, `🔔 <b>إشعار للموارد البشرية:</b>\n${txt}`);
+        await sendFn(u.id, `${prefix}\n${txt}`, kbd);
+      } else if (isRH || isGuard) {
+        const rhPre = lang === 'ar' ? '🔔 <b>إشعار للموارد البشرية:</b>' : '🔔 <b>NOTIFICATION RH:</b>';
+        await sendFn(u.id, `${rhPre}\n${txt}`);
       }
     } catch (e) {
       log(`[Notify-Error] Failed to notify user ${u.id}: ${e.message}`);

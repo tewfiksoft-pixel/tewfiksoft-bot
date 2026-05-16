@@ -1333,7 +1333,7 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (txtLow === '/version') {
-    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.4</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
+    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.5</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
   }
 
   const st = states.get(chatId);
@@ -1986,7 +1986,8 @@ Cordialement / مع خالص التقدير،
   const recipients = [];
 
   // 1. Always send to global HR email(s) - supports comma separated list
-  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz';
+  const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
   // 2. Send to the manager who initiated the request (if email exists)
@@ -2044,7 +2045,8 @@ Cordialement / مع خالص التقدير،
   `;
 
   const recipients = [];
-  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz';
+  const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
   const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
@@ -2099,7 +2101,8 @@ Cordialement / مع خالص التقدير،
   `;
 
   const recipients = [];
-  const hrEmails = (cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz').split(',').map(e => e.trim());
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz';
+  const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
   const manager = cfg.authorized_users?.find(u => String(u.id) === String(req.managerId));
@@ -2132,7 +2135,7 @@ app.get('/', (req, res) => {
   const count = db.hr_employees?.length || 0;
   res.send(`
     <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.4 ☁️</h1>
+      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.5 ☁️</h1>
       <p style="font-size: 1.2em;">Status: <span style="color: green; font-weight: bold;">ONLINE</span></p>
       <p>Mode: <b>Webhook (Render-Optimized)</b></p>
       <p>Database: <b>${count} Employees Loaded</b></p>
@@ -2160,7 +2163,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v9.3 [SMTP-DEBUG] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v9.5 [SMTP-DEBUG] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

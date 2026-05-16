@@ -2182,7 +2182,12 @@ export async function generateAndSendMissionAuth(req, cfg) {
   const db = loadDB();
   const emp = db.hr_employees?.find(e => String(e.id) === req.empId);
   
-  await generateMissionPDF({ ...req, emp }, pdfPath);
+  const empCompanyId = emp?.companyId || '';
+  const db2 = db;
+  const empCompany = (db2.hr_companies && empCompanyId) ? (db2.hr_companies[empCompanyId] || {}) : {};
+  const empCompanyName = empCompany.fr?.name || empCompany.name || req.companyName || '';
+  
+  await generateMissionPDF({ ...req, emp, companyId: empCompanyId, companyName: empCompanyName }, pdfPath);
 
   const cleanDestinations = req.destinations.map(d => d.includes(' - ') ? d.split(' - ')[1] : d);
   const subject = `📝 Ordre de Mission / أمر بمهمة - ${req.empName}`;

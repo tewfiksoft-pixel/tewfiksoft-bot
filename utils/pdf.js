@@ -283,9 +283,9 @@ export async function generateMissionPDF(data, outputPath) {
 
       // Improved Transport display
       let transportTxt = data.transport;
-      if (transportTxt === 'Service') transportTxt = 'Véhicule de Service (سيارة المصلحة)';
-      else if (transportTxt === 'Personnel') transportTxt = 'Véhicule Personnel (سيارة خاصة)';
-      else if (transportTxt === 'Autre') transportTxt = 'Autre (وسائل أخرى)';
+      if (transportTxt === 'Service') transportTxt = 'Véhicule de Service';
+      else if (transportTxt === 'Personnel') transportTxt = 'Véhicule Personnel';
+      else if (transportTxt === 'Autre') transportTxt = 'Autre';
 
       drawField('Moyen de Transport :', transportTxt);
       
@@ -294,22 +294,8 @@ export async function generateMissionPDF(data, outputPath) {
       // --- Date/Location ---
       doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
 
-      // --- Signatures Section ---
-      doc.moveDown(5);
-      const sigY = doc.y;
-      const sigWidth = 140;
-      
-      const drawSigBox = (x, label, signer) => {
-        doc.rect(x, sigY, sigWidth, 80).strokeColor('#ccc').lineWidth(0.5).stroke();
-        doc.rect(x, sigY, sigWidth, 15).fill('#eee');
-        doc.font(fontBold).fontSize(8).fillColor('#333').text(label, x, sigY + 4, { width: sigWidth, align: 'center' });
-        doc.font(fontBold).fontSize(9).fillColor('#1a237e').text(signer, x + 5, sigY + 50, { width: sigWidth - 10, align: 'center' });
-        doc.font(fontNormal).fontSize(6).fillColor('#999').text('Signature Électronique', x, sigY + 68, { width: sigWidth, align: 'center' });
-      };
-
-      drawSigBox(50, 'LE MANAGER', data.managerName);
-      drawSigBox(50 + sigWidth + 25, "L'ADMINISTRATION", data.adminApprovedBy || 'RH');
-      drawSigBox(50 + (sigWidth + 25) * 2, 'DIRECTEUR GÉNÉRAL', data.gmApprovedBy || 'DG');
+      // --- Signatures Section Removed as requested ---
+      doc.moveDown(10);
 
       // --- Footer ---
       doc.font(fontNormal).fontSize(8).fillColor('#999').text('Elle ne peut être diffusée en externe sans l’autorisation écrite du Directeur Général', 40, 790, { align: 'center', width: 515 });

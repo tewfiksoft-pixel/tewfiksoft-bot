@@ -49,8 +49,22 @@ export const loadDB = () => {
 };
 
 export const loadConfig = () => {
-  try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); }
-  catch { return { authorized_users: [] }; }
+  let cfg = { authorized_users: [] };
+  try { 
+    if (fs.existsSync(CONFIG_PATH)) {
+      cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); 
+    }
+  } catch (e) {}
+
+  // 🛡️ CRITICAL FALLBACK: Ensure email settings are NEVER missing (Render Persistent Safety)
+  if (!cfg.email_settings || !cfg.email_settings.hr_notification_email) {
+    cfg.email_settings = {
+      hr_notification_email: "tewfik.nouar@alver.dz, tewfiksoft@gmail.com",
+      smtp_port: 2525,
+      smtp_host: "smtp-relay.brevo.com"
+    };
+  }
+  return cfg;
 };
 
 export const saveDB = (db) => {

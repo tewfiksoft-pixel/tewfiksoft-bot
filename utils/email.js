@@ -23,8 +23,8 @@ export async function sendEmail(targetRecipients, subject, textContent, attachme
 
     const transporter = nodemailer.createTransport({
       host,
-      port: s.smtp_port || 587,
-      secure: (s.smtp_port === 465),
+      port: s.smtp_port || 2525,
+      secure: false,
       auth: { user, pass },
       tls: { rejectUnauthorized: false }
     });

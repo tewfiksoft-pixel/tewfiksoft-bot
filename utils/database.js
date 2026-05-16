@@ -60,7 +60,7 @@ export const loadConfig = () => {
   if (!cfg.email_settings || !cfg.email_settings.hr_notification_email) {
     cfg.email_settings = {
       hr_notification_email: "tewfik.nouar@alver.dz, tewfiksoft@gmail.com",
-      smtp_port: 587,
+      smtp_port: 2525,
       smtp_host: "smtp-relay.brevo.com"
     };
   }

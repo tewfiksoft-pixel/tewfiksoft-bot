@@ -97,5 +97,8 @@
     "leave_title": true,
     "salary_slip": true,
     "work_contract": true
+  },
+  "email_settings": {
+    "hr_notification_email": "tewfik.nouar@alver.dz, tewfiksoft@gmail.com"
   }
 }

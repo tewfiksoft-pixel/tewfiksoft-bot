@@ -30,9 +30,11 @@ export async function sendEmail(to, subject, text, attachments = []) {
 
     log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 465} (user: ${user})...`);
     
+    const to = Array.isArray(recipients) ? recipients.join(', ') : recipients;
+    
     const info = await transporter.sendMail({
       from: `"TewfikSoft HR" <${fromEmail}>`,
-      to: recipients.join(', '),
+      to,
       subject,
       text: body,
       attachments

@@ -1332,6 +1332,10 @@ Pour garantir une fin de relation de travail légale et fluide :
     return send(chatId, meMsg);
   }
 
+  if (txtLow === '/version') {
+    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.3</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
+  }
+
   const st = states.get(chatId);
   if (st && txt && !txt.startsWith('/')) {
     states.delete(chatId);
@@ -2122,7 +2126,7 @@ app.get('/', (req, res) => {
   const count = db.hr_employees?.length || 0;
   res.send(`
     <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.1 ☁️</h1>
+      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.3 ☁️</h1>
       <p style="font-size: 1.2em;">Status: <span style="color: green; font-weight: bold;">ONLINE</span></p>
       <p>Mode: <b>Webhook (Render-Optimized)</b></p>
       <p>Database: <b>${count} Employees Loaded</b></p>
@@ -2150,7 +2154,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v9.1 [SMTP-DEBUG] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v9.3 [SMTP-DEBUG] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

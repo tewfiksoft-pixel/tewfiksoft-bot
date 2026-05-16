@@ -210,6 +210,9 @@ export async function generateMissionPDF(data, outputPath) {
 
       const fontBold = 'Helvetica-Bold';
       const fontNormal = 'Helvetica';
+      const assetsDir = path.join(__dirname, '..', 'assets');
+      const logoLeft = fs.existsSync(path.join(assetsDir, 'ALVER.png')) ? path.join(assetsDir, 'ALVER.png') : path.join(assetsDir, 'logo_left.png');
+      const logoRight = fs.existsSync(path.join(assetsDir, 'Condor.png')) ? path.join(assetsDir, 'Condor.png') : path.join(assetsDir, 'logo_right.png');
 
       // --- Header Box (Three compartments) ---
       doc.rect(40, 40, 515, 80).strokeColor('#000').lineWidth(1).stroke();
@@ -218,23 +221,32 @@ export async function generateMissionPDF(data, outputPath) {
 
       // Left Compartment: Company Branding
       const isFartak = String(data.companyId).toLowerCase() === 'vt';
-      if (isFartak) {
-        doc.font(fontBold).fontSize(14).fillColor('#c0392b').text('VERRE TECH', 45, 65, { width: 95, align: 'center' });
-        doc.fontSize(10).fillColor('#2c3e50').text('FARTAK', 45, 85, { width: 95, align: 'center' });
-      } else {
-        // ALVER Style
+      
+      if (fs.existsSync(logoLeft) && !isFartak) {
+        doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
+      } else if (!isFartak) {
+        // ALVER Style Fallback (only if not Fartak)
         doc.font(fontBold).fontSize(16).fillColor('#1b5e20').text('ALVER', 45, 65, { width: 95, align: 'center' });
         doc.fontSize(8).fillColor('#333').text('Spa', 105, 65);
+      } else {
+        // Fartak Branding (No left logo)
+        doc.font(fontBold).fontSize(14).fillColor('#c0392b').text('VERRE TECH', 45, 65, { width: 95, align: 'center' });
+        doc.fontSize(10).fillColor('#2c3e50').text('FARTAK', 45, 85, { width: 95, align: 'center' });
       }
       
       // Center Compartment: Title
       doc.font(fontBold).fontSize(20).fillColor('#1a237e').text('ORDRE DE MISSION', 150, 75, { width: 270, align: 'center' });
 
       // Right Compartment: Secondary Logo/Reference
-      doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
-      doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 85, { width: 115, align: 'center' });
+      if (fs.existsSync(logoRight)) {
+        doc.image(logoRight, 430, 45, { width: 105, height: 50, fit: [105, 50], align: 'center', valign: 'center' });
+        doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 100, { width: 115, align: 'center' });
+      } else {
+        doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 85, { width: 115, align: 'center' });
+      }
 
-      doc.moveDown(4);
+      doc.moveDown(5);
 
       // --- Body Section ---
       const labelX = 50;
@@ -244,7 +256,7 @@ export async function generateMissionPDF(data, outputPath) {
         doc.font(fontBold).fontSize(11).fillColor('#000').text(label, labelX, y);
         doc.font(isBoldValue ? fontBold : fontNormal).text(value || '—', valueX, y);
         doc.moveTo(valueX, y + 12).lineTo(530, y + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
-        doc.moveDown(1.2);
+        doc.moveDown(2.2);
       };
 
       const emp = data.emp || {};
@@ -260,15 +272,22 @@ export async function generateMissionPDF(data, outputPath) {
       doc.text(String(emp.firstName_fr || ''), 420, nameY);
       doc.moveTo(valueX, nameY + 12).lineTo(340, nameY + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
       doc.moveTo(420, nameY + 12).lineTo(530, nameY + 12).stroke();
-      doc.moveDown(1.5);
+      doc.moveDown(2.5);
 
-      drawField('Fonction :', String(emp.csp || 'Agent'));
+      drawField('Fonction :', String(emp.jobTitle_fr || emp.csp || 'Agent'));
       drawField('Structure :', String(emp.department_fr || emp.direction_fr || 'Direction Générale'));
       drawField('Motifs de la Mission :', data.reason);
       drawField('Destination :', data.destinations.join(', '), 0, true);
       drawField('Date de départ :', data.startDate);
       drawField('Date de retour :', data.endDate);
-      drawField('Moyen de Transport :', data.transport);
+
+      // Improved Transport display
+      let transportTxt = data.transport;
+      if (transportTxt === 'Service') transportTxt = 'Véhicule de Service (سيارة المصلحة)';
+      else if (transportTxt === 'Personnel') transportTxt = 'Véhicule Personnel (سيارة خاصة)';
+      else if (transportTxt === 'Autre') transportTxt = 'Autre (وسائل أخرى)';
+
+      drawField('Moyen de Transport :', transportTxt);
       
       doc.moveDown(2);
 
@@ -276,7 +295,7 @@ export async function generateMissionPDF(data, outputPath) {
       doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
 
       // --- Signatures Section ---
-      doc.moveDown(4);
+      doc.moveDown(5);
       const sigY = doc.y;
       const sigWidth = 140;
       

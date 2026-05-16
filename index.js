@@ -1641,7 +1641,11 @@ Pour garantir une fin de relation de travail légale et fluide :
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
-        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+        const qLow = q.toLowerCase();
+        if (/^\d+$/.test(qLow) && qLow.length <= 3) {
+           return cid === qLow || parseInt(cid) === parseInt(qLow);
+        }
+        return cid.includes(qLow) || lnf.includes(qLow) || fnf.includes(qLow);
       }).slice(0, 5);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
@@ -1809,8 +1813,9 @@ Pour garantir une fin de relation de travail légale et fluide :
       const lna = String(e.lastName_ar || '');
       
       if (/^\d+$/.test(q)) {
-        // Exact match for clockingId (numeric only)
-        return cid === q || parseInt(cid) === parseInt(q);
+        // Precise match for short numeric IDs (1-3 chars), otherwise includes
+        if (q.length <= 3) return cid === q || parseInt(cid) === parseInt(q);
+        return cid.includes(q);
       }
       return lnf.includes(q) || fnf.includes(q) || lna.includes(q);
     }).slice(0, 5);

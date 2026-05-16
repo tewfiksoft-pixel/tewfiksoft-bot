@@ -220,7 +220,8 @@ export async function generateMissionPDF(data, outputPath) {
       doc.moveTo(425, 40).lineTo(425, 120).stroke();
 
       // Left Compartment: Company Branding
-      const isFartak = String(data.companyId).toLowerCase() === 'vt';
+      const isFartak = String(data.companyId || '').toLowerCase() === 'vt' || 
+                       String(data.companyName || '').toLowerCase().includes('fartak');
       
       if (fs.existsSync(logoLeft) && !isFartak) {
         doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });

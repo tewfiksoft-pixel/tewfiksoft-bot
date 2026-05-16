@@ -1338,6 +1338,11 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
   }
 
+  if (txtLow === '/show_config' && String(userData.role).toLowerCase() === 'admin') {
+    const s = cfg.email_settings || {};
+    return send(chatId, `📧 <b>إعدادات البريد الحالية:</b>\nقائمة HR: <code>${s.hr_notification_email || 'غير محددة'}</code>\nالمنفذ: <code>${s.smtp_port || 465}</code>`);
+  }
+
   if (txtLow === '/me' || txtLow === '/id') {
     const isAdminRole = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'manager';
     const db = isAdminRole ? loadDB() : null;

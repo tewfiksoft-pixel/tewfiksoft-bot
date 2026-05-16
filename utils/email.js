@@ -42,6 +42,7 @@ export async function sendEmail(to, subject, text, attachments = []) {
     return true;
   } catch (error) {
     log(`[Email-Error] SMTP Exception for [${recipients}]: ${error.message}`);
+    console.error(`[SMTP-CRITICAL] ${error.message}`, error);
     if (error.response) log(`[Email-Error-Response] ${error.response}`);
     return false;
   }

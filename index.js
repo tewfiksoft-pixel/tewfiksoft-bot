@@ -1671,7 +1671,9 @@ Pour garantir une fin de relation de travail légale et fluide :
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
-        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+        const isNum = /^\d+$/.test(q);
+        if (isNum) return cid === q || parseInt(cid) === parseInt(q);
+        return lnf.includes(q) || fnf.includes(q);
       }).slice(0, 5);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
@@ -1714,7 +1716,9 @@ Pour garantir une fin de relation de travail légale et fluide :
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
-        return cid === q || cid.includes(q) || lnf.includes(q) || fnf.includes(q);
+        const isNum = /^\d+$/.test(q);
+        if (isNum) return cid === q || parseInt(cid) === parseInt(q);
+        return lnf.includes(q) || fnf.includes(q);
       }).slice(0, 5);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);

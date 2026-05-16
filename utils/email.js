@@ -6,10 +6,15 @@ import { log } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function sendEmail(to, subject, text, attachments = []) {
-  const recipients = Array.isArray(to) ? to.join(', ') : to;
+export async function sendEmail(targetRecipients, subject, textContent, attachments = []) {
   try {
-    const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config.json'), 'utf8'));
+    const configPath = path.join(__dirname, '..', 'config.json');
+    if (!fs.existsSync(configPath)) {
+        log(`[Email-Error] config.json not found at ${configPath}`);
+        return false;
+    }
+    
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     const s = config.email_settings || {};
     
     const host = s.smtp_host || 'smtp-relay.brevo.com';
@@ -17,26 +22,23 @@ export async function sendEmail(to, subject, text, attachments = []) {
     const pass = s.smtp_pass || 'K0QcwMtUqzhSgX75';
 
     const transporter = nodemailer.createTransport({
-      host: host,
-      port: s.smtp_port || 2525, 
-      secure: false, 
+      host,
+      port: s.smtp_port || 587,
+      secure: (s.smtp_port === 465),
       auth: { user, pass },
-      debug: true,
-      logger: true,
-      connectionTimeout: 15000
+      tls: { rejectUnauthorized: false }
     });
 
-    const fromEmail = user; // Match the SMTP user for best deliverability
-
-    log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 465} (user: ${user})...`);
+    const fromEmail = user;
+    const finalTo = Array.isArray(targetRecipients) ? targetRecipients.join(', ') : targetRecipients;
     
-    const to = Array.isArray(recipients) ? recipients.join(', ') : recipients;
+    log(`[SMTP-Debug] Connecting to ${host}:${s.smtp_port || 587} (user: ${user})...`);
     
     const info = await transporter.sendMail({
       from: `"TewfikSoft HR" <${fromEmail}>`,
-      to,
+      to: finalTo,
       subject,
-      text: body,
+      text: textContent,
       attachments
     });
 

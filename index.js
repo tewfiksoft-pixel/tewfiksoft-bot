@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
-import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF } from './utils/pdf.js';
+import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF, generateReturnAuthPDF } from './utils/pdf.js';
 import { sendEmail } from './utils/email.js';
 import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
@@ -1340,7 +1340,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
   if (txtLow === '/show_config' && String(userData.role).toLowerCase() === 'admin') {
     const s = cfg.email_settings || {};
-    return send(chatId, `📧 <b>إعدادات البريد الحالية:</b>\nقائمة HR: <code>${s.hr_notification_email || 'غير محددة'}</code>\nالمنفذ: <code>${s.smtp_port || 465}</code>`);
+    return send(chatId, `📧 <b>إعدادات البريد الحالية:</b>\nقائمة HR: <code>${s.hr_notification_email || 'غير محددة'}</code>\nالمنفذ: <code>${s.smtp_port || 2525}</code>`);
   }
 
   if (txtLow === '/me' || txtLow === '/id') {
@@ -2101,6 +2101,17 @@ Cordialement / مع خالص التقدير،
 
 export async function generateAndSendReturnNotify(req, cfg) {
   log(`[Return-Notify] Starting notification for ${req.empName} (ID: ${req.id})`);
+  
+  const tempDir = os.tmpdir();
+  const pdfPath = path.join(tempDir, `return_${req.id}.pdf`);
+  
+  try {
+    await generateReturnAuthPDF(req, pdfPath);
+    log(`[Return-Notify] PDF generated: ${pdfPath}`);
+  } catch (e) {
+    log(`[Return-Notify-Err] PDF Generation failed: ${e.message}`);
+  }
+
   const subject = `🏁 Retour Confirmé / تأكيد عودة - ${req.empName}`;
   
   let duration = req.actualDuration;
@@ -2130,6 +2141,9 @@ Nous vous informons que le retour de l'employé a été confirmé via le systèm
 👮 Confirmé par / أكده: ${req.guardConfirmedByReturn || req.returnConfirmedBy || 'Garde'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+Veuillez trouver la confirmation officielle en pièce jointe (PDF).
+يرجى الاطلاع على وثيقة تأكيد العودة الرسمية المرفقة (PDF).
+
 Cordialement / مع خالص التقدير،
 🤖 Système TewfikSoft HR Automatisé
 نظام توفيق سوفت للموارد البشرية المؤتمت
@@ -2147,7 +2161,12 @@ Cordialement / مع خالص التقدير،
   if (admin?.email) recipients.push(admin.email);
 
   log(`[Return-Notify] Final recipients list: ${recipients.join(', ')}`);
-  await dispatchEmails(recipients, subject, body);
+  
+  const attachments = fs.existsSync(pdfPath) ? [{ filename: `Confirmation_Retour_${req.id}.pdf`, path: pdfPath }] : [];
+  
+  await dispatchEmails(recipients, subject, body, attachments);
+  
+  try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (e) {}
 }
 
 export async function generateAndSendMissionAuth(req, cfg) {

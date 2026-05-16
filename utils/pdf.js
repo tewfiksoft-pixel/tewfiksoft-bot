@@ -309,3 +309,101 @@ export async function generateMissionPDF(data, outputPath) {
     }
   });
 }
+
+export async function generateReturnAuthPDF(data, outputPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const stream = fs.createWriteStream(outputPath);
+      doc.pipe(stream);
+
+      const fontBold = 'Helvetica-Bold';
+      const fontNormal = 'Helvetica';
+
+      const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      
+      doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
+      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });
+      
+      doc.moveTo(50, 85).lineTo(545, 85).strokeColor('#1a5f7a').lineWidth(2).stroke();
+
+      doc.moveDown(1);
+      doc.font(fontBold).fontSize(18).fillColor('#1a5f7a').text('CONFIRMATION DE RETOUR', { align: 'center' });
+
+      doc.moveDown(1);
+      doc.font(fontNormal).fontSize(9).fillColor('#333');
+      doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
+      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+
+      doc.moveDown(1);
+      const startY1 = doc.y;
+      doc.rect(50, startY1, 495, 20).fill('#f8fbfc');
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÉTAILS DE L'EMPLOYÉ", 60, startY1 + 5);
+      
+      doc.moveDown(0.8);
+      doc.fillColor('#333').fontSize(11).font(fontNormal);
+      doc.text(`Nom et Prénom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
+
+      doc.moveDown(1.5);
+      const startY2 = doc.y;
+      doc.rect(50, startY2, 495, 20).fill('#f8fbfc');
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text('DÉTAILS DU RETOUR', 60, startY2 + 5);
+      
+      doc.moveDown(0.8);
+      const officialReturnTime = data.returnedAt 
+        ? new Date(data.returnedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        : '—';
+
+      let duration = data.actualDuration;
+      if (!duration && data.guardConfirmedAt && data.returnedAt) {
+        const start = new Date(data.guardConfirmedAt);
+        const end = new Date(data.returnedAt);
+        const diffMs = end - start;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+        duration = `${diffHrs}h ${diffMins}m`;
+      }
+
+      doc.fillColor('#333').fontSize(10).font(fontNormal);
+      doc.text(`Heure de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR'));
+      doc.font(fontNormal).text(`Heure de Retour: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialReturnTime);
+      doc.fillColor('#333').font(fontNormal).text(`Durée Totale: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(duration || '—');
+      doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason || '—');
+
+      doc.moveDown(4);
+      doc.rect(50, doc.y, 495, 1).fill('#eee');
+      doc.moveDown(1);
+      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES ÉLECTRONIQUES', { align: 'center' });
+      doc.moveDown(1.5);
+
+      const yPos = doc.y;
+      const stampWidth = 150;
+      const spacing = 15;
+
+      const drawAttractiveStamp = (x, y, label, name, color) => {
+        doc.roundedRect(x, y, stampWidth, 85, 5).lineWidth(1.5).strokeColor(color).stroke();
+        doc.rect(x + 1, y + 1, stampWidth - 2, 16).fill(color);
+        doc.fontSize(8).fillColor('#fff').font(fontBold).text(label, x, y + 5, { width: stampWidth, align: 'center' });
+        doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
+        doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
+        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
+        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
+      };
+
+      drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
+      drawAttractiveStamp(50 + stampWidth + spacing, yPos, "L'ADMINISTRATION", data.adminApprovedBy || 'RH OFFICE', '#27ae60');
+      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÉCURITÉ / GARDE', data.returnConfirmedBy || 'AGENT GARDE', '#2c3e50');
+
+      const footerY = 760;
+      doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor('#eee').lineWidth(0.5).stroke();
+      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve électronique sécurisée générée par le système RH.`, 50, footerY + 10, { align: 'center' });
+      doc.text('© 2026 TewfikSoft - Signature Numérique Certifiée.', { align: 'center' });
+
+      doc.end();
+      stream.on('finish', () => resolve(outputPath));
+      stream.on('error', reject);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}

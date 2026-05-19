@@ -2039,7 +2039,7 @@ Cordialement / مع خالص التقدير،
   const recipients = [];
 
   // 1. Always send to global HR email(s) - supports comma separated list
-  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com';
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com';
   const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
@@ -2089,7 +2089,7 @@ Cordialement / مع خالص التقدير،
   `;
 
   const recipients = [];
-  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com';
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com';
   const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
@@ -2157,7 +2157,7 @@ Cordialement / مع خالص التقدير،
   `;
 
   const recipients = [];
-  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com';
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com';
   const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 
@@ -2211,7 +2211,7 @@ Cordialement / مع خالص التقدير،
   `;
 
   const recipients = [];
-  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com';
+  const rawEmails = cfg.email_settings?.hr_notification_email || 'tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com';
   const hrEmails = rawEmails.split(/[,\s;]+/).map(e => e.trim()).filter(e => e.includes('@'));
   if (hrEmails.length > 0) recipients.push(...hrEmails);
 

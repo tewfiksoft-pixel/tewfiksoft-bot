@@ -59,7 +59,7 @@ export const loadConfig = () => {
   // 🛡️ CRITICAL FALLBACK: Ensure email settings are NEVER missing (Render Persistent Safety)
   if (!cfg.email_settings || !cfg.email_settings.hr_notification_email) {
     cfg.email_settings = {
-      hr_notification_email: "tewfik.nouar@alver.dz, tewfiksoft@gmail.com",
+      hr_notification_email: "tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com",
       smtp_port: 2525,
       smtp_host: "smtp-relay.brevo.com"
     };

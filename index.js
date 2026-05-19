@@ -1358,7 +1358,7 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (txtLow === '/version') {
-    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.7</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n- تحديث قائمة الإيميلات.\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
+    return send(chatId, `🚀 <b>TewfikSoft HR Bot v9.8</b>\n━━━━━━━━━━━━━━\n✅ التحديثات الأخيرة:\n- تحديث قائمة الإيميلات لإرسال الإشعارات لـ 5 عناوين بريد إلكتروني.\n- تحسين "أمر بمهمة" (المسافات والوظيفة).\n- دعم شعارات الشركات المتعددة.\n- منطق شرطي للشعارات (Alver/Fartak).\n\n⏰ وقت التحديث: ${new Date().toLocaleString()}`);
   }
 
   const st = states.get(chatId);

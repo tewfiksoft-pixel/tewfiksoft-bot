@@ -136,6 +136,15 @@ export async function handle(u) {
     return;
   }
 
+  // Update user activity timestamp
+  try {
+    if (!db.user_activity) db.user_activity = {};
+    db.user_activity[fromId] = new Date().toISOString();
+    saveDB(db);
+  } catch (e) {
+    log(`[ActivityLog-Error] ${e.message}`);
+  }
+
   const roleObj = RoleFactory.create(userData);
   if (!roleObj) return;
 
@@ -239,6 +248,62 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `📢 <b>إرسال تعليمات إدارية (برودكاست):</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>نص التعليمات</b> أو <b>صورة مع نص (Caption)</b> لتوزيعها على جميع المستخدمين المفعلين في البوت.\n\n<i>يمكنك إرسال أي وسائط أخرى مثل فيديو أو ملف PDF وسيقوم البوت بتوزيعها تلقائياً.</i>\n\nأرسل /cancel لإلغاء العملية.` 
         : `📢 <b>Diffusion d'instruction administrative :</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer le <b>texte de l'instruction</b> ou une <b>photo avec description (Caption)</b> pour la diffuser à tous les utilisateurs activés du bot.\n\n<i>Vous pouvez aussi envoyer une vidéo ou un fichier PDF.</i>\n\nEnvoyez /cancel pour annuler.`);
+    }
+
+    if (d === 'admin_active_users') {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin') {
+        return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للمسؤول فقط.</b>' : '❌ <b>Accès restreint à l\'administrateur.</b>');
+      }
+
+      const db2 = loadDB();
+      const formatLastActive = (isoString, ar) => {
+        if (!isoString) {
+          return ar ? 'غير متصل 🔴' : 'Jamais connecté 🔴';
+        }
+        const diffMs = Date.now() - new Date(isoString).getTime();
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffSecs < 60) {
+          return ar ? 'نشط الآن 🟢' : 'Actif maintenant 🟢';
+        } else if (diffMins < 60) {
+          return ar ? `منذ ${diffMins} دقيقة 🟡` : `Il y a ${diffMins} min 🟡`;
+        } else if (diffHours < 24) {
+          return ar ? `منذ ${diffHours} ساعة 🟡` : `Il y a ${diffHours} h 🟡`;
+        } else {
+          return ar ? `منذ ${diffDays} يوم ⚪` : `Il y a ${diffDays} j ⚪`;
+        }
+      };
+
+      const sortedUsers = [...(cfg.authorized_users || [])].sort((a, b) => {
+        const timeA = db2.user_activity?.[a.id] ? new Date(db2.user_activity[a.id]).getTime() : 0;
+        const timeB = db2.user_activity?.[b.id] ? new Date(db2.user_activity[b.id]).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      let msg = ar 
+        ? `👥 <b>المستخدمين المتواجدين حالياً في البوت:</b>\n━━━━━━━━━━━━━━\n`
+        : `👥 <b>UTILISATEURS ACTIFS SUR LE BOT :</b>\n━━━━━━━━━━━━━━\n`;
+
+      for (const u of sortedUsers) {
+        const lastActiveStr = formatLastActive(db2.user_activity?.[u.id], ar);
+        const roleName = String(u.role).toUpperCase();
+        msg += `👤 <b>${u.name}</b>\n🔑 ID: <code>${u.id}</code> | الرتبة: <code>${roleName}</code>\n⏰ ${lastActiveStr}\n━━━━━━━━━━━━━━\n`;
+      }
+
+      const kbd = {
+        inline_keyboard: [
+          [
+            { text: ar ? '🔄 تحديث' : '🔄 Actualiser', callback_data: 'admin_active_users' },
+            { text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }
+          ]
+        ]
+      };
+
+      return send(chatId, msg, kbd);
     }
 
     const db = loadDB();

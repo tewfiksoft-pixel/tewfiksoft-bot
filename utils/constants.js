@@ -7,6 +7,7 @@ export const DOC_TYPES = [
 ];
 
 export const DOSSIER_REASONS = [
+  { id: 'dos_admin', fr: 'Dossier Administratif', ar: 'ملف إداري' },
   { id: 'ass_auto', fr: 'Assurance Automobile', ar: 'تأمين السيارة' },
   { id: 'cpt_banc', fr: 'Ouverture Compte Bancaire', ar: 'فتح حساب بنكي' },
   { id: 'cpt_ccp', fr: 'Ouverture Compte CCP', ar: 'فتح حساب CCP' },

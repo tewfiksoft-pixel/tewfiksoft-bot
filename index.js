@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
-import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF, generateReturnAuthPDF } from './utils/pdf.js';
+import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF, generateReturnAuthPDF, generateWorkCertPDF } from './utils/pdf.js';
 import { sendEmail } from './utils/email.js';
 import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
@@ -61,6 +61,49 @@ const saveStates = () => {
   } catch (e) { log(`[States] Save error: ${e.message}`); }
 };
 loadStates();
+
+
+// ── Helper: generate Work Certificate PDF and dispatch by email ──────────────
+async function generateAndSendWorkCert(req, cfg, db) {
+  const emp = (db.hr_employees || []).find(e => String(e.id) === String(req.empId));
+  if (!emp) throw new Error(`Employee not found: ${req.empId}`);
+
+  const isFartak = String(emp.companyId || '').toLowerCase() === 'vt' ||
+                   String(emp.companyName || '').toLowerCase().includes('fartak') ||
+                   String(emp.companyName || '').toLowerCase().includes('verre tech');
+
+  const companyName = isFartak ? 'Verre Tech Spa' : 'ALVER Spa';
+  const companyId   = isFartak ? 'vt' : 'alv';
+
+  const pdfPath = path.join(os.tmpdir(), `cert_${req.id}.pdf`);
+
+  await generateWorkCertPDF({
+    id: req.id,
+    reason: req.reason,
+    approvedBy: req.approvedBy,
+    companyName,
+    companyId,
+    emp
+  }, pdfPath);
+
+  // Build recipient list: HR emails + requester email (if present)
+  const s = cfg.email_settings || {};
+  const hrEmails = s.hr_notification_email
+    ? s.hr_notification_email.split(',').map(e => e.trim()).filter(Boolean)
+    : [];
+  const requesterUser = (cfg.authorized_users || []).find(u => String(u.id) === String(req.requesterId));
+  if (requesterUser?.email) hrEmails.push(requesterUser.email);
+  const recipients = [...new Set(hrEmails)];
+
+  if (recipients.length > 0) {
+    const subject = `Attestation de Travail - ${emp.lastName_fr} ${emp.firstName_fr} - ${new Date().toLocaleDateString('fr-FR')}`;
+    const body = `Bonjour,\n\nVeuillez trouver ci-joint l'Attestation de Travail pour ${emp.lastName_fr} ${emp.firstName_fr} (Matricule: ${emp.clockingId}).\n\nMotif: ${req.reason}\nApprouvé par: ${req.approvedBy}\nDate: ${new Date().toLocaleDateString('fr-FR')}\n\nCordialement,\nTewfikSoft HR Bot`;
+    await sendEmail(recipients, subject, body, [{ filename: 'Attestation_de_Travail.pdf', path: pdfPath }]);
+  }
+
+  // Cleanup temp PDF
+  try { fs.unlinkSync(pdfPath); } catch (_) {}
+}
 
 export async function handle(u) {
   log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
@@ -168,7 +211,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();
-      if (role === 'admin' || role === 'manager') {
+      if (role === 'admin' || role === 'manager' || role === 'chef_de_quart') {
         states.set(chatId, { step: 'search' }); 
         return send(chatId, ar ? '🔍 أرسل <b>رقم الموظف</b> أو <b>اسمه</b> :' : '🔍 Entrez <b>ID</b> ou <b>Nom</b> :');
       }
@@ -177,7 +220,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'add_emp') {
       const role = String(userData.role).toLowerCase();
-      if (role !== 'admin' && role !== 'manager') {
+      if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart') {
         return send(chatId, ar ? '❌ <b>هذه الميزة مخصصة للإدارة.</b>' : '❌ <b>Accès restreint à l\'administration.</b>');
       }
       states.set(chatId, { step: 'add_emp_tid' });
@@ -253,7 +296,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
         return roleObj.showEmployeeCard(chatId, emp, ar, bals);
       }
-      if (role === 'admin' || role === 'manager' || role === 'gestionnaire_rh') {
+      if (role === 'admin' || role === 'manager' || role === 'chef_de_quart' || role === 'gestionnaire_rh') {
         return send(chatId, ar ? 'ℹ️ <b>أنت مسجل كمسؤول.</b>\nليس لديك "رقم موظف" شخصي مرتبط بحسابك.\n\nاستخدم زر <b>البحث</b> للوصول لبيانات العمال.' : 'ℹ️ <b>Vous êtes Administrateur.</b>\nVous n\'avez pas de "Matricule" personnel lié.\n\nUtilisez le bouton <b>Recherche</b> pour accéder aux dossiers.');
       }
       return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي. يرجى مراجعة الإدارة.' : '❌ Profil introuvable. Veuillez contacter l\'administration.');
@@ -412,8 +455,44 @@ Pour garantir une fin de relation de travail légale et fluide :
       const emp = db.hr_employees?.find(e => String(e.id) === empId);
       const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : empId;
       const role = String(userData.role).toLowerCase();
-      const isManager = role === 'manager';
 
+      // ── Attestation de Travail: route through admin approval ──
+      if (docId === 'att_travail') {
+        const reqId = 'cert_' + Math.random().toString(36).substring(2, 9);
+        if (!db.bot_requests) db.bot_requests = [];
+        db.bot_requests.push({
+          id: reqId,
+          type: 'work_cert_auth',
+          status: 'pending_admin',
+          empId,
+          empName,
+          reason: rsnName,
+          reasonId: rsnId,
+          requesterId: String(fromId),
+          requesterName: userData.name,
+          requesterChatId: String(chatId),
+          createdAt: new Date().toISOString()
+        });
+        saveDB(db);
+
+        const approvalMsg = ar
+          ? `📋 <b>طلب شهادة عمل — موافقة مطلوبة</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n✍️ السبب: <b>${rsnName}</b>\n👤 طلب بواسطة: ${userData.name}\n⏰ ${new Date().toLocaleString('fr-FR')}\n\n⚠️ الرجاء اتخاذ قرار:`
+          : `📋 <b>Demande Attestation de Travail — Approbation requise</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n✍️ Motif: <b>${rsnName}</b>\n👤 Demandé par: ${userData.name}\n⏰ ${new Date().toLocaleString('fr-FR')}\n\n⚠️ Veuillez prendre une décision:`;
+
+        const approvalKbd = { inline_keyboard: [[
+          { text: '✅ Approuver', callback_data: `work_adm_app:${reqId}` },
+          { text: '❌ Rejeter', callback_data: `work_adm_rej:${reqId}` }
+        ]]};
+
+        await notifyStaff(approvalMsg, cfg, send, approvalKbd);
+
+        return send(chatId, ar
+          ? `✅ <b>تم إرسال طلب شهادة العمل!</b>\n👤 الموظف: ${empName}\n✍️ السبب: ${rsnName}\n⏳ <b>بانتظار موافقة الإدارة. ستصلك إشعار عند الموافقة.</b>`
+          : `✅ <b>Demande Attestation de Travail envoyée!</b>\n👤 Employé: ${empName}\n✍️ Motif: ${rsnName}\n⏳ <b>En attente d'approbation. Vous serez notifié(e) dès validation.</b>`);
+      }
+
+      // ── All other documents: notify staff directly ──
+      const isManager = role === 'manager' || role === 'chef_de_quart';
       await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${docName}</b>\n✍️ السبب: ${rsnName}\n👤 من طرف: ${userData.name}`, cfg, send);
       
       return send(chatId, isManager
@@ -431,6 +510,66 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `🚑 <b>التبليغ عن حادث عمل (خطوة 1/7)</b>\n━━━━━━━━━━━━━━\n📅 يرجى كتابة <b>تاريخ ووقت</b> وقوع الحادث:\nمثال: <code>اليوم 10:30</code> أو <code>أمس المساء</code>` 
         : `🚑 <b>DÉCLARATION D'ACCIDENT (Étape 1/7)</b>\n━━━━━━━━━━━━━━\n📅 Veuillez écrire <b>la date et l'heure</b> de l'accident :\nEx: <code>Aujourd'hui 10:30</code>`);
+    }
+
+    // ── Work Certificate: APPROVE ──────────────────────────────────────
+    if (d.startsWith('work_adm_app:')) {
+      const reqId = d.split(':')[1];
+      const db2 = loadDB();
+      const req = (db2.bot_requests || []).find(r => r.id === reqId);
+      if (!req) return send(chatId, ar ? '❌ الطلب غير موجود أو انتهت صلاحيته.' : '❌ Demande introuvable ou expirée.');
+      if (req.status !== 'pending_admin') return send(chatId, ar ? '⚠️ تم معالجة هذا الطلب مسبقاً.' : '⚠️ Cette demande a déjà été traitée.');
+
+      req.status = 'completed';
+      req.approvedBy = userData.name;
+      req.approvedAt = new Date().toISOString();
+      saveDB(db2);
+
+      await answerCallbackQuery(cbq.id, '✅ Approuvé!');
+      await send(chatId, ar
+        ? `✅ <b>تمت الموافقة على شهادة العمل!</b>\n👤 ${req.empName}\n🔄 جاري إنشاء PDF وإرساله...`
+        : `✅ <b>Attestation de Travail approuvée!</b>\n👤 ${req.empName}\n🔄 Génération du PDF en cours...`);
+
+      try {
+        await generateAndSendWorkCert(req, cfg, db2);
+        // Notify requester
+        if (req.requesterChatId) {
+          await send(Number(req.requesterChatId), ar
+            ? `✅ <b>تمت الموافقة على طلب شهادة العمل!</b>\n👤 الموظف: ${req.empName}\n✍️ السبب: ${req.reason}\n📧 تم إرسال الوثيقة بالبريد الإلكتروني.`
+            : `✅ <b>Votre demande d'Attestation de Travail a été approuvée!</b>\n👤 Employé: ${req.empName}\n✍️ Motif: ${req.reason}\n📧 Document envoyé par email.`);
+        }
+        return send(chatId, ar ? '📧 تم إرسال شهادة العمل بالبريد الإلكتروني بنجاح!' : '📧 Attestation envoyée par email avec succès!');
+      } catch (pdfErr) {
+        log(`[WorkCert] PDF/email error: ${pdfErr.message}`);
+        return send(chatId, `❌ Erreur lors de la génération du PDF: ${pdfErr.message}`);
+      }
+    }
+
+    // ── Work Certificate: REJECT ───────────────────────────────────────
+    if (d.startsWith('work_adm_rej:')) {
+      const reqId = d.split(':')[1];
+      const db2 = loadDB();
+      const req = (db2.bot_requests || []).find(r => r.id === reqId);
+      if (!req) return send(chatId, ar ? '❌ الطلب غير موجود.' : '❌ Demande introuvable.');
+      if (req.status !== 'pending_admin') return send(chatId, ar ? '⚠️ تم معالجة هذا الطلب مسبقاً.' : '⚠️ Cette demande a déjà été traitée.');
+
+      req.status = 'rejected_adm';
+      req.rejectedBy = userData.name;
+      req.rejectedAt = new Date().toISOString();
+      saveDB(db2);
+
+      await answerCallbackQuery(cbq.id, '❌ Rejeté');
+      await send(chatId, ar
+        ? `❌ <b>تم رفض طلب شهادة العمل.</b>\n👤 ${req.empName}`
+        : `❌ <b>Demande d'Attestation rejetée.</b>\n👤 ${req.empName}`);
+
+      // Notify requester of rejection
+      if (req.requesterChatId) {
+        await send(Number(req.requesterChatId), ar
+          ? `❌ <b>تم رفض طلب شهادة العمل.</b>\n👤 الموظف: ${req.empName}\n✍️ السبب: ${req.reason}\n👤 رُفض بواسطة: ${userData.name}\n\nيمكنك التواصل مع الإدارة لمزيد من المعلومات.`
+          : `❌ <b>Votre demande d'Attestation de Travail a été rejetée.</b>\n👤 Employé: ${req.empName}\n✍️ Motif: ${req.reason}\n👤 Rejeté par: ${userData.name}\n\nVeuillez contacter l'administration pour plus d'informations.`);
+      }
+      return;
     }
 
     if (d === 'auth_menu') {
@@ -479,7 +618,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'om_start') {
       const role = String(userData.role).toLowerCase();
-      if (role !== 'admin' && role !== 'manager' && role !== 'gestionnaire_rh') {
+      if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart' && role !== 'gestionnaire_rh') {
          return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للإدارة فقط.</b>' : '❌ <b>Accès réservé à l\'administration.</b>');
       }
       states.set(chatId, { step: 'om_search', data: { managerId: fromId, managerName: userData.name, destinations: [] } });
@@ -1329,7 +1468,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
   if (txtLow === '/test_email') {
     const role = String(userData.role).toLowerCase();
-    if (role !== 'admin' && role !== 'manager') return;
+    if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart') return;
     
     await send(chatId, '📧 <b>جاري إرسال بريد تجريبي (Port 465)...</b>');
     try {
@@ -1346,7 +1485,7 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (txtLow === '/me' || txtLow === '/id') {
-    const isAdminRole = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'manager';
+    const isAdminRole = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'manager' || String(userData.role).toLowerCase() === 'chef_de_quart';
     const db = isAdminRole ? loadDB() : null;
     const count = db?.hr_employees?.length || 0;
     
@@ -1368,7 +1507,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
     const role = String(userData.role).toLowerCase();
-    const isManager = role === 'manager';
+    const isManager = role === 'manager' || role === 'chef_de_quart';
 
     if (st.step === 'add_emp_tid') {
       if (!/^\d+$/.test(txt)) {

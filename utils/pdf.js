@@ -4,9 +4,32 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import arabicReshaper from 'arabic-reshaper';
 import bidiFactory from 'bidi-js';
+import https from 'https';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const bidi = bidiFactory();
+
+async function downloadQRCode(text, tempQrPath) {
+  return new Promise((resolve, reject) => {
+    const encodedText = encodeURIComponent(text);
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedText}`;
+    const file = fs.createWriteStream(tempQrPath);
+    https.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to get QR code: ${response.statusCode}`));
+        return;
+      }
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve(tempQrPath);
+      });
+    }).on('error', (err) => {
+      fs.unlink(tempQrPath, () => {});
+      reject(err);
+    });
+  });
+}
 
 export async function generateExitAuthPDF(data, outputPath) {
   return new Promise((resolve, reject) => {
@@ -405,6 +428,158 @@ export async function generateReturnAuthPDF(data, outputPath) {
       stream.on('finish', () => resolve(outputPath));
       stream.on('error', reject);
     } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+export async function generateWorkCertPDF(data, outputPath) {
+  return new Promise(async (resolve, reject) => {
+    const tempQrPath = path.join(path.dirname(outputPath), `qr_${data.id}.png`);
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const stream = fs.createWriteStream(outputPath);
+      doc.pipe(stream);
+
+      const fontBold = 'Helvetica-Bold';
+      const fontNormal = 'Helvetica';
+      const fontOblique = 'Helvetica-Oblique';
+      
+      const assetsDir = path.join(__dirname, '..', 'assets');
+      const logoLeft = fs.existsSync(path.join(assetsDir, 'ALVER.png')) ? path.join(assetsDir, 'ALVER.png') : path.join(assetsDir, 'logo_left.png');
+      const logoRight = fs.existsSync(path.join(assetsDir, 'Condor.png')) ? path.join(assetsDir, 'Condor.png') : path.join(assetsDir, 'logo_right.png');
+
+      const isFartak = String(data.companyId || '').toLowerCase() === 'vt' || 
+                       String(data.companyName || '').toLowerCase().includes('fartak') ||
+                       String(data.companyName || '').toLowerCase().includes('verre tech');
+
+      // --- Header Box (Three compartments) ---
+      doc.rect(40, 40, 515, 80).strokeColor('#000').lineWidth(1).stroke();
+      doc.moveTo(145, 40).lineTo(145, 120).stroke();
+      doc.moveTo(425, 40).lineTo(425, 120).stroke();
+
+      // Left Compartment: ALVER logo ONLY if NOT Fartak/Verre Tech
+      if (!isFartak && fs.existsSync(logoLeft)) {
+        doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
+      }
+
+      // Center Compartment: Text Block
+      doc.fillColor('#000');
+      doc.font(fontBold).fontSize(6).text('SOCIÉTÉ PAR ACTIONS AU CAPITAL SOCIAL DE 6.606.000.000 DA', 150, 48, { width: 270, align: 'center' });
+      doc.font(fontBold).fontSize(14).fillColor('#0f7b50').text('ALVER SPA', 150, 58, { width: 270, align: 'center' });
+      
+      // Draw underline under central title
+      doc.font(fontBold).fontSize(9).fillColor('#000').text('Direction des Ressources Humaines', 150, 76, { width: 270, align: 'center' });
+      const drhWidth = doc.widthOfString('Direction des Ressources Humaines');
+      doc.moveTo(285 - drhWidth / 2, 86).lineTo(285 + drhWidth / 2, 86).strokeColor('#000').lineWidth(0.8).stroke();
+      
+      doc.font(fontNormal).fontSize(7.5).fillColor('#333').text('Avenue des Martyrs de la Révolution, Es-Sénia, Oran', 150, 92, { width: 270, align: 'center' });
+      
+      doc.font(fontNormal).fontSize(7).text('Tél: 041 51 11 11 / 041 51 11 15  ', 150, 104, { width: 270, align: 'center', continued: true })
+         .fillColor('#0f7b50').font(fontBold).text('Web: https://www.alver.dz');
+
+      // Right Compartment: Condor logo always
+      if (fs.existsSync(logoRight)) {
+        doc.image(logoRight, 430, 45, { width: 105, height: 50, fit: [105, 50], align: 'center', valign: 'center' });
+        doc.font(fontNormal).fontSize(7).fillColor('#000').text('N° ER.216.RO', 430, 100, { width: 115, align: 'center' });
+      } else {
+        doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(7).fillColor('#000').text('N° ER.216.RO', 430, 85, { width: 115, align: 'center' });
+      }
+
+      // --- Banner ---
+      doc.roundedRect(40, 140, 515, 30, 4).fillAndStroke('#f4fbf7', '#0f7b50');
+      doc.font(fontBold).fontSize(16).fillColor('#0f7b50').text('ATTESTATION DE TRAVAIL', 40, 148, { align: 'center', width: 515 });
+
+      // --- Body ---
+      const companyLabel = isFartak ? 'Verre Tech Spa' : 'ALVER Spa';
+      const addressLabel = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la Révolution, Es-Sénia, Oran';
+      
+      doc.fillColor('#000');
+      doc.font(fontOblique).fontSize(11).text(`Nous soussignés, La société ${companyLabel}, sise à : ${addressLabel}.`, 50, 195, { width: 495 });
+
+      const emp = data.emp || {};
+      const genderTitle = emp.gender === 'F' ? 'Madame' : 'Monsieur';
+      
+      const attY = 230;
+      doc.font(fontBold).fontSize(11).fillColor('#000').text('Attestons par la présente que :', 50, attY);
+      const attWidth = doc.widthOfString('Attestons par la présente que :');
+      doc.fillColor('#e53e3e').text(` ${genderTitle}`, 50 + attWidth + 5, attY);
+      const genderWidth = doc.widthOfString(` ${genderTitle}`);
+      doc.moveTo(50 + attWidth + 5 + genderWidth + 5, attY + 10).lineTo(530, attY + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
+
+      // Custom French Date Formatter Helper
+      const formatDateFr = (dateStr) => {
+        if (!dateStr) return '—';
+        try {
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr;
+          const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+          return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        } catch (e) {
+          return dateStr;
+        }
+      };
+
+      // Draw rows
+      let y = 260;
+      const drawCertField = (label, value, isRed = false) => {
+        doc.font(fontBold).fontSize(11).fillColor('#000').text(label, 50, y);
+        doc.text(':', 180, y);
+        doc.font(fontBold).fillColor(isRed ? '#e53e3e' : '#000').text(value || '—', 200, y);
+        doc.moveTo(200, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
+        y += 30;
+      };
+
+      drawCertField('Nom', String(emp.lastName_fr || '').toUpperCase());
+      drawCertField('Prénom', String(emp.firstName_fr || ''));
+      drawCertField('En sa qualité de', String(emp.jobTitle_fr || ''));
+      drawCertField('Né(e) le', formatDateFr(emp.birthDate));
+      drawCertField('N° Sécurité Sociale', String(emp.socialNumber || '—'));
+      drawCertField('Nature du contrat', String(emp.contractType || '—'));
+
+      // Est employé(e)...
+      doc.font(fontBold).fontSize(11).fillColor('#000').text('Est employé(e) au sein de notre organisme depuis le :', 50, y);
+      const estLabelWidth = doc.widthOfString('Est employé(e) au sein de notre organisme depuis le :');
+      doc.moveTo(50, y + 10).lineTo(50 + estLabelWidth, y + 10).strokeColor('#000').lineWidth(0.8).stroke();
+      
+      const valX = 50 + estLabelWidth + 5;
+      doc.font(fontBold).text(`${formatDateFr(emp.startDate)} ... à ce jour`, valX, y);
+      const valWidth = doc.widthOfString(`${formatDateFr(emp.startDate)} ... à ce jour`);
+      doc.moveTo(valX + valWidth + 5, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
+      
+      y += 30;
+
+      // Motif
+      doc.font(fontBold).fontSize(11).fillColor('#000').text('Motif de la demande', 50, y);
+      doc.text(':', 180, y);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.reason || 'Dossier Administratif', 200, y);
+      doc.moveTo(200, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
+
+      // Download and Embed Verification QR Code
+      try {
+        const qrText = `ATTESTATION DE TRAVAIL\nSociété: ${companyLabel}\nNom: ${emp.lastName_fr}\nPrénom: ${emp.firstName_fr}\nQualité: ${emp.jobTitle_fr}\nMatricule: ${emp.clockingId}\nContrat: ${emp.contractType}\nMotif: ${data.reason}\nID: ${data.id}`;
+        await downloadQRCode(qrText, tempQrPath);
+        if (fs.existsSync(tempQrPath)) {
+          doc.image(tempQrPath, 50, 670, { width: 85, height: 85 });
+        }
+      } catch (qrErr) {
+        // Fallback: draw placeholder rectangle if download fails
+        doc.rect(50, 670, 85, 85).strokeColor('#ccc').stroke();
+        doc.fontSize(8).text('QR CODE', 55, 710);
+      }
+
+      // Date Stamp
+      doc.font(fontBold).fontSize(11).fillColor('#000').text(`Fait à Es-Sénia, le : ${formatDateFr(new Date())}`, 330, 730);
+
+      doc.end();
+      stream.on('finish', () => {
+        try { if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath); } catch (e) {}
+        resolve(outputPath);
+      });
+      stream.on('error', reject);
+    } catch (e) {
+      try { if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath); } catch (e) {}
       reject(e);
     }
   });

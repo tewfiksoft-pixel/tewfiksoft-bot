@@ -22,7 +22,7 @@ export default class BaseRole {
     kbd.inline_keyboard.push([{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }]);
     
     const role = String(this.user.role).toLowerCase();
-    if (this.isAdmin() || role === 'manager' || role === 'gestionnaire_rh' || role === 'general_manager') {
+    if (this.isAdmin() || role === 'manager' || role === 'chef_de_quart' || role === 'gestionnaire_rh' || role === 'general_manager') {
       kbd.inline_keyboard.push([{ text: ar ? '🛠️ أدوات الإدارة' : '🛠️ Outils de Gestion', callback_data: 'mgmt_tools' }]);
       kbd.inline_keyboard.push([{ text: ar ? '📜 دليل العمل' : '📜 Guide Procédures', callback_data: 'end_work_guide' }]);
     }
@@ -76,7 +76,7 @@ export default class BaseRole {
       kbd.inline_keyboard.push([{ text: ar ? '🚑 تبليغ عن حادث عمل' : '🚑 Déclarer Accident de Travail', callback_data: 'accident:' + emp.id }]);
     }
     
-    if (role === 'admin' || role === 'manager') {
+    if (role === 'admin' || role === 'manager' || role === 'chef_de_quart') {
       kbd.inline_keyboard.push([{ text: ar ? '🔍 بحث جديد' : '🔍 Recherche', callback_data: 'search' }]);
     }
     return send(chatId, msg, kbd);

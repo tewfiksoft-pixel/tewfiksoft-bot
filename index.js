@@ -662,11 +662,11 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       if (action === 'toggle') {
         const val = parts[2];
-        if (st.data.destinations.includes(val)) {
-          st.data.destinations = st.data.destinations.filter(x => x !== val);
-        } else {
-          st.data.destinations.push(val);
-        }
+        st.data.destinations.push(val);
+      }
+
+      if (action === 'undo') {
+        st.data.destinations.pop();
       }
 
       if (action === 'clear') {
@@ -697,8 +697,9 @@ Pour garantir une fin de relation de travail légale et fluide :
         const row = [];
         [WILAYAS[i], WILAYAS[i+1]].forEach(w => {
           if (w) {
-            const isSel = st.data.destinations.includes(w);
-            row.push({ text: (isSel ? '✅ ' : '') + w, callback_data: `om_dest:toggle:${w}:${page}` });
+            const count = st.data.destinations.filter(x => x === w).length;
+            const prefix = count > 0 ? (count > 1 ? `✅ (${count}x) ` : '✅ ') : '';
+            row.push({ text: prefix + w, callback_data: `om_dest:toggle:${w}:${page}` });
           }
         });
         rows.push(row);
@@ -711,13 +712,14 @@ Pour garantir une fin de relation de travail légale et fluide :
       rows.push(navRow);
       
       rows.push([
+        { text: ar ? '↩️ تراجع' : '↩️ Retour', callback_data: `om_dest:undo:0:${page}` },
         { text: ar ? '🧹 مسح الكل' : '🧹 Effacer', callback_data: `om_dest:clear:0:${page}` },
         { text: ar ? '🏁 تأكيد الوجهات' : '🏁 Confirmer', callback_data: 'om_dest:done' }
       ]);
 
       const msg = ar 
-        ? `📍 <b>اختر وجهات المهمة (يمكنك اختيار عدة ولايات):</b>\n━━━━━━━━━━━━━━\nالوجهات المختارة: ${st.data.destinations.join(', ') || '—'}\n\n💡 <i>اضغط على الولاية للاختيار، ثم اضغط "تأكيد" عند الانتهاء.</i>`
-        : `📍 <b>Choisissez les destinations (Multi-sélection):</b>\n━━━━━━━━━━━━━━\nSélection: ${st.data.destinations.join(', ') || '—'}\n\n💡 <i>Appuyez pour choisir, puis sur "Confirmer" une fois fini.</i>`;
+        ? `📍 <b>اختر وجهات المهمة (يمكنك اختيار عدة ولايات):</b>\n━━━━━━━━━━━━━━\nالوجهات المختارة: ${st.data.destinations.join(' - ') || '—'}\n\n💡 <i>اضغط على الولاية للاختيار، ثم اضغط "تأكيد" عند الانتهاء.</i>`
+        : `📍 <b>Choisissez les destinations (Multi-sélection):</b>\n━━━━━━━━━━━━━━\nSélection: ${st.data.destinations.join(' - ') || '—'}\n\n💡 <i>Appuyez pour choisir, puis sur "Confirmer" une fois fini.</i>`;
       
       return send(chatId, msg, { inline_keyboard: rows });
     }
@@ -753,8 +755,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveDB(db);
 
       const msg = ar 
-        ? `📝 <b>طلب "أمر بمهمة" جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📍 الوجهات: ${st.data.destinations.join(', ')}\n📅 الفترة: من ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n👤 الطالب: ${st.data.managerName}`
-        : `📝 <b>DEMANDE D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(', ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+        ? `📝 <b>طلب "أمر بمهمة" جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📍 الوجهات: ${st.data.destinations.join(' - ')}\n📅 الفترة: من ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n👤 الطالب: ${st.data.managerName}`
+        : `📝 <b>DEMANDE D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(' - ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
       
       const kbd = { inline_keyboard: [
         [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver par Admin', callback_data: `om_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `om_adm_rej:${reqId}` }]
@@ -2503,7 +2505,7 @@ Nous vous informons qu'un nouvel ordre de mission a été généré et approuvé
 نحيطكم علماً بأنه قد تم إصدار واعتماد أمر بمهمة جديد بنجاح عبر نظام توفيق سوفت للموارد البشرية.
 
 👤 Employé(e) / الموظف(ة): ${req.empName}
-📍 Destinations / الوجهات: ${cleanDestinations.join(', ')}
+📍 Destinations / الوجهات: ${cleanDestinations.join(' - ')}
 📅 Période / الفترة: du ${req.startDate} au ${req.endDate}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

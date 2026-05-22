@@ -303,7 +303,7 @@ export async function generateMissionPDF(data, outputPath) {
       drawField('Structure :', String(emp.department_fr || emp.direction_fr || 'Direction Générale'));
       drawField('Motifs de la Mission :', data.reason);
       const cleanDestinations = data.destinations.map(d => d.includes(' - ') ? d.split(' - ')[1] : d);
-      drawField('Destination :', cleanDestinations.join(', '), 0, true);
+      drawField('Destination :', cleanDestinations.join(' - '), 0, true);
       drawField('Date de départ :', data.startDate);
       drawField('Date de retour :', data.endDate);
 

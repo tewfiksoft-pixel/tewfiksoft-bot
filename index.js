@@ -229,6 +229,18 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `➕ <b>Ajouter / Activer un employé:</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer <b>l'ID Telegram</b> de l'employé (obtenu avec /me):`);
     }
 
+    if (d === 'admin_broadcast') {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin') {
+        return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للمسؤول فقط.</b>' : '❌ <b>Accès restreint à l\'administrateur.</b>');
+      }
+      states.set(chatId, { step: 'broadcast_content' });
+      saveStates();
+      return send(chatId, ar 
+        ? `📢 <b>إرسال تعليمات إدارية (برودكاست):</b>\n━━━━━━━━━━━━━━\nيرجى إرسال <b>نص التعليمات</b> أو <b>صورة مع نص (Caption)</b> لتوزيعها على جميع المستخدمين المفعلين في البوت.\n\n<i>يمكنك إرسال أي وسائط أخرى مثل فيديو أو ملف PDF وسيقوم البوت بتوزيعها تلقائياً.</i>\n\nأرسل /cancel لإلغاء العملية.` 
+        : `📢 <b>Diffusion d'instruction administrative :</b>\n━━━━━━━━━━━━━━\nVeuillez envoyer le <b>texte de l'instruction</b> ou une <b>photo avec description (Caption)</b> pour la diffuser à tous les utilisateurs activés du bot.\n\n<i>Vous pouvez aussi envoyer une vidéo ou un fichier PDF.</i>\n\nEnvoyez /cancel pour annuler.`);
+    }
+
     const db = loadDB();
 
     if (d.startsWith('add_emp_rolex:') || d.startsWith('add_emp_rolen:')) {
@@ -1501,6 +1513,88 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   const st = states.get(chatId);
+  if (st) {
+    if (txtLow === '/cancel') {
+      states.delete(chatId);
+      saveStates();
+      return roleObj.showMenu(chatId, ar, getStatsMsg);
+    }
+
+    if (st.step === 'broadcast_content') {
+      states.delete(chatId);
+      saveStates();
+
+      let method = 'sendMessage';
+      let params = {};
+
+      if (msg.photo && msg.photo.length > 0) {
+        method = 'sendPhoto';
+        params = { photo: msg.photo[msg.photo.length - 1].file_id };
+      } else if (msg.video) {
+        method = 'sendVideo';
+        params = { video: msg.video.file_id };
+      } else if (msg.document) {
+        method = 'sendDocument';
+        params = { document: msg.document.file_id };
+      } else if (msg.voice) {
+        method = 'sendVoice';
+        params = { voice: msg.voice.file_id };
+      } else if (msg.audio) {
+        method = 'sendAudio';
+        params = { audio: msg.audio.file_id };
+      }
+
+      const rawContent = msg.caption || msg.text || '';
+      const allUsers = cfg.authorized_users || [];
+      let successCount = 0;
+      let failCount = 0;
+
+      await send(chatId, ar ? '⏳ <b>جاري إرسال التعليمات للجميع...</b>' : '⏳ <b>Diffusion de l\'instruction en cours...</b>');
+
+      for (const u of allUsers) {
+        if (!u.id) continue;
+        
+        const isUserAr = (u.lang || 'ar') === 'ar';
+        const header = isUserAr 
+          ? `📢 <b>تعليمة إدارية هامة</b> 📢\n━━━━━━━━━━━━━━\n`
+          : `📢 <b>INSTRUCTION ADMINISTRATIVE</b> 📢\n━━━━━━━━━━━━━━\n`;
+        
+        const fullText = rawContent ? `${header}${rawContent}` : header;
+        
+        const payload = {
+          chat_id: String(u.id),
+          parse_mode: 'HTML',
+          ...params
+        };
+        
+        if (method === 'sendMessage') {
+          payload.text = fullText;
+        } else {
+          payload.caption = fullText;
+        }
+
+        try {
+          const res = await tg(method, payload);
+          if (res.ok) successCount++;
+          else {
+            log(`[Broadcast-Error] Failed to send to ${u.name} (${u.id}): ${JSON.stringify(res)}`);
+            failCount++;
+          }
+        } catch (e) {
+          log(`[Broadcast-Error] Failed to send to ${u.name} (${u.id}): ${e.message}`);
+          failCount++;
+        }
+      }
+
+      const confirmMsg = ar
+        ? `✅ <b>تم إرسال التعليمات بنجاح!</b>\n━━━━━━━━━━━━━━\n👥 تم الإرسال إلى: <b>${successCount}</b> مستخدم.\n⚠️ فشل الإرسال إلى: <b>${failCount}</b> مستخدم.`
+        : `✅ <b>Instruction diffusée avec succès !</b>\n━━━━━━━━━━━━━━\n👥 Envoyé à: <b>${successCount}</b> utilisateurs.\n⚠️ Échecs: <b>${failCount}</b>.`;
+
+      await send(chatId, confirmMsg);
+      return roleObj.showMenu(chatId, ar, getStatsMsg);
+    }
+  }
+
   if (st && txt && !txt.startsWith('/')) {
     states.delete(chatId);
     const db = loadDB();

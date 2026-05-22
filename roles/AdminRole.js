@@ -9,6 +9,7 @@ export default class AdminRole extends BaseRole {
       [{ text: ar ? '🚪 إدارة التصاريح (دخول/خروج)' : '🚪 Gestion des Accès', callback_data: 'auth_menu' }],
       [{ text: ar ? '📊 الإحصائيات' : '📊 Statistiques', callback_data: 'stats_menu' }],
       [{ text: ar ? '🛠️ أدوات الإدارة' : '🛠️ Outils de Gestion', callback_data: 'mgmt_tools' }],
+      [{ text: ar ? '📢 إرسال تعليمات إدارية' : '📢 Diffuser Instruction', callback_data: 'admin_broadcast' }],
       [{ text: ar ? '📈 إحصائيات المديريات' : '📈 Stats par Directions', callback_data: 'effectifs_dir' }],
       [{ text: ar ? '➕ إضافة عامل جديد' : '➕ Ajouter un Employé', callback_data: 'add_emp' }],
       [{ text: ar ? '🔍 البحث السريع' : '🔍 Recherche Rapide', callback_data: 'search' }],

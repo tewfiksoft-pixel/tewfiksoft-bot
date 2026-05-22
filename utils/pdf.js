@@ -475,8 +475,8 @@ export async function generateWorkCertPDF(data, outputPath) {
       
       doc.font(fontNormal).fontSize(7.5).fillColor('#333').text('Avenue des Martyrs de la Révolution, Es-Sénia, Oran', 150, 92, { width: 270, align: 'center' });
       
-      doc.font(fontNormal).fontSize(7).text('Tél: 041 51 11 11 / 041 51 11 15  ', 150, 104, { width: 270, align: 'center', continued: true })
-         .fillColor('#0f7b50').font(fontBold).text('Web: https://www.alver.dz');
+      doc.font(fontNormal).fontSize(7).fillColor('#333').text('Tél: 041 51 11 11 / 041 51 11 15', 150, 104, { width: 270, align: 'center' });
+      doc.font(fontBold).fontSize(7).fillColor('#0f7b50').text('Web: https://www.alver.dz', 150, 113, { width: 270, align: 'center' });
 
       // Right Compartment: Condor logo always
       if (fs.existsSync(logoRight)) {

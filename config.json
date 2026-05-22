@@ -53,17 +53,6 @@
       "phone": null
     },
     {
-      "id": "123456789",
-      "name": "Guard Name",
-      "role": "poste_garde",
-      "scope": null,
-      "allowed_departments": null,
-      "allowed_company": null,
-      "allowed_employees": null,
-      "clockingId": null,
-      "phone": null
-    },
-    {
       "id": "6480391203",
       "name": "younes",
       "role": "poste_garde",

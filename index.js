@@ -1920,6 +1920,78 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? (ar ? `✅ تم إرسال البلاغ.\n📊 ${st.reasonName} \n⏳ <b>سوف يُدرس طلبك من طرف الإدارة.</b>` : `✅ Rapport envoyé.\n📊 ${st.reasonName}\n⏳ <b>Votre demande sera étudiée par l'administration.</b>`)
         : (ar ? `✅ <b>تم إرسال البلاغ!</b>\n📊 ${st.reasonName}\n✍️ ${txt}` : `✅ <b>Rapport envoyé!</b>\n📊 ${st.reasonName}\n✍️ ${txt}`));
     }
+
+    // ── 🔍 Search State Handler ────────────────────────────────────────────────
+    if (st.step === 'search') {
+      const q = txt.trim();
+      const qLow = q.toLowerCase();
+      const searchResults = (db.hr_employees || []).filter(e => {
+        if (e.status === 'deleted') return false;
+        // Scope check
+        const empScope = userData.scope || 'all';
+        let allowed = false;
+        if (role === 'admin' || empScope === 'all') {
+          allowed = true;
+        } else if (empScope === 'department') {
+          const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
+          allowed = depts.some(d => String(e.department_fr || '').toLowerCase().includes(d) || String(e.direction_fr || '').toLowerCase().includes(d));
+        } else if (empScope === 'custom_employees') {
+          allowed = (userData.allowed_employees || []).map(id => String(id)).includes(String(e.clockingId));
+        } else if (empScope === 'company') {
+          allowed = String(e.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
+        }
+        if (!allowed) return false;
+        // Query match
+        const cid = String(e.clockingId || '').toLowerCase().trim();
+        const lnf = String(e.lastName_fr || '').toLowerCase();
+        const fnf = String(e.firstName_fr || '').toLowerCase();
+        const lna = String(e.lastName_ar || '');
+        const fna = String(e.firstName_ar || '');
+        if (/^\d+$/.test(qLow)) {
+          if (qLow.length <= 3) return cid === qLow || parseInt(cid) === parseInt(qLow);
+          return cid.includes(qLow);
+        }
+        return lnf.includes(qLow) || fnf.includes(qLow) || lna.includes(qLow) || fna.includes(qLow);
+      }).slice(0, 8);
+
+      if (searchResults.length === 0) {
+        // No results – keep state active so user can try again
+        states.set(chatId, { step: 'search' });
+        return send(chatId,
+          ar ? `❌ لا يوجد موظف بهذا الاسم أو الرقم: <b>${txt}</b>\n\n🔍 حاول مجدداً بإرسال رقم أو اسم آخر:` : `❌ Aucun employé trouvé pour: <b>${txt}</b>\n\n🔍 Réessayez avec un autre ID ou nom:`,
+          { inline_keyboard: [[{ text: ar ? '❌ إلغاء البحث' : '❌ Annuler', callback_data: 'menu' }]] }
+        );
+      }
+
+      if (searchResults.length === 1) {
+        // Single result – show employee card directly
+        const emp = searchResults[0];
+        let bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
+        if (bals.length === 0) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = now.getMonth() + 1;
+          const activeEx = month >= 7 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
+          const auto = calculateAutoLeave(emp.startDate, activeEx);
+          if (auto > 0) bals = [{ exercice: activeEx, totalDays: auto, remainingDays: auto, isAuto: true }];
+        }
+        return roleObj.showEmployeeCard(chatId, emp, ar, bals);
+      }
+
+      // Multiple results – show selection list
+      const kbd = {
+        inline_keyboard: [
+          ...searchResults.map(e => [{
+            text: `👤 ${e.lastName_fr} ${e.firstName_fr} (${e.clockingId})`,
+            callback_data: `full:${e.id}`
+          }]),
+          [{ text: ar ? '🔍 بحث جديد' : '🔍 Nouvelle recherche', callback_data: 'search' }],
+          [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+        ]
+      };
+      return send(chatId, ar ? `🔍 <b>اختر الموظف من النتائج:</b>` : `🔍 <b>Sélectionnez un employé :</b>`, kbd);
+    }
+
     return;
   } else if (txt && !txt.startsWith('/')) {
     const role = String(userData.role).toLowerCase();

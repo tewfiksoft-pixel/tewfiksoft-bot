@@ -316,27 +316,46 @@ Pour garantir une fin de relation de travail légale et fluide :
       const empId = parts[3];
       const empName = isNew ? parts.slice(4).join(':') : '';
 
+      // ── Role label for confirmation message ──
+      const roleLabels = {
+        general_manager: ar ? 'مدير عام' : 'Directeur Général',
+        gestionnaire_rh: ar ? 'مسير موارد بشرية' : 'Gestionnaire RH',
+        manager:         ar ? 'مسير' : 'Manager',
+        chef_de_quart:   ar ? 'رئيس وردية' : 'Chef de Quart',
+        poste_garde:     ar ? 'حارس' : 'Poste de Garde',
+        employee:        ar ? 'عامل' : 'Employé'
+      };
+      const roleLabel = roleLabels[botRole] || botRole;
+
+      // ── Determine scope based on role ──
+      const isManagement = ['general_manager','gestionnaire_rh','manager','chef_de_quart'].includes(botRole);
+      const scope = botRole === 'employee' ? 'custom_employees' : (isManagement ? 'all' : 'custom_employees');
+
       const cfg = loadConfig();
       if (!cfg.authorized_users) cfg.authorized_users = [];
       
       let botUser = cfg.authorized_users.find(u => String(u.id) === String(tid));
       if (!botUser) {
+         const empRecord = db.hr_employees?.find(e => String(e.clockingId) === empId);
+         const displayName = isNew ? empName : (
+           empRecord ? `${empRecord.lastName_fr || ''} ${empRecord.firstName_fr || ''}`.trim() || empRecord.firstName_ar || 'Employé' : 'Employé'
+         );
          botUser = {
             id: tid,
-            name: isNew ? empName : (db.hr_employees?.find(e => String(e.clockingId) === empId)?.firstName_ar || 'Employé'),
+            name: displayName,
             role: botRole,
-            scope: botRole === 'employee' ? 'custom_employees' : 'all',
+            scope,
             allowed_employees: [empId],
             clockingId: empId
          };
          cfg.authorized_users.push(botUser);
       } else {
          botUser.role = botRole;
+         botUser.scope = scope;
          botUser.clockingId = empId;
-         if (botRole === 'employee') {
-            botUser.scope = 'custom_employees';
-            botUser.allowed_employees = [empId];
-         }
+         if (!botUser.allowed_employees) botUser.allowed_employees = [];
+         if (!botUser.allowed_employees.includes(empId)) botUser.allowed_employees.push(empId);
+         if (isNew && empName) botUser.name = empName;
       }
       updateConfig(cfg);
 
@@ -351,17 +370,20 @@ Pour garantir une fin de relation de travail légale et fluide :
            status: 'active',
            csp: botRole,
            department_ar: '',
+           department_fr: '',
            startDate: new Date().toISOString().split('T')[0],
-           createdAt: new Date().toISOString()
+           createdAt: new Date().toISOString(),
+           _addedViaBot: true
          };
          if (!db.hr_employees) db.hr_employees = [];
          db.hr_employees.push(emp);
          saveDB(db);
       }
       
+      const finalName = isNew ? empName : (db.hr_employees?.find(e => String(e.clockingId) === empId)?.firstName_fr || empId);
       return send(chatId, ar 
-         ? `✅ <b>تم العملية بنجاح!</b>\nتم تفعيل حساب التيليجرام: <code>${tid}</code>\nبرقم الموظف: <code>${empId}</code>\n\n<i>${isNew ? 'تمت إضافة العامل للقاعدة وسيظهر في التطبيق.' : 'العامل موجود مسبقاً وتم ربطه بالبوت.'}</i>` 
-         : `✅ <b>Opération réussie!</b>\nCompte activé: <code>${tid}</code>\nID: <code>${empId}</code>`,
+         ? `✅ <b>تمت العملية بنجاح!</b>\n━━━━━━━━━━━━━━\n👤 الاسم: <b>${finalName}</b>\n🆔 الرقم: <code>${empId}</code>\n📱 تيليجرام: <code>${tid}</code>\n🎭 الدور: <b>${roleLabel}</b>\n\n<i>${isNew ? '✅ تمت إضافة العامل للقاعدة وسيظهر في التطبيق.' : '🔗 العامل موجود مسبقاً وتم ربطه بالبوت بالدور الجديد.'}</i>` 
+         : `✅ <b>Opération réussie!</b>\n━━━━━━━━━━━━━━\n👤 Nom: <b>${finalName}</b>\n🆔 Matricule: <code>${empId}</code>\n📱 Telegram: <code>${tid}</code>\n🎭 Rôle: <b>${roleLabel}</b>\n\n<i>${isNew ? '✅ Employé ajouté à la base et visible dans l\'application.' : '🔗 Employé existant lié au Bot avec le nouveau rôle.'}</i>`,
          { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]] }
       );
     }
@@ -1684,15 +1706,19 @@ Pour garantir une fin de relation de travail légale et fluide :
       const exists = (db.hr_employees || []).find(e => String(e.clockingId) === txt);
       if (exists) {
          states.set(chatId, { step: 'add_emp_role_existing', tid: st.tid, empId: txt, empName: `${exists.firstName_ar} ${exists.lastName_ar}`.trim() });
+         const empLabel = ar ? `${exists.firstName_ar} ${exists.lastName_ar}`.trim() : `${exists.firstName_fr} ${exists.lastName_fr}`.trim();
          const kbd = { inline_keyboard: [
-           [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_rolex:general_manager:${st.tid}:${txt}` }],
+           [{ text: ar ? '👑 مدير عام (Directeur Général)' : '👑 Directeur Général', callback_data: `add_emp_rolex:general_manager:${st.tid}:${txt}` }],
+           [{ text: ar ? '🗂️ مسير الموارد البشرية (Gest. RH)' : '🗂️ Gestionnaire RH', callback_data: `add_emp_rolex:gestionnaire_rh:${st.tid}:${txt}` }],
            [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolex:manager:${st.tid}:${txt}` }],
-           [{ text: ar ? '👷 عامل عادي (Employé)' : '👷 Employé normal', callback_data: `add_emp_rolex:employee:${st.tid}:${txt}` }],
+           [{ text: ar ? '🔄 رئيس وردية (Chef de Quart)' : '🔄 Chef de Quart', callback_data: `add_emp_rolex:chef_de_quart:${st.tid}:${txt}` }],
+           [{ text: ar ? '🛡️ حارس (Poste de Garde)' : '🛡️ Poste de Garde', callback_data: `add_emp_rolex:poste_garde:${st.tid}:${txt}` }],
+           [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_rolex:employee:${st.tid}:${txt}` }],
            [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
          ]};
          return send(chatId, ar 
-           ? `✅ <b>هذا العامل موجود مسبقاً!</b>\nالاسم: ${exists.firstName_ar} ${exists.lastName_ar}\n\n📌 <b>اختر الصلاحية التي تريد منحها له في البوت:</b>`
-           : `✅ <b>Cet employé existe déjà!</b>\nNom: ${exists.firstName_fr} ${exists.lastName_fr}\n\n📌 <b>Choisissez son rôle d'accès au Bot:</b>`, kbd);
+           ? `✅ <b>هذا العامل موجود مسبقاً!</b>\nالاسم: <b>${empLabel}</b>\n\n📌 <b>اختر الصلاحية التي تريد منحها له في البوت:</b>`
+           : `✅ <b>Cet employé existe déjà!</b>\nNom: <b>${empLabel}</b>\n\n📌 <b>Choisissez son rôle d'accès au Bot:</b>`, kbd);
       } else {
          states.set(chatId, { step: 'add_emp_name', tid: st.tid, empId: txt });
          return send(chatId, ar 
@@ -1703,8 +1729,11 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (st.step === 'add_emp_name') {
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '👨‍💼 مدير (Directeur)' : '👨‍💼 Directeur', callback_data: `add_emp_rolen:general_manager:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '👑 مدير عام (Directeur Général)' : '👑 Directeur Général', callback_data: `add_emp_rolen:general_manager:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '🗂️ مسير الموارد البشرية (Gest. RH)' : '🗂️ Gestionnaire RH', callback_data: `add_emp_rolen:gestionnaire_rh:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolen:manager:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '🔄 رئيس وردية (Chef de Quart)' : '🔄 Chef de Quart', callback_data: `add_emp_rolen:chef_de_quart:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '🛡️ حارس (Poste de Garde)' : '🛡️ Poste de Garde', callback_data: `add_emp_rolen:poste_garde:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_rolen:employee:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
@@ -2239,6 +2268,16 @@ app.get('/api/debug-config', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+app.get('/api/config', (req, res) => {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      res.sendFile(CONFIG_PATH);
+    } else {
+      res.status(404).send('Config not found');
+    }
+  } catch (e) { res.status(500).send(e.message); }
+});
+
 app.get('/api/logs', (req, res) => {
   try {
     const logPath = path.join(__dirname, 'bot_debug.log');
@@ -2251,6 +2290,20 @@ app.get('/api/logs', (req, res) => {
     }
   } catch (e) { res.status(500).send(e.message); }
 });
+
+// ── Smart Config Merge: merges authorized_users from both sides without data loss ──
+function mergeAuthorizedUsers(existingUsers = [], incomingUsers = []) {
+  const merged = [...incomingUsers];
+  const incomingIds = new Set(incomingUsers.map(u => String(u.id)));
+  // Add users from cloud that are NOT in the incoming (bot-added users)
+  for (const eu of existingUsers) {
+    if (!incomingIds.has(String(eu.id))) {
+      merged.push(eu);
+      log(`[Config-Merge] Preserved bot-added user: ${eu.name || eu.id} (${eu.role})`);
+    }
+  }
+  return merged;
+}
 
 app.post('/api/config', (req, res) => {
   try {
@@ -2266,21 +2319,20 @@ app.post('/api/config', (req, res) => {
       return res.status(400).json({ error: 'Invalid config: missing or empty bot_token. Existing config preserved.' });
     }
     
-    // Merge authorized_users to prevent local app from overwriting users added via Telegram
+    // ✅ SMART MERGE: Preserve ALL users from both cloud and incoming (app-side)
     const existingCfg = loadConfig();
-    if (existingCfg.authorized_users && incoming.authorized_users) {
-      const incomingIds = incoming.authorized_users.map(u => String(u.id));
-      for (const eu of existingCfg.authorized_users) {
-        if (!incomingIds.includes(String(eu.id))) {
-           incoming.authorized_users.push(eu);
-        }
-      }
-    } else if (existingCfg.authorized_users && !incoming.authorized_users) {
-      incoming.authorized_users = existingCfg.authorized_users;
+    incoming.authorized_users = mergeAuthorizedUsers(
+      existingCfg.authorized_users || [],
+      incoming.authorized_users || []
+    );
+
+    // Preserve other cloud-side settings not present in incoming
+    if (!incoming.email_settings && existingCfg.email_settings) {
+      incoming.email_settings = existingCfg.email_settings;
     }
     
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(incoming, null, 2));
-    log('Config updated and merged: token: ' + incoming.bot_token.substring(0, 8) + '... | users: ' + (incoming.authorized_users ? incoming.authorized_users.length : 0));
+    log(`[Config API] ✅ Smart-merged config saved | users: ${incoming.authorized_users.length}`);
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
 });
@@ -2316,24 +2368,75 @@ app.get('/api/database', (req, res) => {
   } catch (e) { res.status(500).send(e.message); }
 });
 
+// ── Smart DB Merge: merges any array-of-objects collection by unique 'id' field ──
+function mergeCollection(existing = [], incoming = [], key = 'id') {
+  const map = new Map();
+  for (const item of existing) if (item[key]) map.set(String(item[key]), item);
+  for (const item of incoming) if (item[key]) map.set(String(item[key]), { ...(map.get(String(item[key])) || {}), ...item });
+  return Array.from(map.values());
+}
+
+function mergeEmployees(existing = [], incoming = []) {
+  const byId  = new Map();
+  const byMat = new Map();
+  // Index existing
+  for (const e of existing) {
+    if (e.id)        byId.set(String(e.id), e);
+    if (e.clockingId) byMat.set(String(e.clockingId).trim(), e);
+  }
+  // Merge incoming on top
+  for (const inc of incoming) {
+    const existById  = inc.id        ? byId.get(String(inc.id))              : null;
+    const existByMat = inc.clockingId ? byMat.get(String(inc.clockingId).trim()) : null;
+    const base = existById || existByMat;
+    if (base) {
+      const merged = { ...base, ...inc }; // incoming wins (desktop app edits)
+      byId.set(String(merged.id), merged);
+      if (merged.clockingId) byMat.set(String(merged.clockingId).trim(), merged);
+    } else {
+      if (inc.id) byId.set(String(inc.id), inc);
+      if (inc.clockingId) byMat.set(String(inc.clockingId).trim(), inc);
+    }
+  }
+  // Deduplicate: prefer byId map (includes all)
+  const seen = new Set();
+  const result = [];
+  for (const emp of byId.values()) {
+    const key = String(emp.id || emp.clockingId || '');
+    if (!seen.has(key)) { seen.add(key); result.push(emp); }
+  }
+  return result;
+}
+
+function mergeDatabases(cloudDb, incomingDb) {
+  const merged = { ...cloudDb, ...incomingDb };
+  merged.hr_employees      = mergeEmployees(cloudDb.hr_employees || [], incomingDb.hr_employees || []);
+  merged.hr_leave_balances = mergeCollection(cloudDb.hr_leave_balances || [], incomingDb.hr_leave_balances || [], 'id');
+  merged.bot_requests      = mergeCollection(cloudDb.bot_requests || [], incomingDb.bot_requests || [], 'id');
+  merged.user_activity     = { ...(cloudDb.user_activity || {}), ...(incomingDb.user_activity || {}) };
+  merged._last_updated     = Date.now();
+  merged._last_updated_iso = new Date().toISOString();
+  return merged;
+}
+
 app.post('/api/database', (req, res) => {
   try {
     let data = req.rawBody;
     if (data[0] === 0x1f && data[1] === 0x8b) data = zlib.gunzipSync(data);
     
-    // ✅ إضافة timestamp المزامنة لتمكين المقارنة الذكية بين الأجهزة
-    let db;
-    try {
-      db = JSON.parse(data.toString('utf8'));
-      db._last_updated = Date.now();
-      db._last_updated_iso = new Date().toISOString();
-      data = Buffer.from(JSON.stringify(db));
-    } catch (parseErr) {
-      log(`[DB] Warning: Could not inject timestamp: ${parseErr.message}`);
+    let incoming;
+    try { incoming = JSON.parse(data.toString('utf8')); } catch(e) { incoming = null; }
+    if (!incoming) { res.status(400).send('Invalid JSON'); return; }
+
+    // ✅ SMART MERGE: combine cloud DB with incoming instead of overwriting
+    let cloudDb = {};
+    if (fs.existsSync(DB_PATH)) {
+      try { cloudDb = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); } catch(_) {}
     }
-    
-    fs.writeFileSync(DB_PATH, data);
-    log(`DB updated: ${db?.hr_employees?.length || 0} employees | ts: ${db?._last_updated_iso || 'N/A'}`);
+    const merged = mergeDatabases(cloudDb, incoming);
+
+    fs.writeFileSync(DB_PATH, JSON.stringify(merged));
+    log(`[DB API] ✅ Smart-merged DB saved | employees: ${merged.hr_employees?.length || 0} | ts: ${merged._last_updated_iso}`);
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
 });

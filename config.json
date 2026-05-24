@@ -40,19 +40,6 @@
       "phone": null
     },
     {
-      "id": "965443735",
-      "name": "TEWFIK NOUAR",
-      "role": "poste_garde",
-      "scope": "custom_employees",
-      "allowed_departments": [],
-      "allowed_company": "all",
-      "allowed_employees": [
-        "70041"
-      ],
-      "clockingId": "70041",
-      "phone": null
-    },
-    {
       "id": "6480391203",
       "name": "younes",
       "role": "poste_garde",
@@ -64,14 +51,7 @@
       "phone": null
     }
   ],
-  "is_enabled": true,
-  "email_settings": {
-    "smtp_host": "smtp-relay.brevo.com",
-    "smtp_port": 2525,
-    "smtp_user": "ab23a7001@smtp-brevo.com",
-    "smtp_pass": "K0QcwMtUqzhSgX75",
-    "hr_notification_email": "tewfik.nouar@alver.dz, tewfiksoft@gmail.com, nihel.dekiouk@alver.dz, MAMA.BENTAHAR@alver.dz, alverspa1980@gmail.com"
-  },
+  "is_enabled": false,
   "proxy_enabled": false,
   "proxy_host": null,
   "proxy_port": null,
@@ -80,18 +60,18 @@
   "proxy_protocol": null,
   "display_settings": {
     "show_phone": true,
-    "show_social_number": false,
-    "show_contract_type": true,
-    "show_contract_end": true,
-    "show_photo": true,
     "show_probation_end": true,
+    "show_contract_end": true,
+    "show_social_number": false,
+    "show_hiring_date": true,
+    "show_photo": true,
+    "show_contract_type": true,
     "show_department": true,
-    "show_job_title": true,
-    "show_hiring_date": true
+    "show_job_title": true
   },
   "allowed_documents": {
-    "work_contract": true,
+    "salary_slip": true,
     "leave_title": true,
-    "salary_slip": true
+    "work_contract": true
   }
 }

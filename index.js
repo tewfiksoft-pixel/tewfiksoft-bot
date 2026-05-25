@@ -2214,6 +2214,21 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'bva_client') {
       const q = txt.trim().toLowerCase();
       const clients = loadClients();
+      
+      // Check for EXACT code match first → auto-select immediately
+      const exactMatch = clients.find(c => c.id.toLowerCase() === q);
+      if (exactMatch) {
+        const clientName = `${exactMatch.id} - ${exactMatch.name}`;
+        st.data.clientId = exactMatch.id;
+        st.data.clientName = clientName;
+        st.step = 'bva_bcnum';
+        states.set(chatId, st);
+        saveStates();
+        return send(chatId, ar 
+          ? `✅ <b>تم اختيار الزبون تلقائياً:</b>\n👤 <b>${exactMatch.name}</b> (${exactMatch.id})\n\n✍️ <b>الخطوة 2/7: إدخال رقم الطلبية (BC N°):</b>`
+          : `✅ <b>Client sélectionné automatiquement:</b>\n👤 <b>${exactMatch.name}</b> (${exactMatch.id})\n\n✍️ <b>Étape 2/7: Saisir BC N° :</b>`);
+      }
+      
       const matches = clients.filter(c => c.id.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)).slice(0, 8);
       
       if (matches.length === 0) {
@@ -2224,6 +2239,7 @@ Pour garantir une fin de relation de travail légale et fluide :
           { inline_keyboard: [[{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]] });
       }
       
+      // Show matching results as buttons
       const kbd = { inline_keyboard: matches.map(c => [{ text: `👤 ${c.id} - ${c.name}`, callback_data: `bva_clsel:${c.id}` }]) };
       kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
       
@@ -2232,6 +2248,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `🔍 <b>اختر الزبون من النتائج أدناه:</b>` 
         : `🔍 <b>Sélectionnez un client :</b>`, kbd);
     }
+
 
     if (st.step === 'bva_bcnum') {
       st.data.bcNum = txt;

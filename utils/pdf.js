@@ -572,6 +572,20 @@ export async function generateWorkCertPDF(data, outputPath) {
       // Date Stamp
       doc.font(fontBold).fontSize(11).fillColor('#000').text(`Fait à Es-Sénia, le : ${formatDateFr(new Date())}`, 330, 730);
 
+      doc.end();
+      stream.on('finish', () => {
+        if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
+        resolve(outputPath);
+      });
+      stream.on('error', (err) => {
+        if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
+        reject(err);
+      });
+
+    } catch (e) {
+      if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
+      reject(e);
+    }
   });
 }
 

@@ -49,6 +49,19 @@
       "allowed_employees": [],
       "clockingId": "",
       "phone": null
+    },
+    {
+      "id": "965443735",
+      "name": "NOUAR TEWFIK",
+      "role": "manager",
+      "scope": "all",
+      "allowed_departments": null,
+      "allowed_company": null,
+      "allowed_employees": [
+        "70041"
+      ],
+      "clockingId": "70041",
+      "phone": null
     }
   ],
   "is_enabled": false,
@@ -60,18 +73,18 @@
   "proxy_protocol": null,
   "display_settings": {
     "show_phone": true,
-    "show_probation_end": true,
-    "show_contract_end": true,
     "show_social_number": false,
+    "show_department": true,
+    "show_contract_type": true,
     "show_hiring_date": true,
     "show_photo": true,
-    "show_contract_type": true,
-    "show_department": true,
-    "show_job_title": true
+    "show_contract_end": true,
+    "show_job_title": true,
+    "show_probation_end": true
   },
   "allowed_documents": {
-    "salary_slip": true,
     "leave_title": true,
+    "salary_slip": true,
     "work_contract": true
   }
 }

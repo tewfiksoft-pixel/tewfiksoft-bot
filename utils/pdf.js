@@ -572,14 +572,345 @@ export async function generateWorkCertPDF(data, outputPath) {
       // Date Stamp
       doc.font(fontBold).fontSize(11).fillColor('#000').text(`Fait à Es-Sénia, le : ${formatDateFr(new Date())}`, 330, 730);
 
+  });
+}
+
+export async function generateBonVentePDF(data, outputPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 20 });
+      const stream = fs.createWriteStream(outputPath);
+      doc.pipe(stream);
+
+      const fontBold = 'Helvetica-Bold';
+      const fontNormal = 'Helvetica';
+
+      // --- 1. Draw Talon Slip on the Left ---
+      // Left box: X: 20 to 110 pt. Width = 90 pt.
+      doc.rect(20, 20, 90, 555).strokeColor('#000').lineWidth(1.5).stroke();
+      
+      doc.font(fontBold).fontSize(10).fillColor('#1a5f7a').text('ALVER SPA', 25, 30, { align: 'center', width: 80 });
+      doc.font(fontNormal).fontSize(8).fillColor('#666').text('2026', 25, 42, { align: 'center', width: 80 });
+      
+      const talonYStart = 60;
+      const drawTalonField = (label, val, y) => {
+        doc.font(fontBold).fontSize(7).fillColor('#000').text(label, 25, y);
+        doc.font(fontNormal).fontSize(7.5).fillColor('#333').text(val || '—', 25, y + 9, { width: 80, height: 18 });
+        doc.moveTo(25, y + 25).lineTo(105, y + 25).strokeColor('#ccc').lineWidth(0.5).stroke();
+      };
+      
+      drawTalonField('N° :', data.id ? data.id.toUpperCase().slice(0, 8) : '—', talonYStart);
+      drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : '—', talonYStart + 30);
+      drawTalonField('CLIENT :', data.clientName, talonYStart + 60);
+      
+      // Summarize the products in a small text field
+      const articlesSummary = (data.articles || []).map(a => `${a.prod} (${a.qty})`).join(', ');
+      drawTalonField('PRODUIT :', articlesSummary, talonYStart + 110);
+      drawTalonField('CODE :', (data.articles || []).map(a => a.code).join(', '), talonYStart + 160);
+      drawTalonField('QUANTITE :', (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString(), talonYStart + 210);
+      drawTalonField('N° FACTURE :', data.factureNum, talonYStart + 260);
+      
+      // Mode de paiement checkboxes in talon
+      doc.font(fontBold).fontSize(7).text('MODE DE PAIEMENT :', 25, talonYStart + 310);
+      const talonDrawCheck = (label, isChecked, y) => {
+        doc.rect(25, y, 7, 7).strokeColor('#000').lineWidth(0.8).stroke();
+        if (isChecked) {
+          doc.moveTo(25, y).lineTo(32, y + 7).stroke();
+          doc.moveTo(32, y).lineTo(25, y + 7).stroke();
+        }
+        doc.font(fontNormal).fontSize(6.5).text(label, 36, y + 1);
+      };
+      
+      const payMeth = String(data.paymentMethod || '').toLowerCase();
+      talonDrawCheck('VIREMENT', payMeth.includes('vire'), talonYStart + 322);
+      talonDrawCheck('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), talonYStart + 332);
+      talonDrawCheck('CHEQUE', payMeth.includes('cheq'), talonYStart + 342);
+      talonDrawCheck('ESPECE', payMeth.includes('esp') || payMeth.includes('cash'), talonYStart + 352);
+
+      // --- 2. Draw Torn Dotted Line ---
+      doc.moveTo(115, 20).lineTo(115, 575).dash(3, { space: 3 }).strokeColor('#999').lineWidth(1).stroke().undash();
+
+      // --- 3. Draw Main Header Box ---
+      // Width = 695 pt (X: 125 to 820). Height = 45 pt (Y: 20 to 65).
+      doc.rect(125, 20, 695, 45).strokeColor('#000').lineWidth(1.5).stroke();
+      
+      // ALVER Spa Logo text / branding
+      doc.font(fontBold).fontSize(14).fillColor('#1b5e20').text('ALVER', 135, 26, { continued: true });
+      doc.font(fontNormal).fontSize(8).fillColor('#333').text(' Spa');
+      doc.font(fontNormal).fontSize(6.5).fillColor('#666').text('Production Verre Emballage', 135, 43);
+
+      // Title Center
+      doc.font(fontBold).fontSize(13).fillColor('#1a5f7a').text('BON DE VENTE PRODUIT FINI', 125, 25, { align: 'center', width: 695 });
+      doc.font(fontBold).fontSize(10).fillColor('#000').text('AUTORISATION DE SORTIE', 125, 42, { align: 'center', width: 695 });
+
+      // N° / Year Right
+      const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+      doc.font(fontBold).fontSize(9).fillColor('#000').text(`N° :  ${data.id ? data.id.toUpperCase().slice(0, 8) : '—'} / 2026`, 690, 26, { align: 'right', width: 120 });
+      doc.font(fontNormal).fontSize(8).fillColor('#666').text(`Date :  ${dateStr}`, 690, 42, { align: 'right', width: 120 });
+
+      // --- 4. Draw The 5 Vertically Stacked Sections ---
+      const startX = 125;
+      const totalWidth = 695;
+      const sectionHeight = 95;
+      const gap = 5;
+
+      const drawSectionHeader = (y, text) => {
+        doc.rect(startX, y, totalWidth, 14).fill('#b4c6e7');
+        doc.font(fontBold).fontSize(8).fillColor('#000').text(text, startX, y + 3, { align: 'center', width: totalWidth });
+      };
+
+      const drawStamp = (x, y, title, name, color) => {
+        if (!name) return;
+        doc.roundedRect(x, y, 110, 50, 4).lineWidth(1.2).strokeColor(color).stroke();
+        doc.rect(x + 1, y + 1, 108, 12).fill(color);
+        doc.font(fontBold).fontSize(6.5).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 110, align: 'center' });
+        
+        doc.font(fontNormal).fontSize(6).fillColor('#555').text('Signé électroniquement:', x + 5, y + 16);
+        doc.font(fontBold).fontSize(7.5).fillColor(color).text(name, x, y + 25, { width: 110, align: 'center' });
+        doc.font('Helvetica-Oblique').fontSize(5).fillColor(color).text('DOCUMENT VALIDÉ', x, y + 38, { width: 110, align: 'center' });
+      };
+
+      const drawTable = (x, y, articles) => {
+        // Headers
+        doc.rect(x, y, 220, 11).fill('#d9e1f2');
+        doc.font(fontBold).fontSize(6.5).fillColor('#000');
+        doc.text('CODE', x + 5, y + 3);
+        doc.text('PRODUIT', x + 55, y + 3);
+        doc.text('QUANTITÉ', x + 175, y + 3);
+        
+        // Grid
+        doc.rect(x, y, 220, 53).strokeColor('#000').lineWidth(0.5).stroke();
+        doc.moveTo(x + 50, y).lineTo(x + 50, y + 53).stroke();
+        doc.moveTo(x + 170, y).lineTo(x + 170, y + 53).stroke();
+        
+        // Rows
+        doc.font(fontNormal).fontSize(6.5);
+        let rowY = y + 11;
+        for (let i = 0; i < 3; i++) {
+          const art = articles[i];
+          if (art) {
+            doc.text(art.code || '—', x + 5, rowY + 3);
+            doc.text(art.prod || '—', x + 55, rowY + 3, { width: 110, height: 9 });
+            doc.font(fontBold).text(art.qty || '—', x + 175, rowY + 3);
+            doc.font(fontNormal);
+          }
+          rowY += 14;
+          if (i < 2) doc.moveTo(x, rowY).lineTo(x + 220, rowY).stroke();
+        }
+      };
+
+      // ── SECTION 1: SERVICE VENTE ──────────────────────────────────────────
+      let y = 70;
+      doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
+      drawSectionHeader(y, 'SERVICE VENTE');
+      
+      // Fields inside Sales Section
+      let insideY = y + 14;
+      doc.font(fontBold).fontSize(7.5).fillColor('#000');
+      doc.text('CLIENT :', startX + 10, insideY + 10);
+      doc.font(fontNormal).text(data.clientName || '—', startX + 60, insideY + 10);
+
+      doc.font(fontBold).text('BC N° :', startX + 10, insideY + 30);
+      doc.font(fontNormal).text(data.bcNum || '—', startX + 60, insideY + 30);
+
+      doc.font(fontBold).text('DATE :', startX + 10, insideY + 50);
+      doc.font(fontNormal).text(data.commercialDate || dateStr, startX + 60, insideY + 50);
+
+      // Vertical separators
+      doc.moveTo(startX + 170, insideY).lineTo(startX + 170, y + sectionHeight).strokeColor('#000').lineWidth(1).stroke();
+      
+      // Article Table inside Sales
+      drawTable(startX + 180, insideY + 6, data.articles || []);
+
+      doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).stroke();
+
+      // Mode of Payment & Transport
+      let payX = startX + 420;
+      doc.font(fontBold).fontSize(7).text('MODE DE PAIEMENT :', payX, insideY + 6);
+      
+      const drawCheckbox = (label, isChecked, x, cy) => {
+        doc.rect(x, cy, 7, 7).strokeColor('#000').lineWidth(0.8).stroke();
+        if (isChecked) {
+          doc.moveTo(x, cy).lineTo(x + 7, cy + 7).stroke();
+          doc.moveTo(x + 7, cy).lineTo(x, cy + 7).stroke();
+        }
+        doc.font(fontNormal).fontSize(6.5).text(label, x + 11, cy + 1);
+      };
+
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX, insideY + 18);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX, insideY + 28);
+      drawCheckbox('CHEQUE', payMeth.includes('cheq'), payX, insideY + 38);
+      drawCheckbox('ESPECE', payMeth.includes('esp') || payMeth.includes('cash'), payX, insideY + 48);
+
+      let transX = payX + 80;
+      doc.font(fontBold).fontSize(7).text('TRANSPORT :', transX, insideY + 6);
+      const isAlverTrans = String(data.transportType || '').toLowerCase() === 'alver';
+      drawCheckbox('ALVER (SI RENDU)', isAlverTrans, transX, insideY + 18);
+      drawCheckbox('CLIENT', !isAlverTrans, transX, insideY + 28);
+
+      doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
+
+      // Visa & stamp
+      doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
+      drawStamp(startX + 590, insideY + 16, 'Le Commercial', data.commercialName, '#2b5797');
+
+
+      // ── SECTION 2: SERVICE EXPEDITION ───────────────────────────────────────
+      y += sectionHeight + gap;
+      doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
+      drawSectionHeader(y, 'SERVICE EXPEDITION');
+      
+      insideY = y + 14;
+      doc.font(fontBold).fontSize(7.5).fillColor('#000');
+      doc.text('N° BON DE LIVRAISON :', startX + 10, insideY + 10);
+      doc.font(fontNormal).text(data.blNum || '—', startX + 120, insideY + 10);
+
+      doc.font(fontBold).text('TRANSPORTEUR :', startX + 10, insideY + 30);
+      doc.font(fontNormal).text(data.transporter || '—', startX + 100, insideY + 30);
+
+      doc.font(fontBold).text('DATE :', startX + 10, insideY + 50);
+      doc.font(fontNormal).text(data.shippingDate || dateStr, startX + 60, insideY + 50);
+
+      doc.moveTo(startX + 170, insideY).lineTo(startX + 170, y + sectionHeight).stroke();
+
+      // Table (shipped products)
+      drawTable(startX + 180, insideY + 6, data.articles || []);
+
+      doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).stroke();
+
+      // Logistics fields
+      let logX = startX + 420;
+      doc.font(fontBold).fontSize(7.5).text('CHAUFFEUR :', logX, insideY + 10);
+      doc.font(fontNormal).text(data.driverName || '—', logX + 70, insideY + 10);
+
+      doc.font(fontBold).text('MATRICULE :', logX, insideY + 28);
+      doc.font(fontNormal).text(data.vehiclePlate || '—', logX + 70, insideY + 28);
+
+      doc.font(fontBold).text('N° PC :', logX, insideY + 46);
+      doc.font(fontNormal).text(data.pcNum || '—', logX + 50, insideY + 46);
+
+      doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
+
+      doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
+      drawStamp(startX + 590, insideY + 16, 'Expédition GDS', data.gdsName, '#e3a21a');
+
+
+      // ── SECTION 3: SERVICE FACTURATION ──────────────────────────────────────
+      y += sectionHeight + gap;
+      doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
+      drawSectionHeader(y, 'SERVICE FACTURATION');
+      
+      insideY = y + 14;
+      doc.font(fontBold).fontSize(7.5).fillColor('#000');
+      doc.text('N° FACTURE PRODUIT :', startX + 10, insideY + 15);
+      doc.font(fontNormal).text(data.factureNum || '—', startX + 120, insideY + 15);
+
+      doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 10, insideY + 40);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 70, insideY + 40);
+      doc.fillColor('#000');
+
+      doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).stroke();
+
+      // Checkboxes
+      payX = startX + 270;
+      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 10);
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 25);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 45);
+      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 120, insideY + 25);
+      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 120, insideY + 45);
+
+      doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
+
+      doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
+      drawStamp(startX + 590, insideY + 16, 'Facturation', data.financeName, '#00a300');
+
+
+      // ── SECTION 4: SERVICE COMPTABILITE ─────────────────────────────────────
+      y += sectionHeight + gap;
+      doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
+      drawSectionHeader(y, 'SERVICE COMPTABILITE');
+      
+      insideY = y + 14;
+      doc.font(fontBold).fontSize(7.5).fillColor('#000');
+      doc.text('CLIENT :', startX + 10, insideY + 10);
+      doc.font(fontNormal).text(data.clientName || '—', startX + 60, insideY + 10);
+
+      doc.font(fontBold).text('N° FACTURE PRODUIT :', startX + 10, insideY + 28);
+      doc.font(fontNormal).text(data.factureNum || '—', startX + 120, insideY + 28);
+
+      doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 10, insideY + 46);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 70, insideY + 46);
+      doc.fillColor('#000');
+
+      doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).stroke();
+
+      // Checkboxes
+      payX = startX + 270;
+      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 10);
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 25);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 45);
+      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 120, insideY + 25);
+      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 120, insideY + 45);
+
+      doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
+
+      doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
+      drawStamp(startX + 590, insideY + 16, 'Comptabilité', data.financeName, '#00a300');
+
+
+      // ── SECTION 5: POSTE DE GARDE ───────────────────────────────────────────
+      y += sectionHeight + gap;
+      doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
+      drawSectionHeader(y, 'POSTE DE GARDE');
+      
+      insideY = y + 14;
+      doc.font(fontBold).fontSize(7.5).fillColor('#000');
+      doc.text('N° BON DE LIVRAISON :', startX + 10, insideY + 10);
+      doc.font(fontNormal).text(data.blNum || '—', startX + 120, insideY + 10);
+
+      doc.font(fontBold).text('CHAUFFEUR :', startX + 10, insideY + 28);
+      doc.font(fontNormal).text(data.driverName || '—', startX + 80, insideY + 28);
+
+      doc.font(fontBold).text('MATRICULE :', startX + 10, insideY + 46);
+      doc.font(fontNormal).text(data.vehiclePlate || '—', startX + 80, insideY + 46);
+
+      doc.moveTo(startX + 220, insideY).lineTo(startX + 220, y + sectionHeight).stroke();
+
+      // Gate metrics
+      let gateX = startX + 230;
+      doc.font(fontBold).text("HEURE D'ENTRÉE :", gateX, insideY + 10);
+      doc.font(fontNormal).text(data.entryTime || '—', gateX + 90, insideY + 10);
+
+      doc.font(fontBold).text("HEURE DE SORTIE :", gateX, insideY + 28);
+      doc.font(fontNormal).text(data.exitTime || '—', gateX + 90, insideY + 28);
+
+      doc.font(fontBold).text("EQUIPE :", gateX, insideY + 46);
+      doc.font(fontNormal).text(data.guardShift || '—', gateX + 50, insideY + 46);
+
+      doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).stroke();
+
+      // Quantity sum & gate signatures
+      let quantX = startX + 420;
+      const totalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0);
+      doc.font(fontBold).fontSize(8.5).text('QUANTITÉ TOTALE :', quantX, insideY + 12);
+      doc.font(fontBold).fillColor('#1b5e20').fontSize(10).text(`${totalQty} unités`, quantX + 10, insideY + 25);
+      doc.fillColor('#000');
+
+      doc.font(fontBold).fontSize(7.5).text('VISA CHAUFFEUR :', quantX, insideY + 42);
+      doc.font('Helvetica-Oblique').fontSize(6).text('Lu et Approuvé', quantX + 10, insideY + 52);
+
+      doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
+
+      doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
+      drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
+
+      // --- Footer Security line ---
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${(data.id || '').toUpperCase().slice(0, 8)}`, startX, 580, { align: 'center', width: totalWidth });
+
       doc.end();
-      stream.on('finish', () => {
-        try { if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath); } catch (e) {}
-        resolve(outputPath);
-      });
+      stream.on('finish', () => resolve(outputPath));
       stream.on('error', reject);
     } catch (e) {
-      try { if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath); } catch (e) {}
       reject(e);
     }
   });

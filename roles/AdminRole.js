@@ -15,6 +15,7 @@ export default class AdminRole extends BaseRole {
       [{ text: ar ? '➕ إضافة عامل جديد' : '➕ Ajouter un Employé', callback_data: 'add_emp' }],
       [{ text: ar ? '🔍 البحث السريع' : '🔍 Recherche Rapide', callback_data: 'search' }],
       [{ text: ar ? '📝 تحويل المبالغ' : '📝 Chèque en Lettres', callback_data: 'cheque_step' }],
+      [{ text: ar ? '💼 المبيعات والطلبيات' : '💼 Ventes & Bons', callback_data: 'ventes_menu' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 import { tg, send, notifyStaff, answerCallbackQuery } from './utils/telegram.js';
 import { loadDB, saveDB, loadConfig, T, log } from './utils/database.js';
-import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF, generateReturnAuthPDF, generateWorkCertPDF } from './utils/pdf.js';
+import { generateExitAuthPDF, generateEntryAuthPDF, generateMissionPDF, generateReturnAuthPDF, generateWorkCertPDF, generateBonVentePDF } from './utils/pdf.js';
 import { sendEmail } from './utils/email.js';
 import crypto from 'crypto';
 import { getStatsMsg, getEffectifsDirMsg, getEffectifsCompanyMsg, calculateAutoLeave } from './utils/ui.js';
@@ -60,8 +60,22 @@ const saveStates = () => {
     fs.writeFileSync(STATES_PATH, JSON.stringify(data));
   } catch (e) { log(`[States] Save error: ${e.message}`); }
 };
-loadStates();
+const CLIENTS_PATH = path.join(DATA_DIR, 'clients.json');
+const loadClients = () => {
+  try {
+    if (fs.existsSync(CLIENTS_PATH)) return JSON.parse(fs.readFileSync(CLIENTS_PATH, 'utf8'));
+  } catch (e) {}
+  return [];
+};
 
+async function notifyBVARole(txt, role, cfg, kbd) {
+  const users = cfg.authorized_users?.filter(u => u.role === role || u.role === 'admin') || [];
+  for (const u of users) {
+    if (u.id) {
+      await send(Number(u.id), txt, kbd);
+    }
+  }
+}
 
 // ── Helper: generate Work Certificate PDF and dispatch by email ──────────────
 async function generateAndSendWorkCert(req, cfg, db) {
@@ -218,6 +232,98 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
+
+    // ── Ventes & Bons (BVA) Unified Department Menus ─────────────────────────
+    if (d === 'ventes_menu') {
+      const role = String(userData.role).toLowerCase();
+
+      if (role === 'admin') {
+        // Admin Super Dashboard
+        const kbd = { inline_keyboard: [
+          [{ text: ar ? '📋 كل أذونات البيع (التقارير)' : '📋 Tous les Bons (Rapports)', callback_data: 'bva_list' }],
+          [{ text: ar ? '━━━ 🧪 تجربة واجهات الأدوار ━━━' : '━━━ 🧪 Tester les Rôles ━━━', callback_data: 'none' }],
+          [
+            { text: ar ? '💼 التجاري' : '💼 Commercial', callback_data: 'test_role:service_commercial' },
+            { text: ar ? '💵 المالية' : '💵 Finance', callback_data: 'test_role:finance' }
+          ],
+          [
+            { text: ar ? '📦 المخازن (GDS)' : '📦 GDS', callback_data: 'test_role:gds' },
+            { text: ar ? '👮 الحراسة (Garde)' : '👮 Garde', callback_data: 'test_role:poste_garde' }
+          ],
+          [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
+        ]};
+        return send(chatId, ar
+          ? `💼 <b>لوحة تحكم إدارة المبيعات [Ventes - Admin]</b>\n━━━━━━━━━━━━━━\nبصفتك <b>مديراً للنظام</b>، يمكنك اختبار أي مصلحة ومتابعة عملها بالكامل من هنا:`
+          : `💼 <b>TABLEAU DE BORD DES VENTES [Ventes - Admin]</b>\n━━━━━━━━━━━━━━\nEn tant qu'<b>Administrateur</b>, vous pouvez tester et gérer chaque service ci-dessous :`, kbd);
+      }
+
+      if (role === 'service_commercial') {
+        const kbd = { inline_keyboard: [
+          [{ text: ar ? '➕ إنشاء إذن بيع وخروج جديد' : '➕ Créer Bon de Vente & Sortie', callback_data: 'bva_create' }],
+          [{ text: ar ? '📋 قائمة أذوناتي الأخيرة' : '📋 Mes Bons Récents', callback_data: 'bva_list' }],
+          [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
+        ]};
+        return send(chatId, ar
+          ? `💼 <b>إدارة المبيعات والطلبيات (التجاري)</b>\n━━━━━━━━━━━━━━\nيرجى اختيار أحد الخيارات لبدء العمل:`
+          : `💼 <b>GESTION DES VENTES (Service Commercial)</b>\n━━━━━━━━━━━━━━\nVeuillez choisir une action :`, kbd);
+      }
+
+      if (role === 'finance') {
+        const kbd = { inline_keyboard: [
+          [{ text: ar ? '💳 الفواتير المعلقة بانتظار التأكيد' : '💳 Factures en Attente de Validation', callback_data: 'bva_list_pending_finance' }],
+          [{ text: ar ? '📋 أرشيف أذونات البيع' : '📋 Archives des Bons', callback_data: 'bva_list' }],
+          [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
+        ]};
+        return send(chatId, ar
+          ? `💵 <b>إدارة المبيعات والطلبيات (مصلحة المالية)</b>\n━━━━━━━━━━━━━━\nيمكنك استعراض وتأكيد فواتير العملاء ودفعياتهم مع توليد إذن التوجيه التلقائي للمستودع:`
+          : `💵 <b>GESTION DES VENTES (Service Finance)</b>\n━━━━━━━━━━━━━━\nValidez les factures clients pour envoyer les ordres de préparation au stock :`, kbd);
+      }
+
+      if (role === 'gds') {
+        const kbd = { inline_keyboard: [
+          [{ text: ar ? '🚚 شحنات جاهزة للتحميل والتعبئة' : '🚚 Expéditions Prêtes à Charger', callback_data: 'bva_list_pending_shipping' }],
+          [{ text: ar ? '📋 أرشيف الشحنات المكتملة' : '📋 Archives des Chargements', callback_data: 'bva_list' }],
+          [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
+        ]};
+        return send(chatId, ar
+          ? `📦 <b>إدارة الشحن واللوجستيك (المخازن GDS)</b>\n━━━━━━━━━━━━━━\nيرجى تحديد الشحنة لإدخال تفاصيل السائق، لوحة الشاحنة، ورقم إذن التسليم (BL):`
+          : `📦 <b>LOGISTIQUE & EXPÉDITIONS (Stock GDS)</b>\n━━━━━━━━━━━━━━\nSélectionnez une expédition pour saisir les détails du chauffeur et du BL :`, kbd);
+      }
+
+      if (role === 'poste_garde') {
+        const kbd = { inline_keyboard: [
+          [{ text: ar ? '🚛 مراقبة وتأكيد خروج الشاحنات' : '🚛 Contrôle Sortie Camions', callback_data: 'bva_list_pending_guard' }],
+          [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
+        ]};
+        return send(chatId, ar
+          ? `👮 <b>مركز الحراسة (Poste de Garde) - إدارة الشاحنات</b>\n━━━━━━━━━━━━━━\nيرجى تأكيد الخروج الفعلي للشاحنات المحملة عبر البوابة لتوليد وإرسال وثيقة PDF النهائية:`
+          : `👮 <b>POSTE DE GARDE - CONTRÔLE DES FLUX CAMIONS</b>\n━━━━━━━━━━━━━━\nValidez la sortie des camions pour générer et archiver l'autorisation finale en PDF :`, kbd);
+      }
+    }
+
+    // ── Admin: Test role menus (Commercial / GDS / Finance / Garde) ──────────
+    if (d.startsWith('test_role:')) {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin') return;
+      const targetRole = d.split(':')[1];
+      const roleLabels = {
+        service_commercial: ar ? '💼 المصلحة التجارية' : '💼 Service Commercial',
+        gds: ar ? '📦 مصلحة المخازن والشحن' : '📦 GDS / Expédition',
+        finance: ar ? '💵 مصلحة المالية' : '💵 Service Finance',
+        poste_garde: ar ? '👮 مركز الحراسة والبوابة' : '👮 Poste de Garde'
+      };
+      const label = roleLabels[targetRole] || targetRole;
+      
+      await send(chatId, ar
+        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\n<i>أنت تشاهد الآن واجهة هذا الدور. جميع الأزرار تعمل بشكل طبيعي.</i>`
+        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\n<i>Vous visualisez l'interface de ce rôle. Tous les boutons fonctionnent normalement.</i>`,
+        { inline_keyboard: [[{ text: ar ? '🔙 العودة للوحة المبيعات' : '🔙 Retour Tableau Ventes', callback_data: 'ventes_menu' }]] }
+      );
+      const fakeUser = { ...userData, role: targetRole, name: userData.name };
+      const testRoleObj = RoleFactory.create(fakeUser);
+      if (testRoleObj) return testRoleObj.showMenu(chatId, ar);
+      return;
+    }
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();
       if (role === 'admin' || role === 'manager' || role === 'chef_de_quart') {
@@ -323,7 +429,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         manager:         ar ? 'مسير' : 'Manager',
         chef_de_quart:   ar ? 'رئيس وردية' : 'Chef de Quart',
         poste_garde:     ar ? 'حارس' : 'Poste de Garde',
-        employee:        ar ? 'عامل' : 'Employé'
+        employee:        ar ? 'عامل' : 'Employé',
+        service_commercial: ar ? 'تجاري (Commercial)' : 'Service Commercial',
+        gds:             ar ? 'المخازن والشحن (GDS)' : 'Gestion Stock (GDS)',
+        finance:         ar ? 'المالية (Finance)' : 'Finance'
       };
       const roleLabel = roleLabels[botRole] || botRole;
 
@@ -1522,6 +1631,388 @@ Pour garantir une fin de relation de travail légale et fluide :
         ]});
       }
     }
+
+    // ── BVA (Bon de Vente & Autorisation de Sortie) Callback Query Handlers ──
+    if (d === 'bva_create') {
+      states.set(chatId, { step: 'bva_client', data: { commercialName: userData.name, commercialId: fromId, articles: [] } });
+      saveStates();
+      return send(chatId, ar 
+        ? `🔍 <b>الخطوة 1/5: اختيار الزبون</b>\nيرجى إرسال اسم الزبون أو جزء منه للبحث عنه في قاعدة البيانات:` 
+        : `🔍 <b>Étape 1/5: Sélection du Client</b>\nVeuillez envoyer le nom ou code du client pour rechercher :`);
+    }
+
+    if (d.startsWith('bva_clsel:')) {
+      const clientId = d.split(':')[1];
+      const clients = loadClients();
+      const client = clients.find(c => c.id === clientId);
+      const clientName = client ? `${client.id} - ${client.name}` : clientId;
+      
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.clientId = clientId;
+      st.data.clientName = clientName;
+      st.step = 'bva_bcnum';
+      states.set(chatId, st);
+      saveStates();
+      
+      return send(chatId, ar
+        ? `✅ تم اختيار الزبون: <b>${clientName}</b>\n\n✍️ <b>الخطوة 2/5: إدخال رقم الطلبية (BC N°):</b>`
+        : `✅ Client sélectionné: <b>${clientName}</b>\n\n✍️ <b>Étape 2/5: Saisir BC N° :</b>`);
+    }
+
+    if (d === 'bva_art_done') {
+      const st = states.get(chatId);
+      if (!st || !st.data.articles || st.data.articles.length === 0) {
+        return send(chatId, ar ? '⚠️ يرجى إضافة أرتيكل واحد على الأقل!' : '⚠️ Veuillez ajouter au moins un article!');
+      }
+      st.step = 'bva_paymeth';
+      states.set(chatId, st);
+      saveStates();
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🏦 تحويل بنكي (Virement)' : '🏦 Virement', callback_data: 'bva_pm:Virement' }],
+        [{ text: ar ? '💵 دفع نقدي (Espèce)' : '💵 Espèce', callback_data: 'bva_pm:Espèce' }],
+        [{ text: ar ? '✍️ شيك (Chèque)' : '✍️ Chèque', callback_data: 'bva_pm:Chèque' }],
+        [{ text: ar ? '📥 إيداع (Versement)' : '📥 Versement', callback_data: 'bva_pm:Versement' }]
+      ]};
+      return send(chatId, ar 
+        ? `💳 <b>الخطوة 4/5: اختر طريقة الدفع:</b>` 
+        : `💳 <b>Étape 4/5: Mode de paiement :</b>`, kbd);
+    }
+
+    if (d.startsWith('bva_pm:')) {
+      const method = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.paymentMethod = method;
+      st.step = 'bva_trans';
+      states.set(chatId, st);
+      saveStates();
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🟢 نقل عبر مؤسسة الفار (ALVER)' : '🟢 ALVER (Si rendu)', callback_data: 'bva_tr:ALVER' }],
+        [{ text: ar ? '🔵 النقل على عاتق الزبون (CLIENT)' : '🔵 CLIENT', callback_data: 'bva_tr:CLIENT' }]
+      ]};
+      return send(chatId, ar 
+        ? `🚚 <b>الخطوة 5/5: اختر نوع النقل واللوجستيك:</b>` 
+        : `🚚 <b>Étape 5/5: Mode de Transport :</b>`, kbd);
+    }
+
+    if (d.startsWith('bva_tr:')) {
+      const transType = d.split(':')[1];
+      const st = states.get(chatId);
+      if (!st) return;
+      st.data.transportType = transType;
+      st.step = 'bva_confirm';
+      states.set(chatId, st);
+      saveStates();
+      
+      const itemsList = st.data.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
+      const payMethText = st.data.paymentMethod;
+      
+      const summary = ar 
+        ? `📋 <b>ملخص إذن البيع والخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${st.data.clientName}</b>\n📄 طلبية رقم (BC): <code>${st.data.bcNum}</code>\n💳 طريقة الدفع: <b>${payMethText}</b>\n🚚 النقل: <b>${st.data.transportType}</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsList}\n━━━━━━━━━━━━━━`
+        : `📋 <b>RÉSUMÉ DU BON DE VENTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${st.data.clientName}</b>\n📄 BC N°: <code>${st.data.bcNum}</code>\n💳 Paiement: <b>${payMethText}</b>\n🚚 Transport: <b>${st.data.transportType}</b>\n\n📦 <b>Articles :</b>\n${itemsList}\n━━━━━━━━━━━━━━`;
+        
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ تأكيد وإرسال للمالية' : '✅ Confirmer & Envoyer', callback_data: 'bva_confirm_sales' }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      return send(chatId, summary, kbd);
+    }
+
+    if (d === 'bva_confirm_sales') {
+      const st = states.get(chatId);
+      if (!st || st.processing) return;
+      st.processing = true;
+      states.set(chatId, st);
+      
+      const bvaId = 'bva_' + Math.random().toString(36).substring(2, 9);
+      const newBva = {
+        id: bvaId,
+        clientId: st.data.clientId,
+        clientName: st.data.clientName,
+        bcNum: st.data.bcNum,
+        articles: st.data.articles,
+        paymentMethod: st.data.paymentMethod,
+        transportType: st.data.transportType,
+        commercialName: st.data.commercialName,
+        commercialId: st.data.commercialId,
+        commercialDate: new Date().toLocaleDateString('fr-FR'),
+        status: 'pending_finance',
+        createdAt: new Date().toISOString()
+      };
+      
+      const db2 = loadDB();
+      if (!db2.bon_vente) db2.bon_vente = [];
+      db2.bon_vente.push(newBva);
+      saveDB(db2);
+      states.delete(chatId);
+      saveStates();
+      
+      // Notify Finance Role
+      const notifyMsg = ar
+        ? `🔔 <b>إشعار للمالية: إذن بيع جديد بانتظار التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\nيرجى معالجة الطلب لتأكيد الفاتورة والدفع.`
+        : `🔔 <b>FINANCE: NOUVEAU BON À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\nVeuillez valider le paiement et la facture.`;
+        
+      const kbd = { inline_keyboard: [[{ text: ar ? '💳 معالجة الفاتورة والدفع' : '💳 Traiter la Facture', callback_data: `bva_fin_start:${bvaId}` }]] };
+      await notifyBVARole(notifyMsg, 'finance', cfg, kbd);
+      
+      return send(chatId, ar 
+        ? `✅ <b>تم إنشاء إذن البيع بنجاح!</b>\nتم إرسال إشعار لمصلحة المالية لتأكيد الدفع والفاتورة.`
+        : `✅ <b>Bon de vente créé avec succès!</b>\nNotification transmise au service Finance pour traitement.`, 
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
+    if (d.startsWith('bva_fin_start:')) {
+      const bvaId = d.split(':')[1];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva) return send(chatId, ar ? '❌ إذن البيع غير موجود.' : '❌ Bon introuvable.');
+      if (bva.status !== 'pending_finance') {
+        return send(chatId, ar ? `⚠️ تم معالجة هذا الإذن مسبقاً` : `⚠️ Ce bon a déjà été traité.`);
+      }
+      
+      states.set(chatId, { step: 'bva_fin_facture', bvaId });
+      saveStates();
+      return send(chatId, ar 
+        ? `📝 <b>المالية: إدخال رقم الفاتورة (N° Facture)</b>\nيرجى كتابة رقم فاتورة المنتج:` 
+        : `📝 <b>FINANCE: Saisir N° Facture</b>\nVeuillez écrire le numéro de facture :`);
+    }
+
+    if (d.startsWith('bva_fin_pay_sel:')) {
+      const parts = d.split(':');
+      const bvaId = parts[1];
+      const method = parts[2];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva || bva.status !== 'pending_finance') return;
+      
+      const st = states.get(chatId);
+      bva.status = 'pending_shipping';
+      bva.factureNum = st.data.factureNum;
+      bva.amount = st.data.amount;
+      bva.paymentMethod = method;
+      bva.financeName = userData.name;
+      bva.financeId = fromId;
+      bva.financeDate = new Date().toLocaleDateString('fr-FR');
+      saveDB(db2);
+      states.delete(chatId);
+      saveStates();
+      
+      // Notify GDS Role
+      const notifyMsg = ar
+        ? `🔔 <b>إشعار للمستودع (GDS): شحنة جاهزة للتحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 فاتورة رقم: <code>${bva.factureNum}</code>\n💰 القيمة: <b>${bva.amount} DA</b>\n\nيرجى تعبئة الشحنة وإدخال معلومات السائق والشاحنة.`
+        : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum}</code>\n💰 Montant: <b>${bva.amount} DA</b>\n\nVeuillez charger le camion et saisir les détails.`;
+        
+      const kbd = { inline_keyboard: [[{ text: ar ? '🚚 تحميل الشحنة وتأكيدها' : '🚚 Charger l\'Expédition', callback_data: `bva_ship_start:${bvaId}` }]] };
+      await notifyBVARole(notifyMsg, 'gds', cfg, kbd);
+      
+      return send(chatId, ar 
+        ? `✅ <b>تم تأكيد الفاتورة والدفع بنجاح!</b>\nتم إشعار مصلحة المخازن والشحن (GDS) لتحضير الشحنة.`
+        : `✅ <b>Paiement et facture validés!</b>\nNotification envoyée au service GDS/Expédition pour expédition.`,
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
+    if (d.startsWith('bva_ship_start:')) {
+      const bvaId = d.split(':')[1];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva) return send(chatId, ar ? '❌ إذن البيع غير موجود.' : '❌ Bon introuvable.');
+      if (bva.status !== 'pending_shipping') {
+        return send(chatId, ar ? `⚠️ تم الشحن مسبقاً.` : `⚠️ Déjà expédié.`);
+      }
+      states.set(chatId, { step: 'bva_ship_bl', bvaId });
+      saveStates();
+      return send(chatId, ar 
+        ? `🚚 <b>مصلحة الشحن: إدخال رقم إذن التسليم (Bon de Livraison)</b>\nيرجى كتابة رقم إذن التسليم (BL N°):` 
+        : `🚚 <b>EXPÉDITION: Saisir N° Bon de Livraison (BL)</b>\nVeuillez écrire le numéro de BL :`);
+    }
+
+    if (d.startsWith('bva_ship_final:')) {
+      const bvaId = d.split(':')[1];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva || bva.status !== 'pending_shipping') return;
+      
+      const st = states.get(chatId);
+      bva.status = 'pending_guard';
+      bva.blNum = st.data.blNum;
+      bva.transporter = st.data.transporter;
+      bva.driverName = st.data.driverName;
+      bva.vehiclePlate = st.data.vehiclePlate;
+      bva.pcNum = st.data.pcNum;
+      bva.gdsName = userData.name;
+      bva.gdsId = fromId;
+      bva.shippingDate = new Date().toLocaleDateString('fr-FR');
+      saveDB(db2);
+      states.delete(chatId);
+      saveStates();
+      
+      // Notify Guard Post Role
+      const notifyMsg = ar
+        ? `🔔 <b>إشعار للحراسة: شاحنة عند البوابة بانتظار الخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم BL: <code>${bva.blNum}</code>\n👤 السائق: <b>${bva.driverName}</b>\n🚛 الشاحنة: <code>${bva.vehiclePlate}</code>\n\nيرجى تأكيد ومراقبة خروج الشاحنة فعلياً.`
+        : `🔔 <b>GARDE: CAMION AU PORTAIL PRÊT POUR EXIT</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BL N°: <code>${bva.blNum}</code>\n👤 Chauffeur: <b>${bva.driverName}</b>\n🚛 Camion: <code>${bva.vehiclePlate}</code>\n\nVeuillez valider la sortie réelle.`;
+        
+      const kbd = { inline_keyboard: [[{ text: ar ? '🚛 مراقبة وتأكيد خروج الشاحنة' : '🚛 Confirmer l\'Exit Camion', callback_data: `bva_guard_start:${bvaId}` }]] };
+      await notifyBVARole(notifyMsg, 'poste_garde', cfg, kbd);
+      
+      return send(chatId, ar 
+        ? `✅ <b>تم تسجيل تحميل الشاحنة بنجاح!</b>\nتم إرسال إشعار فوري لمركز الحراسة عند البوابة بمراقبة خروجها.`
+        : `✅ <b>Détails de chargement validés!</b>\nNotification de sortie transmise au Poste de Garde pour validation finale.`,
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
+    if (d.startsWith('bva_guard_start:')) {
+      const bvaId = d.split(':')[1];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva) return send(chatId, ar ? '❌ إذن البيع غير موجود.' : '❌ Bon introuvable.');
+      if (bva.status !== 'pending_guard') {
+        return send(chatId, ar ? `⚠️ تمت مغادرة الشاحنة مسبقاً.` : `⚠️ Camion déjà sorti.`);
+      }
+      
+      states.set(chatId, { step: 'bva_guard_shift', bvaId });
+      saveStates();
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? 'الفرقة A' : 'Équipe A', callback_data: `bva_gd_conf:${bvaId}:A` }],
+        [{ text: ar ? 'الفرقة B' : 'Équipe B', callback_data: `bva_gd_conf:${bvaId}:B` }],
+        [{ text: ar ? 'الفرقة C' : 'Équipe C', callback_data: `bva_gd_conf:${bvaId}:C` }]
+      ]};
+      return send(chatId, ar 
+        ? `👮 <b>مركز الحراسة: اختر فرقة الحراسة (Shift) لتأكيد خروج الشاحنة:</b>` 
+        : `👮 <b>POSTE DE GARDE: Choisir l'équipe de garde :</b>`, kbd);
+    }
+
+    if (d.startsWith('bva_gd_conf:')) {
+      const parts = d.split(':');
+      const bvaId = parts[1];
+      const shift = parts[2];
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
+      if (!bva || bva.status !== 'pending_guard') return;
+      
+      bva.status = 'completed';
+      bva.guardName = userData.name;
+      bva.guardId = fromId;
+      bva.guardDate = new Date().toLocaleDateString('fr-FR');
+      // Entrance time defaults to 20 mins ago, exit time is current time
+      bva.entryTime = new Date(new Date().getTime() - 20 * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      bva.exitTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      bva.guardShift = shift;
+      saveDB(db2);
+      
+      await answerCallbackQuery(cbq.id, ar ? '✅ تم تأكيد الخروج الفعلي!' : '✅ Sortie camion confirmée!');
+      
+      await send(chatId, ar
+        ? `✅ <b>تم تأكيد خروج الشاحنة وإتمام إذن البيع!</b>\n🔄 جاري توليد وثيقة PDF وإرسالها...`
+        : `✅ <b>Sortie camion confirmée et bon complété!</b>\n🔄 Génération du PDF en cours...`);
+        
+      try {
+        const pdfPath = path.join(os.tmpdir(), `BVA_${bva.id}.pdf`);
+        await generateBonVentePDF(bva, pdfPath);
+        
+        // Send PDF back to Guard Post
+        const BOT_TOKEN = cfg.bot_token || process.env.BOT_TOKEN;
+        const fsData = fs.readFileSync(pdfPath);
+        const formData = new FormData();
+        formData.append('chat_id', String(chatId));
+        formData.append('caption', ar ? `📄 إذن خروج شاحنة مكتمل: <b>${bva.clientName}</b>` : `📄 Autorisation de sortie complétée: <b>${bva.clientName}</b>`);
+        formData.append('document', new Blob([fsData]), `BVA_${bva.id.slice(0,8)}.pdf`);
+        
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, { method: 'POST', body: formData });
+        
+        // Notify Commercial of completion with PDF
+        if (bva.commercialId) {
+          const commFormData = new FormData();
+          commFormData.append('chat_id', String(bva.commercialId));
+          commFormData.append('caption', ar ? `✅ <b>اكتمل شحن إذن البيع الخاص بك!</b>\nالزبون: ${bva.clientName}` : `✅ <b>Votre bon de vente a été expédié!</b>\nClient: ${bva.clientName}`);
+          commFormData.append('document', new Blob([fsData]), `BVA_${bva.id.slice(0,8)}.pdf`);
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, { method: 'POST', body: commFormData });
+        }
+        
+        // Email PDF to HR / Admin email
+        const s = cfg.email_settings || {};
+        const emails = s.hr_notification_email
+          ? s.hr_notification_email.split(',').map(e => e.trim()).filter(Boolean)
+          : [];
+        if (emails.length > 0) {
+          const subject = `Bon de Vente & Sortie - ${bva.clientName} - BL ${bva.blNum}`;
+          const body = `Bonjour,\n\nVeuillez trouver ci-joint le Bon de Vente et Autorisation de Sortie au format paysage complété pour le client ${bva.clientName}.\n\n- Bon N°: ${bva.id.toUpperCase().slice(0,8)}\n- BL N°: ${bva.blNum}\n- Facture N°: ${bva.factureNum}\n- Montant: ${bva.amount} DA\n- Saisie par: ${bva.commercialName}\n- Date de sortie: ${bva.guardDate} à ${bva.exitTime} (Equipe: ${bva.guardShift})\n\nCordialement,\nALVER Spa Automation Bot`;
+          await sendEmail(emails, subject, body, [{ filename: `BVA_${bva.id.slice(0,8)}.pdf`, path: pdfPath }]);
+        }
+        
+        // Clean up temp
+        try { fs.unlinkSync(pdfPath); } catch (_) {}
+        
+      } catch (e) {
+        log(`[BVA-PDF-Error] ${e.message}`);
+        await send(chatId, `❌ Error generating/sending BVA PDF: ${e.message}`);
+      }
+      return;
+    }
+
+    if (d === 'bva_list') {
+      const db2 = loadDB();
+      const list = (db2.bon_vente || []).slice(-8).reverse();
+      if (list.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا توجد أذونات مسجلة حالياً.' : 'ℹ️ Aucun bon enregistré.');
+      }
+      let msg = ar ? `📋 <b>أحدث أذونات البيع والخروج:</b>\n━━━━━━━━━━━━━━\n` : `📋 <b>Derniers Bons de Vente :</b>\n━━━━━━━━━━━━━━\n`;
+      for (const b of list) {
+        const statusLabels = { pending_finance: 'المالية 💵', pending_shipping: 'المستودع 🚚', pending_guard: 'الحراسة 👮', completed: 'مكتمل ✅' };
+        const statusLabel = ar ? (statusLabels[b.status] || b.status) : b.status.toUpperCase();
+        msg += `📄 كود: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 زبون: <b>${b.clientName}</b>\n📌 الحالة: <code>${statusLabel}</code>\n━━━━━━━━━━━━━━\n`;
+      }
+      return send(chatId, msg, { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+    }
+
+    if (d === 'bva_list_pending_finance') {
+      const db2 = loadDB();
+      const list = (db2.bon_vente || []).filter(b => b.status === 'pending_finance');
+      if (list.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا توجد أذونات بيع معلقة للمالية.' : 'ℹ️ Aucune facture en attente pour la Finance.');
+      }
+      for (const b of list) {
+        const kbd = { inline_keyboard: [[{ text: ar ? `💳 معالجة: ${b.clientName}` : `💳 Traiter: ${b.clientName}`, callback_data: `bva_fin_start:${b.id}` }]] };
+        await send(chatId, ar 
+          ? `📄 كود: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 زبون: <b>${b.clientName}</b>\n📄 BC N°: <code>${b.bcNum}</code>\n⏰ أنشئ في: ${new Date(b.createdAt).toLocaleDateString()}`
+          : `📄 ID: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 Client: <b>${b.clientName}</b>\n📄 BC: <code>${b.bcNum}</code>`, kbd);
+      }
+      return;
+    }
+
+    if (d === 'bva_list_pending_shipping') {
+      const db2 = loadDB();
+      const list = (db2.bon_vente || []).filter(b => b.status === 'pending_shipping');
+      if (list.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا توجد شحنات معلقة للمخازن (GDS).' : 'ℹ️ Aucune expédition en attente pour le GDS.');
+      }
+      for (const b of list) {
+        const kbd = { inline_keyboard: [[{ text: ar ? `🚚 شحن البضاعة` : `🚚 Expédier`, callback_data: `bva_ship_start:${b.id}` }]] };
+        await send(chatId, ar 
+          ? `📄 كود: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 زبون: <b>${b.clientName}</b>\n💳 الفاتورة: <code>${b.factureNum}</code>\n💰 القيمة: <b>${b.amount} DA</b>\n⏰ جاهز منذ: ${new Date(b.financeDate ? b.financeDate : b.createdAt).toLocaleDateString()}`
+          : `📄 ID: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 Client: <b>${b.clientName}</b>\n💳 Invoice: <code>${b.factureNum}</code>`, kbd);
+      }
+      return;
+    }
+
+    if (d === 'bva_list_pending_guard') {
+      const db2 = loadDB();
+      const list = (db2.bon_vente || []).filter(b => b.status === 'pending_guard');
+      if (list.length === 0) {
+        return send(chatId, ar ? 'ℹ️ لا توجد شاحنات عند البوابة بانتظار الخروج.' : 'ℹ️ Aucun camion en attente au Poste de Garde.');
+      }
+      for (const b of list) {
+        const kbd = { inline_keyboard: [[{ text: ar ? `🚛 تأكيد خروج الشاحنة` : `🚛 Confirmer Sortie`, callback_data: `bva_guard_start:${b.id}` }]] };
+        await send(chatId, ar 
+          ? `📄 إذن بيع: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 زبون: <b>${b.clientName}</b>\n🚚 سائق: <b>${b.driverName}</b> | شاحنة: <code>${b.vehiclePlate}</code>\n⏰ جاهز منذ: ${new Date(b.shippingDate ? b.shippingDate : b.createdAt).toLocaleDateString()}`
+          : `📄 ID: <code>${b.id.toUpperCase().slice(0, 8)}</code>\n👤 Client: <b>${b.clientName}</b>\n🚚 Driver: <b>${b.driverName}</b>`, kbd);
+      }
+      return;
+    }
+
     return;
   }
 
@@ -1685,6 +2176,154 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (st && txt && !txt.startsWith('/')) {
+    // ── BVA (Bon de Vente & Autorisation de Sortie) State Machine Steps ──
+    if (st.step === 'bva_client') {
+      const q = txt.trim().toLowerCase();
+      const clients = loadClients();
+      const matches = clients.filter(c => c.id.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)).slice(0, 8);
+      
+      if (matches.length === 0) {
+        states.set(chatId, st);
+        return send(chatId, ar 
+          ? `❌ لم يتم العثور على زبائن يطابقون: <b>${txt}</b>\n\n🔍 يرجى كتابة اسم أو رمز زبون آخر للبحث:` 
+          : `❌ Aucun client trouvé pour: <b>${txt}</b>\n\n🔍 Réessayez avec un autre nom ou ID :`, 
+          { inline_keyboard: [[{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]] });
+      }
+      
+      const kbd = { inline_keyboard: matches.map(c => [{ text: `👤 ${c.id} - ${c.name}`, callback_data: `bva_clsel:${c.id}` }]) };
+      kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
+      
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `🔍 <b>اختر الزبون من النتائج أدناه:</b>` 
+        : `🔍 <b>Sélectionnez un client :</b>`, kbd);
+    }
+
+    if (st.step === 'bva_bcnum') {
+      st.data.bcNum = txt;
+      st.step = 'bva_articles';
+      states.set(chatId, st);
+      saveStates();
+      
+      return send(chatId, ar 
+        ? `📦 <b>الخطوة 3/5: إدخال المواد (Articles)</b>\n━━━━━━━━━━━━━━\nيرجى كتابة الرمز واسم المادة والكمية بهذا الشكل:\n<code>الرمز - اسم المنتج - الكمية</code>\n\nمثال: <code>4005 - زجاج مصفح - 300</code>\n\n<i>يمكنك إرسال كل مادة في رسالة واحدة، وعند الانتهاء اضغط الزر بالأسفل.</i>`
+        : `📦 <b>Étape 3/5: Saisir les Articles</b>\n━━━━━━━━━━━━━━\nVeuillez écrire l'article sous cette forme:\n<code>CODE - NOM - QUANTITÉ</code>\n\nExemple: <code>4005 - VERRE PLAT - 300</code>\n\n<i>Vous pouvez envoyer plusieurs articles un par un.</i>`,
+        { inline_keyboard: [[{ text: ar ? '🏁 تأكيد قائمة المواد' : '🏁 Confirmer la liste', callback_data: 'bva_art_done' }]] });
+    }
+
+    if (st.step === 'bva_articles') {
+      const parts = txt.split('-').map(p => p.trim());
+      if (parts.length < 3) {
+        states.set(chatId, st);
+        return send(chatId, ar 
+          ? `⚠️ صيغة خاطئة! يرجى إرسالها بهذا الشكل:\n<code>الرمز - اسم المنتج - الكمية</code>\nمثال: <code>102 - زجاج 4مم - 500</code>` 
+          : `⚠️ Format invalide! Veuillez envoyer sous la forme:\n<code>CODE - NOM - QUANTITÉ</code>\nEx: <code>102 - VERRE 4MM - 500</code>`);
+      }
+      
+      const code = parts[0];
+      const prod = parts[1];
+      const qty = parts[2];
+      
+      if (!st.data.articles) st.data.articles = [];
+      st.data.articles.push({ code, prod, qty });
+      states.set(chatId, st);
+      saveStates();
+      
+      const listMsg = st.data.articles.map((a, i) => `${i+1}. <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
+      return send(chatId, ar 
+        ? `✅ تم إضافة المادة بنجاح!\n\n📋 <b>القائمة الحالية للمواد:</b>\n${listMsg}\n\n💡 أرسل مادة أخرى، أو اضغط على الزر بالأسفل للتأكيد والانتقال لطريقة الدفع:` 
+        : `✅ Article ajouté!\n\n📋 <b>Liste actuelle :</b>\n${listMsg}\n\n💡 Envoyez un autre ou appuyez ci-dessous pour valider:`,
+        { inline_keyboard: [[{ text: ar ? '🏁 تأكيد قائمة المواد' : '🏁 Confirmer la liste', callback_data: 'bva_art_done' }]] });
+    }
+
+    if (st.step === 'bva_fin_facture') {
+      st.data.factureNum = txt;
+      st.step = 'bva_fin_amount';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `💰 <b>المالية: إدخال مبلغ الفاتورة الإجمالي (Montant)</b>\nيرجى كتابة المبلغ الإجمالي بالأرقام (مثال: <code>150000.00</code>):` 
+        : `💰 <b>FINANCE: Saisir le Montant</b>\nVeuillez écrire le montant en chiffres (Ex: <code>150000.00</code>) :`);
+    }
+
+    if (st.step === 'bva_fin_amount') {
+      st.data.amount = txt;
+      st.step = 'bva_fin_confirm';
+      states.set(chatId, st);
+      saveStates();
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '🏦 تحويل بنكي (Virement)' : '🏦 Virement', callback_data: `bva_fin_pay_sel:${st.bvaId}:Virement` }],
+        [{ text: ar ? '💵 دفع نقدي (Espèce)' : '💵 Espèce', callback_data: `bva_fin_pay_sel:${st.bvaId}:Espèce` }],
+        [{ text: ar ? '✍️ شيك (Chèque)' : '✍️ Chèque', callback_data: `bva_fin_pay_sel:${st.bvaId}:Chèque` }],
+        [{ text: ar ? '📥 إيداع (Versement)' : '📥 Versement', callback_data: `bva_fin_pay_sel:${st.bvaId}:Versement` }]
+      ]};
+      return send(chatId, ar 
+        ? `💳 <b>المالية: اختر طريقة الدفع النهائية المعتمدة:</b>` 
+        : `💳 <b>FINANCE: Confirmer le mode de paiement final :</b>`, kbd);
+    }
+
+    if (st.step === 'bva_ship_bl') {
+      st.data.blNum = txt;
+      st.step = 'bva_ship_transporter';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `🚚 <b>مصلحة الشحن: إدخال اسم الناقل (Transporteur)</b>\nاكتب اسم الناقل (مثلاً: <code>ALVER</code> أو اسم الزبون):` 
+        : `🚚 <b>EXPÉDITION: Saisir le Transporteur</b>\nÉcrivez le nom du transporteur (Ex: <code>ALVER</code>) :`);
+    }
+
+    if (st.step === 'bva_ship_transporter') {
+      st.data.transporter = txt;
+      st.step = 'bva_ship_driver';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `👤 <b>مصلحة الشحن: إدخال اسم السائق (Chauffeur)</b>\nاكتب اسم سائق الشاحنة الكترونياً:` 
+        : `👤 <b>EXPÉDITION: Saisir Nom du Chauffeur</b>\nÉcrivez le nom du chauffeur :`);
+    }
+
+    if (st.step === 'bva_ship_driver') {
+      st.data.driverName = txt;
+      st.step = 'bva_ship_plate';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `🚛 <b>مصلحة الشحن: إدخال رقم لوحة الشاحنة (Matricule)</b>\nاكتب رقم تسجيل الشاحنة:` 
+        : `🚛 <b>EXPÉDITION: Saisir le Matricule du Camion</b>\nÉcrivez le numéro de plaque minéralogique :`);
+    }
+
+    if (st.step === 'bva_ship_plate') {
+      st.data.vehiclePlate = txt;
+      st.step = 'bva_ship_pc';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `🚪 <b>مصلحة الشحن: إدخال رقم مركز التحميل (N° PC)</b>\nاكتب رقم مركز التحميل أو رصيف البوابة:` 
+        : `🚪 <b>EXPÉDITION: Saisir N° PC</b>\nÉcrivez le numéro de PC / Quai :`);
+    }
+
+    if (st.step === 'bva_ship_pc') {
+      st.data.pcNum = txt;
+      st.step = 'bva_ship_confirm';
+      states.set(chatId, st);
+      saveStates();
+      
+      const db2 = loadDB();
+      const bva = (db2.bon_vente || []).find(b => b.id === st.bvaId);
+      if (!bva) return;
+      
+      const summary = ar 
+        ? `📋 <b>ملخص شحن البضاعة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم BL: <code>${st.data.blNum}</code>\n🚚 الناقل: <b>${st.data.transporter}</b>\n👤 السائق: <b>${st.data.driverName}</b>\n🚛 الشاحنة: <code>${st.data.vehiclePlate}</code>\n🚪 رقم PC: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`
+        : `📋 <b>RÉSUMÉ EXPÉDITION (GDS)</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BL N°: <code>${st.data.blNum}</code>\n🚚 Transp: <b>${st.data.transporter}</b>\n👤 Chauffeur: <b>${st.data.driverName}</b>\n🚛 Camion: <code>${st.data.vehiclePlate}</code>\n🚪 N° PC: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`;
+        
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ تأكيد جاهزية الخروج' : '✅ Confirmer le Chargement', callback_data: `bva_ship_final:${st.bvaId}` }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      return send(chatId, summary, kbd);
+    }
+
     states.delete(chatId);
     const db = loadDB();
     const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
@@ -1712,6 +2351,9 @@ Pour garantir une fin de relation de travail légale et fluide :
            [{ text: ar ? '🗂️ مسير الموارد البشرية (Gest. RH)' : '🗂️ Gestionnaire RH', callback_data: `add_emp_rolex:gestionnaire_rh:${st.tid}:${txt}` }],
            [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolex:manager:${st.tid}:${txt}` }],
            [{ text: ar ? '🔄 رئيس وردية (Chef de Quart)' : '🔄 Chef de Quart', callback_data: `add_emp_rolex:chef_de_quart:${st.tid}:${txt}` }],
+           [{ text: ar ? '💼 تجاري (Service Commercial)' : '💼 Service Commercial', callback_data: `add_emp_rolex:service_commercial:${st.tid}:${txt}` }],
+           [{ text: ar ? '💵 المالية (Finance)' : '💵 Finance', callback_data: `add_emp_rolex:finance:${st.tid}:${txt}` }],
+           [{ text: ar ? '📦 المخازن والشحن (GDS)' : '📦 Gestion Stock (GDS)', callback_data: `add_emp_rolex:gds:${st.tid}:${txt}` }],
            [{ text: ar ? '🛡️ حارس (Poste de Garde)' : '🛡️ Poste de Garde', callback_data: `add_emp_rolex:poste_garde:${st.tid}:${txt}` }],
            [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_rolex:employee:${st.tid}:${txt}` }],
            [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
@@ -1733,6 +2375,9 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? '🗂️ مسير الموارد البشرية (Gest. RH)' : '🗂️ Gestionnaire RH', callback_data: `add_emp_rolen:gestionnaire_rh:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '👔 مسير (Manager)' : '👔 Manager', callback_data: `add_emp_rolen:manager:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '🔄 رئيس وردية (Chef de Quart)' : '🔄 Chef de Quart', callback_data: `add_emp_rolen:chef_de_quart:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '💼 تجاري (Service Commercial)' : '💼 Service Commercial', callback_data: `add_emp_rolen:service_commercial:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '💵 المالية (Finance)' : '💵 Finance', callback_data: `add_emp_rolen:finance:${st.tid}:${st.empId}:${txt}` }],
+        [{ text: ar ? '📦 المخازن والشحن (GDS)' : '📦 Gestion Stock (GDS)', callback_data: `add_emp_rolen:gds:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '🛡️ حارس (Poste de Garde)' : '🛡️ Poste de Garde', callback_data: `add_emp_rolen:poste_garde:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '👷 عامل (Employé)' : '👷 Employé', callback_data: `add_emp_rolen:employee:${st.tid}:${st.empId}:${txt}` }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]

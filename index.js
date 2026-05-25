@@ -1703,19 +1703,34 @@ Pour garantir une fin de relation de travail légale et fluide :
       const st = states.get(chatId);
       if (!st) return;
       st.data.transportType = transType;
-      st.step = 'bva_confirm';
+      st.step = 'bva_fact_num';
       states.set(chatId, st);
       saveStates();
+      
+      return send(chatId, ar 
+        ? `📝 <b>الخطوة 6/7: إدخال رقم الفاتورة (N° Facture)</b>\nيرجى إرسال رقم الفاتورة:` 
+        : `📝 <b>Étape 6/7: Saisir N° Facture</b>\nVeuillez envoyer le numéro de facture :`);
+    }
+
+    // After message text for Facture N° (handled in text handler), step becomes 'bva_fact_montant'
+    // After message text for Montant (handled in text handler), we display summary.
+    // Wait, the message text handlers are elsewhere. I will need to update them too!
+    
+    // I am modifying the bva_confirm step here, which used to be step 5/5.
+    // Let's create a new callback for the summary confirmation.
+    if (d === 'bva_show_summary') {
+      const st = states.get(chatId);
+      if (!st) return;
       
       const itemsList = st.data.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
       const payMethText = st.data.paymentMethod;
       
       const summary = ar 
-        ? `📋 <b>ملخص إذن البيع والخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${st.data.clientName}</b>\n📄 طلبية رقم (BC): <code>${st.data.bcNum}</code>\n💳 طريقة الدفع: <b>${payMethText}</b>\n🚚 النقل: <b>${st.data.transportType}</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsList}\n━━━━━━━━━━━━━━`
-        : `📋 <b>RÉSUMÉ DU BON DE VENTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${st.data.clientName}</b>\n📄 BC N°: <code>${st.data.bcNum}</code>\n💳 Paiement: <b>${payMethText}</b>\n🚚 Transport: <b>${st.data.transportType}</b>\n\n📦 <b>Articles :</b>\n${itemsList}\n━━━━━━━━━━━━━━`;
+        ? `📋 <b>ملخص إذن البيع والخروج (بما فيها الفوترة)</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${st.data.clientName}</b>\n📄 طلبية رقم (BC): <code>${st.data.bcNum}</code>\n💳 طريقة الدفع: <b>${payMethText}</b>\n🚚 النقل: <b>${st.data.transportType}</b>\n\n🧾 رقم الفاتورة: <code>${st.data.factureNum}</code>\n💰 المبلغ الإجمالي: <b>${st.data.amount} DA</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsList}\n━━━━━━━━━━━━━━`
+        : `📋 <b>RÉSUMÉ DU BON DE VENTE ET FACTURATION</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${st.data.clientName}</b>\n📄 BC N°: <code>${st.data.bcNum}</code>\n💳 Paiement: <b>${payMethText}</b>\n🚚 Transport: <b>${st.data.transportType}</b>\n\n🧾 N° Facture: <code>${st.data.factureNum}</code>\n💰 Montant Total: <b>${st.data.amount} DA</b>\n\n📦 <b>Articles :</b>\n${itemsList}\n━━━━━━━━━━━━━━`;
         
       const kbd = { inline_keyboard: [
-        [{ text: ar ? '✅ تأكيد وإرسال للمالية' : '✅ Confirmer & Envoyer', callback_data: 'bva_confirm_sales' }],
+        [{ text: ar ? '✅ تأكيد وإرسال للمستودع (GDS)' : '✅ Confirmer & Envoyer (GDS)', callback_data: 'bva_confirm_sales' }],
         [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
       ]};
       return send(chatId, summary, kbd);
@@ -1736,10 +1751,12 @@ Pour garantir une fin de relation de travail légale et fluide :
         articles: st.data.articles,
         paymentMethod: st.data.paymentMethod,
         transportType: st.data.transportType,
+        factureNum: st.data.factureNum, // added from Commercial
+        amount: st.data.amount,         // added from Commercial
         commercialName: st.data.commercialName,
         commercialId: st.data.commercialId,
         commercialDate: new Date().toLocaleDateString('fr-FR'),
-        status: 'pending_finance',
+        status: 'pending_shipping', // Changed to GDS directly
         createdAt: new Date().toISOString()
       };
       
@@ -1750,17 +1767,17 @@ Pour garantir une fin de relation de travail légale et fluide :
       states.delete(chatId);
       saveStates();
       
-      // Notify Finance Role
+      // Notify GDS Role (Expedition)
       const notifyMsg = ar
-        ? `🔔 <b>إشعار للمالية: إذن بيع جديد بانتظار التأكيد</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\nيرجى معالجة الطلب لتأكيد الفاتورة والدفع.`
-        : `🔔 <b>FINANCE: NOUVEAU BON À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\nVeuillez valider le paiement et la facture.`;
+        ? `🔔 <b>إشعار للمستودع (GDS): إذن بيع جديد بانتظار التحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\nيرجى إدخال رقم إذن التسليم (BL) ومعلومات الشاحنة والسائق.`
+        : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\nVeuillez saisir le N° BL et les détails du chauffeur.`;
         
-      const kbd = { inline_keyboard: [[{ text: ar ? '💳 معالجة الفاتورة والدفع' : '💳 Traiter la Facture', callback_data: `bva_fin_start:${bvaId}` }]] };
-      await notifyBVARole(notifyMsg, 'finance', cfg, kbd);
+      const kbd = { inline_keyboard: [[{ text: ar ? '🚚 تحميل وتأكيد الشحنة' : '🚚 Charger l\'Expédition', callback_data: `bva_ship_start:${bvaId}` }]] };
+      await notifyBVARole(notifyMsg, 'gds', cfg, kbd);
       
       return send(chatId, ar 
-        ? `✅ <b>تم إنشاء إذن البيع بنجاح!</b>\nتم إرسال إشعار لمصلحة المالية لتأكيد الدفع والفاتورة.`
-        : `✅ <b>Bon de vente créé avec succès!</b>\nNotification transmise au service Finance pour traitement.`, 
+        ? `✅ <b>تم إنشاء إذن البيع بنجاح!</b>\nتم إرسال إشعار لمصلحة المخازن (GDS) لتحميل الشحنة.`
+        : `✅ <b>Bon de vente créé avec succès!</b>\nNotification transmise au service GDS pour expédition.`, 
         { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
     }
 
@@ -1773,46 +1790,62 @@ Pour garantir une fin de relation de travail légale et fluide :
         return send(chatId, ar ? `⚠️ تم معالجة هذا الإذن مسبقاً` : `⚠️ Ce bon a déjà été traité.`);
       }
       
-      states.set(chatId, { step: 'bva_fin_facture', bvaId });
-      saveStates();
-      return send(chatId, ar 
-        ? `📝 <b>المالية: إدخال رقم الفاتورة (N° Facture)</b>\nيرجى كتابة رقم فاتورة المنتج:` 
-        : `📝 <b>FINANCE: Saisir N° Facture</b>\nVeuillez écrire le numéro de facture :`);
+      const itemsList = bva.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
+      const summary = ar 
+        ? `📋 <b>المراجعة النهائية (المالية)</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 طلبية رقم (BC): <code>${bva.bcNum}</code>\n💳 طريقة الدفع: <b>${bva.paymentMethod}</b>\n🚚 النقل: <b>${bva.transportType}</b>\n\n🧾 رقم الفاتورة: <code>${bva.factureNum}</code>\n💰 المبلغ الإجمالي: <b>${bva.amount} DA</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsList}\n━━━━━━━━━━━━━━\n\nهل أنت متأكد من تأكيد هذه العملية لإصدار الوثيقة النهائية؟`
+        : `📋 <b>VALIDATION FINALE (FINANCE)</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BC N°: <code>${bva.bcNum}</code>\n💳 Paiement: <b>${bva.paymentMethod}</b>\n🚚 Transport: <b>${bva.transportType}</b>\n\n🧾 N° Facture: <code>${bva.factureNum}</code>\n💰 Montant Total: <b>${bva.amount} DA</b>\n\n📦 <b>Articles :</b>\n${itemsList}\n━━━━━━━━━━━━━━\n\nVoulez-vous valider et générer le document PDF ?`;
+      
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ تأكيد وإصدار وثيقة الخروج' : '✅ Valider et Générer PDF', callback_data: `bva_fin_confirm_final:${bvaId}` }],
+        [{ text: ar ? '❌ إلغاء الرجوع' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      return send(chatId, summary, kbd);
     }
 
-    if (d.startsWith('bva_fin_pay_sel:')) {
-      const parts = d.split(':');
-      const bvaId = parts[1];
-      const method = parts[2];
+    if (d.startsWith('bva_fin_confirm_final:')) {
+      const bvaId = d.split(':')[1];
       const db2 = loadDB();
       const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
       if (!bva || bva.status !== 'pending_finance') return;
       
-      const st = states.get(chatId);
-      bva.status = 'pending_shipping';
-      bva.factureNum = st.data.factureNum;
-      bva.amount = st.data.amount;
-      bva.paymentMethod = method;
+      bva.status = 'completed';
       bva.financeName = userData.name;
       bva.financeId = fromId;
       bva.financeDate = new Date().toLocaleDateString('fr-FR');
       saveDB(db2);
-      states.delete(chatId);
-      saveStates();
       
-      // Notify GDS Role
-      const notifyMsg = ar
-        ? `🔔 <b>إشعار للمستودع (GDS): شحنة جاهزة للتحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 فاتورة رقم: <code>${bva.factureNum}</code>\n💰 القيمة: <b>${bva.amount} DA</b>\n\nيرجى تعبئة الشحنة وإدخال معلومات السائق والشاحنة.`
-        : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum}</code>\n💰 Montant: <b>${bva.amount} DA</b>\n\nVeuillez charger le camion et saisir les détails.`;
+      // Acknowledge to Finance user
+      send(chatId, ar 
+        ? `⏳ <b>جاري توليد وثيقة الخروج (PDF)...</b>`
+        : `⏳ <b>Génération du PDF en cours...</b>`);
         
-      const kbd = { inline_keyboard: [[{ text: ar ? '🚚 تحميل الشحنة وتأكيدها' : '🚚 Charger l\'Expédition', callback_data: `bva_ship_start:${bvaId}` }]] };
-      await notifyBVARole(notifyMsg, 'gds', cfg, kbd);
+      try {
+        const { generateBonVentePDF } = await import('./utils/pdf.js');
+        const pdfPath = path.join(__dirname, 'temp', `${bva.id}.pdf`);
+        if (!fs.existsSync(path.join(__dirname, 'temp'))) fs.mkdirSync(path.join(__dirname, 'temp'));
+        
+        await generateBonVentePDF(bva, pdfPath);
+        
+        // Send PDF to the Admin as requested
+        const adminMsg = ar 
+          ? `📄 <b>وثيقة خروج وبيع جديدة (مكتملة)</b>\nالزبون: ${bva.clientName}\nمن طرف المصلحة التجارية والمالية.`
+          : `📄 <b>NOUVEAU BON DE VENTE ET SORTIE</b>\nClient: ${bva.clientName}\nValidé par le service Vente et Finance.`;
+          
+        await bot.sendDocument(cfg.adminChatId || cfg.admin_chat_id || process.env.ADMIN_CHAT_ID, pdfPath, { caption: adminMsg });
+        
+        // Also send it to the Finance user who clicked confirm
+        await bot.sendDocument(chatId, pdfPath, { caption: ar ? '✅ إليك الوثيقة جاهزة للطباعة' : '✅ Voici le document prêt à imprimer' });
+        
+        // Clean up
+        setTimeout(() => fs.existsSync(pdfPath) && fs.unlinkSync(pdfPath), 10000);
+      } catch (err) {
+        console.error('PDF Generation Error:', err);
+        send(chatId, ar ? '❌ حدث خطأ أثناء توليد الوثيقة.' : '❌ Erreur de génération PDF.');
+      }
       
-      return send(chatId, ar 
-        ? `✅ <b>تم تأكيد الفاتورة والدفع بنجاح!</b>\nتم إشعار مصلحة المخازن والشحن (GDS) لتحضير الشحنة.`
-        : `✅ <b>Paiement et facture validés!</b>\nNotification envoyée au service GDS/Expédition pour expédition.`,
-        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
+      return;
     }
+
 
     if (d.startsWith('bva_ship_start:')) {
       const bvaId = d.split(':')[1];
@@ -1836,7 +1869,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (!bva || bva.status !== 'pending_shipping') return;
       
       const st = states.get(chatId);
-      bva.status = 'pending_guard';
+      bva.status = 'pending_finance';
       bva.blNum = st.data.blNum;
       bva.transporter = st.data.transporter;
       bva.driverName = st.data.driverName;
@@ -1849,17 +1882,18 @@ Pour garantir une fin de relation de travail légale et fluide :
       states.delete(chatId);
       saveStates();
       
-      // Notify Guard Post Role
+      // Notify Finance Role
       const notifyMsg = ar
-        ? `🔔 <b>إشعار للحراسة: شاحنة عند البوابة بانتظار الخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم BL: <code>${bva.blNum}</code>\n👤 السائق: <b>${bva.driverName}</b>\n🚛 الشاحنة: <code>${bva.vehiclePlate}</code>\n\nيرجى تأكيد ومراقبة خروج الشاحنة فعلياً.`
-        : `🔔 <b>GARDE: CAMION AU PORTAIL PRÊT POUR EXIT</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BL N°: <code>${bva.blNum}</code>\n👤 Chauffeur: <b>${bva.driverName}</b>\n🚛 Camion: <code>${bva.vehiclePlate}</code>\n\nVeuillez valider la sortie réelle.`;
+        ? `🔔 <b>إشعار للمالية (Comptabilité): شحنة جاهزة للتأكيد والفوترة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم الفاتورة: <code>${bva.factureNum || 'N/A'}</code>\n💰 المبلغ: <b>${bva.amount || 'N/A'} DA</b>\n\nيرجى المراجعة وتأكيد الدفع النهائي لإصدار الوثيقة.`
+        : `🔔 <b>FINANCE: EXPÉDITION PRÊTE À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum || 'N/A'}</code>\n💰 Montant: <b>${bva.amount || 'N/A'} DA</b>\n\nVeuillez valider le paiement final pour générer le document.`;
         
-      const kbd = { inline_keyboard: [[{ text: ar ? '🚛 مراقبة وتأكيد خروج الشاحنة' : '🚛 Confirmer l\'Exit Camion', callback_data: `bva_guard_start:${bvaId}` }]] };
-      await notifyBVARole(notifyMsg, 'poste_garde', cfg, kbd);
+      const kbd = { inline_keyboard: [[{ text: ar ? '💳 مراجعة وتأكيد الوثيقة' : '💳 Valider et Générer le Document', callback_data: `bva_fin_start:${bvaId}` }]] };
+      await notifyBVARole(notifyMsg, 'finance', cfg, kbd);
       
       return send(chatId, ar 
-        ? `✅ <b>تم تسجيل تحميل الشاحنة بنجاح!</b>\nتم إرسال إشعار فوري لمركز الحراسة عند البوابة بمراقبة خروجها.`
-        : `✅ <b>Détails de chargement validés!</b>\nNotification de sortie transmise au Poste de Garde pour validation finale.`,
+        ? `✅ <b>تم تسجيل معلومات الشحن بنجاح!</b>\nتم إرسال إشعار للمالية للمراجعة النهائية وإصدار الوثيقة.`
+        : `✅ <b>Détails de chargement validés!</b>\nNotification transmise à la Finance pour validation finale.`,
+
         { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
     }
 
@@ -2236,32 +2270,38 @@ Pour garantir une fin de relation de travail légale et fluide :
         { inline_keyboard: [[{ text: ar ? '🏁 تأكيد قائمة المواد' : '🏁 Confirmer la liste', callback_data: 'bva_art_done' }]] });
     }
 
-    if (st.step === 'bva_fin_facture') {
+    if (st.step === 'bva_fact_num') {
       st.data.factureNum = txt;
-      st.step = 'bva_fin_amount';
+      st.step = 'bva_fact_montant';
       states.set(chatId, st);
       saveStates();
       return send(chatId, ar 
-        ? `💰 <b>المالية: إدخال مبلغ الفاتورة الإجمالي (Montant)</b>\nيرجى كتابة المبلغ الإجمالي بالأرقام (مثال: <code>150000.00</code>):` 
-        : `💰 <b>FINANCE: Saisir le Montant</b>\nVeuillez écrire le montant en chiffres (Ex: <code>150000.00</code>) :`);
+        ? `💰 <b>الخطوة 7/7: إدخال مبلغ الفاتورة الإجمالي (Montant)</b>\nيرجى كتابة المبلغ بالأرقام (مثال: <code>150000.00</code>):` 
+        : `💰 <b>Étape 7/7: Saisir le Montant</b>\nVeuillez écrire le montant en chiffres (Ex: <code>150000.00</code>) :`);
     }
 
-    if (st.step === 'bva_fin_amount') {
+    if (st.step === 'bva_fact_montant') {
       st.data.amount = txt;
-      st.step = 'bva_fin_confirm';
+      st.step = 'bva_show_summary'; // Fake step, immediately handle logic
+      
+      const itemsList = st.data.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
+      const payMethText = st.data.paymentMethod;
+      
+      const summary = ar 
+        ? `📋 <b>ملخص إذن البيع والخروج (بما فيها الفوترة)</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${st.data.clientName}</b>\n📄 طلبية رقم (BC): <code>${st.data.bcNum}</code>\n💳 طريقة الدفع: <b>${payMethText}</b>\n🚚 النقل: <b>${st.data.transportType}</b>\n\n🧾 رقم الفاتورة: <code>${st.data.factureNum}</code>\n💰 المبلغ الإجمالي: <b>${st.data.amount} DA</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsList}\n━━━━━━━━━━━━━━`
+        : `📋 <b>RÉSUMÉ DU BON DE VENTE ET FACTURATION</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${st.data.clientName}</b>\n📄 BC N°: <code>${st.data.bcNum}</code>\n💳 Paiement: <b>${payMethText}</b>\n🚚 Transport: <b>${st.data.transportType}</b>\n\n🧾 N° Facture: <code>${st.data.factureNum}</code>\n💰 Montant Total: <b>${st.data.amount} DA</b>\n\n📦 <b>Articles :</b>\n${itemsList}\n━━━━━━━━━━━━━━`;
+        
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✅ تأكيد وإرسال للمستودع (GDS)' : '✅ Confirmer & Envoyer (GDS)', callback_data: 'bva_confirm_sales' }],
+        [{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]
+      ]};
+      
       states.set(chatId, st);
       saveStates();
-      
-      const kbd = { inline_keyboard: [
-        [{ text: ar ? '🏦 تحويل بنكي (Virement)' : '🏦 Virement', callback_data: `bva_fin_pay_sel:${st.bvaId}:Virement` }],
-        [{ text: ar ? '💵 دفع نقدي (Espèce)' : '💵 Espèce', callback_data: `bva_fin_pay_sel:${st.bvaId}:Espèce` }],
-        [{ text: ar ? '✍️ شيك (Chèque)' : '✍️ Chèque', callback_data: `bva_fin_pay_sel:${st.bvaId}:Chèque` }],
-        [{ text: ar ? '📥 إيداع (Versement)' : '📥 Versement', callback_data: `bva_fin_pay_sel:${st.bvaId}:Versement` }]
-      ]};
-      return send(chatId, ar 
-        ? `💳 <b>المالية: اختر طريقة الدفع النهائية المعتمدة:</b>` 
-        : `💳 <b>FINANCE: Confirmer le mode de paiement final :</b>`, kbd);
+      return send(chatId, summary, kbd);
     }
+
+
 
     if (st.step === 'bva_ship_bl') {
       st.data.blNum = txt;

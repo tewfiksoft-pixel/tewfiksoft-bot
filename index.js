@@ -1677,6 +1677,14 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     // ── BVA (Bon de Vente & Autorisation de Sortie) Callback Query Handlers ──
+    if (d === 'ventes_menu') {
+      const kbd = { inline_keyboard: [
+        [{ text: ar ? '✍️ إنشاء إذن بيع وخروج' : '✍️ Créer Bon de Vente (BVA)', callback_data: 'bva_create' }],
+        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]
+      ]};
+      return send(chatId, ar ? '💼 <b>قسم المبيعات والطلبيات</b>\nاختر العملية التي تريد القيام بها:' : '💼 <b>Ventes & Bons</b>\nChoisissez une opération :', kbd);
+    }
+
     if (d === 'bva_create') {
       states.set(chatId, { step: 'bva_client', data: { commercialName: userData.name, commercialId: fromId, articles: [] } });
       saveStates();

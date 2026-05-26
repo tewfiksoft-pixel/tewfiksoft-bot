@@ -90,11 +90,17 @@ const loadArticles = () => {
 };
 
 async function notifyBVARole(txt, role, cfg, kbd) {
-  // Only notify users with the specific role — Admin accesses all operations directly from their dashboard
-  const users = cfg.authorized_users?.filter(u => u.role === role) || [];
+  // Notify users with the specific role as well as admins so they can process it directly
+  const users = cfg.authorized_users?.filter(u => u.role === role || u.role === 'admin' || u.role === 'general_manager') || [];
+  const seenIds = new Set();
   for (const u of users) {
-    if (u.id) {
-      await send(Number(u.id), txt, kbd);
+    if (u.id && !seenIds.has(u.id)) {
+      seenIds.add(u.id);
+      let userTxt = txt;
+      if (u.role === 'admin' || u.role === 'general_manager') {
+        userTxt = `👑 <b>[نسخة للإدارة - يمكنك إكمال الإجراء مباشرة بدلاً من الموظف]</b>\n\n${txt}`;
+      }
+      await send(Number(u.id), userTxt, kbd);
     }
   }
 }
@@ -1890,9 +1896,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
       states.set(chatId, { step: 'bva_ship_bl', bvaId, data: {} });
       saveStates();
+      const isAdm = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'general_manager';
       return send(chatId, ar 
-        ? `🚚 <b>مصلحة الشحن: إدخال رقم إذن التسليم (Bon de Livraison)</b>\nيرجى كتابة رقم إذن التسليم (BL N°):` 
-        : `🚚 <b>EXPÉDITION: Saisir N° Bon de Livraison (BL)</b>\nVeuillez écrire le numéro de BL :`);
+        ? (isAdm ? `👑 <b>الإدارة (تدخل مباشر): إدخال رقم إذن التسليم (Bon de Livraison)</b>\nيرجى كتابة رقم إذن التسليم (BL N°):` : `🚚 <b>مصلحة الشحن: إدخال رقم إذن التسليم (Bon de Livraison)</b>\nيرجى كتابة رقم إذن التسليم (BL N°):`) 
+        : (isAdm ? `👑 <b>ADMIN: Saisir N° Bon de Livraison (BL)</b>\nVeuillez écrire le numéro de BL :` : `🚚 <b>EXPÉDITION: Saisir N° Bon de Livraison (BL)</b>\nVeuillez écrire le numéro de BL :`));
     }
 
     if (d.startsWith('bva_ship_final:')) {
@@ -1948,9 +1955,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         [{ text: ar ? 'الفرقة C' : 'Équipe C', callback_data: `bva_gd_conf:${bvaId}:C` },
          { text: ar ? 'الفرقة D' : 'Équipe D', callback_data: `bva_gd_conf:${bvaId}:D` }]
       ]};
+      const isAdm = String(userData.role).toLowerCase() === 'admin' || String(userData.role).toLowerCase() === 'general_manager';
       return send(chatId, ar 
-        ? `👮 <b>مركز الحراسة: اختر فرقة الحراسة (Shift) لتأكيد خروج الشاحنة:</b>` 
-        : `👮 <b>POSTE DE GARDE: Choisir l'équipe de garde :</b>`, kbd);
+        ? (isAdm ? `👑 <b>الإدارة (تدخل مباشر): اختر فرقة الحراسة (Shift) لتأكيد خروج الشاحنة:</b>` : `👮 <b>مركز الحراسة: اختر فرقة الحراسة (Shift) لتأكيد خروج الشاحنة:</b>`) 
+        : (isAdm ? `👑 <b>ADMIN: Choisir l'équipe de garde :</b>` : `👮 <b>POSTE DE GARDE: Choisir l'équipe de garde :</b>`), kbd);
     }
 
     if (d.startsWith('bva_gd_conf:')) {
@@ -3567,7 +3575,7 @@ app.get('/', (req, res) => {
   const count = db.hr_employees?.length || 0;
   res.send(`
     <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v9.7 ☁️</h1>
+      <h1 style="color: #1a5f7a;">TewfikSoft HR Bot v10.1 ☁️</h1>
       <p style="font-size: 1.2em;">Status: <span style="color: green; font-weight: bold;">ONLINE</span></p>
       <p>Mode: <b>Webhook (Render-Optimized)</b></p>
       <p>Database: <b>${count} Employees Loaded</b></p>
@@ -3595,7 +3603,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v9.7 [SMTP-DEBUG] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v10.1 [SMTP-DEBUG] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

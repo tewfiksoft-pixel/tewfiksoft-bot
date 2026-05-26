@@ -206,9 +206,16 @@ export async function handle(u) {
   }
 
   // Apply in-memory test role if active
+  // BUT clear it if admin explicitly navigates to main menu or ventes_menu (not via test_role button)
+  const cbqData = cbq?.data || '';
   if (testRoles.has(chatId) && userData.role === 'admin') {
-    userData._originalRole = 'admin';
-    userData.role = testRoles.get(chatId);
+    if (cbqData === 'ventes_menu' || cbqData === 'menu' || cbqData === 'exit_test_mode') {
+      // Admin navigated directly — cancel test mode silently
+      testRoles.delete(chatId);
+    } else {
+      userData._originalRole = 'admin';
+      userData.role = testRoles.get(chatId);
+    }
   }
 
   const roleObj = RoleFactory.create(userData);
@@ -3090,7 +3097,43 @@ app.use((req, res, next) => {
   req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });
 });
 
+app.post('/api/config', (req, res) => {
+  try {
+    fs.writeFileSync(CONFIG_PATH, req.rawBody.toString('utf8'));
+    res.status(200).send('Config updated.');
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
 
+app.post('/api/database', (req, res) => {
+  try {
+    fs.writeFileSync(DB_PATH, req.rawBody.toString('utf8'));
+    res.status(200).send('Database updated.');
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+app.post('/api/clients', (req, res) => {
+  try {
+    fs.writeFileSync(CLIENTS_PATH, req.rawBody.toString('utf8'));
+    res.status(200).send('Clients updated.');
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+app.post('/api/articles', (req, res) => {
+  try {
+    const CLIENTS_PATH = path.join(DATA_DIR, 'clients.json');
+    const ARTICLES_PATH = path.join(DATA_DIR, 'articles.json');
+    fs.writeFileSync(ARTICLES_PATH, req.rawBody.toString('utf8'));
+    res.status(200).send('Articles updated.');
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
 
 app.get('/api/debug-config', (req, res) => {
   try {

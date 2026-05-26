@@ -1,5 +1,8 @@
 node_modules/
-data/
+data/*
+!data/clients.json
+!data/articles.json
+!data/langs.json
 *.log
 .env
 google_drive_key.json

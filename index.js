@@ -20,7 +20,19 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 
-const updateConfig = (cfg) => fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+const updateConfig = (cfg) => {
+  const cleanCfg = JSON.parse(JSON.stringify(cfg));
+  if (cleanCfg.authorized_users) {
+    for (const u of cleanCfg.authorized_users) {
+      if (u._originalRole) {
+        u.role = u._originalRole;
+        delete u._originalRole;
+      }
+      delete u._testRole;
+    }
+  }
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cleanCfg, null, 2));
+};
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -157,6 +169,13 @@ export async function handle(u) {
     saveDB(db);
   } catch (e) {
     log(`[ActivityLog-Error] ${e.message}`);
+  }
+
+  // ── Admin Test Mode: override role from saved state BEFORE creating roleObj ──
+  const adminTestState = states.get(chatId);
+  if (adminTestState?.step === '__admin_test__' && (String(userData.role).toLowerCase() === 'admin' || userData._originalRole === 'admin')) {
+    userData._originalRole = 'admin';
+    userData.role = adminTestState.testRole;
   }
 
   const roleObj = RoleFactory.create(userData);
@@ -313,17 +332,34 @@ Pour garantir une fin de relation de travail légale et fluide :
         poste_garde: ar ? '👮 مركز الحراسة والبوابة' : '👮 Poste de Garde'
       };
       const label = roleLabels[targetRole] || targetRole;
+
+      // Save the test role in state so all BVA handlers act as that role
+      states.set(chatId, { step: '__admin_test__', testRole: targetRole });
+      saveStates();
       
       await send(chatId, ar
-        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\n<i>أنت تشاهد الآن واجهة هذا الدور. جميع الأزرار تعمل بشكل طبيعي.</i>`
-        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\n<i>Vous visualisez l'interface de ce rôle. Tous les boutons fonctionnent normalement.</i>`,
-        { inline_keyboard: [[{ text: ar ? '🔙 العودة للوحة المبيعات' : '🔙 Retour Tableau Ventes', callback_data: 'ventes_menu' }]] }
+        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\nأنت تشاهد الآن واجهة هذا الدور. جميع الأزرار تعمل بشكل طبيعي.\n<i>\u0627ضغط \"Exit Test\" للخروج من وضع الاختبار.</i>`
+        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\nVous visualisez l'interface de ce rôle. Tous les boutons fonctionnent normalement.\n<i>Appuyez \"Exit Test\" pour quitter le mode test.</i>`,
+        { inline_keyboard: [[{ text: ar ? '🛑 خروج من وضع الاختبار' : '🛑 Exit Test Mode', callback_data: 'exit_test_mode' }]] }
       );
-      const fakeUser = { ...userData, role: targetRole, name: userData.name };
+      const fakeUser = { ...userData, role: targetRole };
       const testRoleObj = RoleFactory.create(fakeUser);
       if (testRoleObj) return testRoleObj.showMenu(chatId, ar);
       return;
     }
+
+    if (d === 'exit_test_mode') {
+      states.delete(chatId);
+      saveStates();
+      if (userData._originalRole === 'admin') {
+        userData.role = 'admin';
+        delete userData._originalRole;
+      }
+      const freshRoleObj = RoleFactory.create(userData);
+      await send(chatId, ar ? '✅ <b>خرجت من وضع الاختبار.</b>' : '✅ <b>Mode test terminé.</b>');
+      return freshRoleObj.showMenu(chatId, ar, getStatsMsg);
+    }
+
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();
       if (role === 'admin' || role === 'manager' || role === 'chef_de_quart') {
@@ -2215,8 +2251,18 @@ Pour garantir une fin de relation de travail légale et fluide :
       const q = txt.trim().toLowerCase();
       const clients = loadClients();
       
+      // Pad to 'C0000' format if input is purely numeric or c followed by digits
+      let searchCode = q;
+      if (/^\d+$/.test(q)) {
+        const num = parseInt(q, 10);
+        searchCode = 'c' + String(num).padStart(4, '0');
+      } else if (q.startsWith('c') && /^\d+$/.test(q.slice(1))) {
+        const num = parseInt(q.slice(1), 10);
+        searchCode = 'c' + String(num).padStart(4, '0');
+      }
+      
       // Check for EXACT code match first → auto-select immediately
-      const exactMatch = clients.find(c => c.id.toLowerCase() === q);
+      const exactMatch = clients.find(c => c.id.toLowerCase() === searchCode);
       if (exactMatch) {
         const clientName = `${exactMatch.id} - ${exactMatch.name}`;
         st.data.clientId = exactMatch.id;
@@ -2229,7 +2275,11 @@ Pour garantir une fin de relation de travail légale et fluide :
           : `✅ <b>Client sélectionné automatiquement:</b>\n👤 <b>${exactMatch.name}</b> (${exactMatch.id})\n\n✍️ <b>Étape 2/7: Saisir BC N° :</b>`);
       }
       
-      const matches = clients.filter(c => c.id.toLowerCase().includes(q) || c.name.toLowerCase().includes(q)).slice(0, 8);
+      const matches = clients.filter(c => 
+        c.id.toLowerCase().includes(q) || 
+        c.name.toLowerCase().includes(q) ||
+        (searchCode !== q && c.id.toLowerCase().includes(searchCode))
+      ).slice(0, 8);
       
       if (matches.length === 0) {
         states.set(chatId, st);
@@ -3035,6 +3085,34 @@ app.post('/api/config', (req, res) => {
     
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(incoming, null, 2));
     log(`[Config API] ✅ Smart-merged config saved | users: ${incoming.authorized_users.length}`);
+    res.sendStatus(200);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+// ── Clients (قائمة الزبائن) API ──────────────────────────────────────────────
+app.get('/api/clients', (req, res) => {
+  try {
+    if (fs.existsSync(CLIENTS_PATH)) {
+      res.setHeader('Content-Type', 'application/json');
+      res.sendFile(CLIENTS_PATH);
+    } else {
+      res.json([]);
+    }
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+app.post('/api/clients', (req, res) => {
+  try {
+    let data = req.rawBody;
+    if (data[0] === 0x1f && data[1] === 0x8b) data = zlib.gunzipSync(data);
+    let incoming;
+    try { incoming = JSON.parse(data.toString('utf8')); } catch(e) { incoming = null; }
+    if (!incoming || !Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'Invalid clients data: expected an array.' });
+    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(CLIENTS_PATH, JSON.stringify(incoming, null, 2));
+    log(`[Clients API] ✅ Saved ${incoming.length} clients to clients.json`);
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
 });

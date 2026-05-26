@@ -82,8 +82,20 @@ async function main() {
     console.log('\n4. Sending decrypted database to cloud (Render)...');
     await postData('/api/database', dbJson);
 
-    // 5. Send decrypted database to Google Drive (Persistent Storage)
-    console.log('\n5. Sending decrypted database to Google Drive (Persistent Backup)...');
+    // 5. Send clients list (قائمة الزبائن)
+    const clientsPath = path.join(__dirname, 'data', 'clients.json');
+    if (fs.existsSync(clientsPath)) {
+        console.log('\n5. Sending clients list to cloud...');
+        const clientsJson = fs.readFileSync(clientsPath, 'utf8');
+        const clients = JSON.parse(clientsJson);
+        console.log(`   Found ${clients.length} clients.`);
+        await postData('/api/clients', clientsJson);
+    } else {
+        console.log('\n5. ⚠️  clients.json not found locally, skipping clients sync.');
+    }
+
+    // 6. Send decrypted database to Google Drive (Persistent Storage)
+    console.log('\n6. Sending decrypted database to Google Drive (Persistent Backup)...');
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     try {
         const res = await fetch(GOOGLE_SCRIPT_URL, {

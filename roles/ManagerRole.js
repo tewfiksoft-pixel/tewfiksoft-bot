@@ -12,7 +12,7 @@ export default class ManagerRole extends BaseRole {
     ]};
 
     return send(chatId, ar
-      ? `💎 <b>أهلاً بك [v10.0 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
-      : `💎 <b>BIENVENUE [v10.0 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
+      ? `💎 <b>أهلاً بك [v10.1 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
+      : `💎 <b>BIENVENUE [v10.1 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
   }
 }

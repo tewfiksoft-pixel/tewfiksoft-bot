@@ -205,18 +205,9 @@ export async function handle(u) {
     return;
   }
 
-  // Apply in-memory test role if active
-  // BUT clear it if admin explicitly navigates to main menu or ventes_menu (not via test_role button)
+  // Always clear any lingering test roles — admin has direct buttons in ventes_menu
+  testRoles.delete(chatId);
   const cbqData = cbq?.data || '';
-  if (testRoles.has(chatId) && userData.role === 'admin') {
-    if (cbqData === 'ventes_menu' || cbqData === 'menu' || cbqData === 'exit_test_mode') {
-      // Admin navigated directly — cancel test mode silently
-      testRoles.delete(chatId);
-    } else {
-      userData._originalRole = 'admin';
-      userData.role = testRoles.get(chatId);
-    }
-  }
 
   const roleObj = RoleFactory.create(userData);
   if (!roleObj) return;
@@ -292,45 +283,12 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
 
-    // ── Admin: Test role menus (Commercial / GDS / Finance / Garde) ──────────
-    if (d.startsWith('test_role:')) {
-      const role = String(userData.role).toLowerCase();
-      if (role !== 'admin' && userData._originalRole !== 'admin') return;
-      
-      const targetRole = d.split(':')[1];
-      const roleLabels = {
-        service_commercial: ar ? '💼 المصلحة التجارية' : '💼 Service Commercial',
-        gds: ar ? '📦 مصلحة المخازن والشحن' : '📦 GDS / Expédition',
-        finance: ar ? '💵 مصلحة المالية' : '💵 Service Finance',
-        poste_garde: ar ? '👮 مركز الحراسة والبوابة' : '👮 Poste de Garde'
-      };
-      const label = roleLabels[targetRole] || targetRole;
-
-      // Use in-memory map instead of DB
-      testRoles.set(chatId, targetRole);
-      userData._originalRole = 'admin';
-      userData.role = targetRole;
-
-      await send(chatId, ar
-        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\nأنت تشاهد الآن واجهة هذا الدور.\n\n<i>للخروج من هذا الوضع، اضغط الزر أدناه أو أرسل /exit_test</i>`
-        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\nVous visualisez l'interface de ce rôle.\n\n<i>Appuyez sur le bouton ou envoyez /exit_test pour quitter.</i>`,
-        { inline_keyboard: [[{ text: ar ? '🛑 خروج من وضع الاختبار' : '🛑 Exit Test Mode', callback_data: 'exit_test_mode' }]] }
-      );
-      
-      // Force the callback data to 'ventes_menu' to show the target role's dashboard directly!
-      d = 'ventes_menu';
-    }
+    // test_role: handler removed — Admin has direct access buttons in ventes_menu
 
     if (d === 'exit_test_mode') {
-      testRoles.delete(chatId);
-      states.delete(chatId);
-      saveStates();
-      
-      userData.role = 'admin';
-      delete userData._originalRole;
-      
+      // Test mode removed — just show admin menu
       const freshRoleObj = RoleFactory.create(userData);
-      await send(chatId, ar ? '✅ <b>خرجت من وضع الاختبار ورجعت كمسؤول (Admin).</b>' : '✅ <b>Mode test terminé. Retour au rôle Admin.</b>');
+      await send(chatId, ar ? '✅ <b>أنت مسؤول (Admin) — هنا لوحة التحكم الشاملة.</b>' : '✅ <b>Vous êtes Admin — tableau de bord complet.</b>');
       return freshRoleObj.showMenu(chatId, ar, getStatsMsg);
     }
 

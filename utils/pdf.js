@@ -696,11 +696,11 @@ export async function generateBonVentePDF(data, outputPath) {
         }
       };
       
-      const drawRedGridH = (x1, x2, y_val) => {
-        doc.moveTo(x1, y_val).lineTo(x2, y_val).strokeColor('#ff0000').lineWidth(0.8).stroke();
+      const drawGridH = (x1, x2, y_val) => {
+        doc.moveTo(x1, y_val).lineTo(x2, y_val).strokeColor('#000').lineWidth(0.8).stroke();
       };
-      const drawRedGridV = (x_val, y1, y2) => {
-        doc.moveTo(x_val, y1).lineTo(x_val, y2).strokeColor('#ff0000').lineWidth(0.8).stroke();
+      const drawGridV = (x_val, y1, y2) => {
+        doc.moveTo(x_val, y1).lineTo(x_val, y2).strokeColor('#000').lineWidth(0.8).stroke();
       };
 
       const drawTable = (x, y, articles) => {
@@ -711,10 +711,10 @@ export async function generateBonVentePDF(data, outputPath) {
         doc.text('PRODUIT', x + 55, y + 3);
         doc.text('QUANTITÉ', x + 175, y + 3);
         
-        // Grid (Red)
-        doc.rect(x, y, 220, 53).strokeColor('#ff0000').lineWidth(0.8).stroke();
-        doc.moveTo(x + 50, y).lineTo(x + 50, y + 53).strokeColor('#ff0000').stroke();
-        doc.moveTo(x + 170, y).lineTo(x + 170, y + 53).strokeColor('#ff0000').stroke();
+        // Grid
+        doc.rect(x, y, 220, 53).strokeColor('#000').lineWidth(0.8).stroke();
+        doc.moveTo(x + 50, y).lineTo(x + 50, y + 53).strokeColor('#000').stroke();
+        doc.moveTo(x + 170, y).lineTo(x + 170, y + 53).strokeColor('#000').stroke();
         
         // Rows
         doc.font(fontNormal).fontSize(6.5);
@@ -728,7 +728,7 @@ export async function generateBonVentePDF(data, outputPath) {
             doc.font(fontNormal);
           }
           rowY += 14;
-          if (i < 2) doc.moveTo(x, rowY).lineTo(x + 220, rowY).strokeColor('#ff0000').stroke();
+          if (i < 2) doc.moveTo(x, rowY).lineTo(x + 220, rowY).strokeColor('#000').stroke();
         }
       };
 
@@ -741,11 +741,11 @@ export async function generateBonVentePDF(data, outputPath) {
       let insideY = y + 14;
       
       // Vertical line separating labels and values
-      drawRedGridV(startX + 55, insideY, y + sectionHeight);
+      drawGridV(startX + 55, insideY, y + sectionHeight);
       
       // Horizontal lines
-      drawRedGridH(startX, startX + 170, insideY + 22);
-      drawRedGridH(startX, startX + 170, insideY + 44);
+      drawGridH(startX, startX + 170, insideY + 22);
+      drawGridH(startX, startX + 170, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
@@ -766,9 +766,11 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Mode of Payment & Transport grids
-      drawRedGridH(startX + 410, startX + 580, insideY + 16);
-      drawRedGridV(startX + 495, insideY, y + sectionHeight);
-      drawRedGridH(startX + 410, startX + 495, insideY + 36); // check box separator
+      drawGridH(startX + 410, startX + 580, insideY + 16);
+      drawGridV(startX + 495, insideY, y + sectionHeight);
+      drawGridH(startX + 410, startX + 495, insideY + 32); // check box separator
+      drawGridH(startX + 410, startX + 495, insideY + 48); // check box separator
+      drawGridH(startX + 410, startX + 495, insideY + 64); // check box separator
 
       let payX = startX + 415;
       doc.font(fontBold).fontSize(7).text('MODE DE PAIEMENT :', payX, insideY + 6);
@@ -782,11 +784,10 @@ export async function generateBonVentePDF(data, outputPath) {
         doc.font(fontNormal).fontSize(6.5).text(label, x + 11, cy + 1);
       };
 
-      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX, insideY + 22);
-      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX, insideY + 44);
-      drawCheckbox('CHEQUE', payMeth.includes('cheq'), payX, insideY + 58); // below second line? wait
-      // Actually we'll just draw them in the grid
-      drawRedGridH(startX + 410, startX + 495, insideY + 56);
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX, insideY + 20);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX, insideY + 36);
+      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX, insideY + 52);
+      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX, insideY + 68);
       
       let transX = startX + 500;
       doc.font(fontBold).fontSize(7).text('TRANSPORT :', transX, insideY + 6);
@@ -808,9 +809,9 @@ export async function generateBonVentePDF(data, outputPath) {
       
       insideY = y + 14;
       
-      drawRedGridV(startX + 105, insideY, y + sectionHeight);
-      drawRedGridH(startX, startX + 170, insideY + 22);
-      drawRedGridH(startX, startX + 170, insideY + 44);
+      drawGridV(startX + 105, insideY, y + sectionHeight);
+      drawGridH(startX, startX + 170, insideY + 22);
+      drawGridH(startX, startX + 170, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° BON DE LIVRAISON :', startX + 5, insideY + 8);
@@ -831,18 +832,19 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Logistics fields
-      drawRedGridH(startX + 410, startX + 580, insideY + 22);
-      drawRedGridH(startX + 410, startX + 580, insideY + 44);
+      drawGridH(startX + 410, startX + 580, insideY + 22);
+      drawGridH(startX + 410, startX + 580, insideY + 44);
+      drawGridV(startX + 510, insideY, y + sectionHeight);
 
       let logX = startX + 415;
-      doc.font(fontBold).fontSize(7.5).text('CHAUFFEUR :', logX, insideY + 8);
-      doc.font(fontNormal).text(data.driverName || '—', logX + 70, insideY + 8);
+      doc.font(fontBold).fontSize(6.5).text('CHAUFFEUR :', logX, insideY + 8);
+      doc.font(fontNormal).fontSize(7.5).text(data.driverName || '—', logX + 100, insideY + 8);
 
-      doc.font(fontBold).text('MATRICULE :', logX, insideY + 30);
-      doc.font(fontNormal).text(data.vehiclePlate || '—', logX + 70, insideY + 30);
+      doc.font(fontBold).fontSize(6.5).text('MATRICULE DE CAMION :', logX, insideY + 30);
+      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || '—', logX + 100, insideY + 30);
 
-      doc.font(fontBold).text('N° PC :', logX, insideY + 52);
-      doc.font(fontNormal).text(data.pcNum || '—', logX + 50, insideY + 52);
+      doc.font(fontBold).fontSize(6.5).text('N° PERMIS DE CONDUITE :', logX, insideY + 52);
+      doc.font(fontNormal).fontSize(7.5).text(data.pcNum || '—', logX + 100, insideY + 52);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
@@ -857,8 +859,8 @@ export async function generateBonVentePDF(data, outputPath) {
       
       insideY = y + 14;
       
-      drawRedGridV(startX + 105, insideY, y + sectionHeight);
-      drawRedGridH(startX, startX + 250, insideY + 35);
+      drawGridV(startX + 105, insideY, y + sectionHeight);
+      drawGridH(startX, startX + 250, insideY + 35);
       
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° FACTURE PRODUIT :', startX + 5, insideY + 15);
@@ -871,9 +873,9 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Checkboxes grid
-      drawRedGridH(startX + 250, startX + 580, insideY + 16);
-      drawRedGridH(startX + 250, startX + 580, insideY + 40);
-      drawRedGridV(startX + 415, insideY, y + sectionHeight);
+      drawGridH(startX + 250, startX + 580, insideY + 16);
+      drawGridH(startX + 250, startX + 580, insideY + 40);
+      drawGridV(startX + 415, insideY, y + sectionHeight);
 
       payX = startX + 260;
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 6);
@@ -896,9 +898,9 @@ export async function generateBonVentePDF(data, outputPath) {
       
       insideY = y + 14;
       
-      drawRedGridV(startX + 105, insideY, y + sectionHeight);
-      drawRedGridH(startX, startX + 250, insideY + 22);
-      drawRedGridH(startX, startX + 250, insideY + 44);
+      drawGridV(startX + 105, insideY, y + sectionHeight);
+      drawGridH(startX, startX + 250, insideY + 22);
+      drawGridH(startX, startX + 250, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
@@ -914,9 +916,9 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Checkboxes grid
-      drawRedGridH(startX + 250, startX + 580, insideY + 16);
-      drawRedGridH(startX + 250, startX + 580, insideY + 40);
-      drawRedGridV(startX + 415, insideY, y + sectionHeight);
+      drawGridH(startX + 250, startX + 580, insideY + 16);
+      drawGridH(startX + 250, startX + 580, insideY + 40);
+      drawGridV(startX + 415, insideY, y + sectionHeight);
 
       payX = startX + 260;
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 6);
@@ -939,9 +941,9 @@ export async function generateBonVentePDF(data, outputPath) {
       
       insideY = y + 14;
       
-      drawRedGridV(startX + 105, insideY, y + sectionHeight);
-      drawRedGridH(startX, startX + 220, insideY + 22);
-      drawRedGridH(startX, startX + 220, insideY + 44);
+      drawGridV(startX + 105, insideY, y + sectionHeight);
+      drawGridH(startX, startX + 220, insideY + 22);
+      drawGridH(startX, startX + 220, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° BON DE LIVRAISON :', startX + 5, insideY + 8);
@@ -950,15 +952,15 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).text('CHAUFFEUR :', startX + 5, insideY + 30);
       doc.font(fontNormal).text(data.driverName || '—', startX + 110, insideY + 30);
 
-      doc.font(fontBold).text('MATRICULE :', startX + 5, insideY + 52);
-      doc.font(fontNormal).text(data.vehiclePlate || '—', startX + 110, insideY + 52);
+      doc.font(fontBold).fontSize(6.5).text('MATRICULE DE CAMION :', startX + 5, insideY + 52);
+      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || '—', startX + 110, insideY + 52);
 
       doc.moveTo(startX + 220, insideY).lineTo(startX + 220, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Gate metrics
-      drawRedGridH(startX + 220, startX + 410, insideY + 22);
-      drawRedGridH(startX + 220, startX + 410, insideY + 44);
-      drawRedGridV(startX + 310, insideY, y + sectionHeight);
+      drawGridH(startX + 220, startX + 410, insideY + 22);
+      drawGridH(startX + 220, startX + 410, insideY + 44);
+      drawGridV(startX + 310, insideY, y + sectionHeight);
 
       let gateX = startX + 225;
       doc.font(fontBold).text("HEURE D'ENTRÉE :", gateX, insideY + 8);

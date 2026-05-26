@@ -80,6 +80,14 @@ const loadClients = () => {
   return [];
 };
 
+const ARTICLES_PATH = path.join(DATA_DIR, 'articles.json');
+const loadArticles = () => {
+  try {
+    if (fs.existsSync(ARTICLES_PATH)) return JSON.parse(fs.readFileSync(ARTICLES_PATH, 'utf8'));
+  } catch (e) {}
+  return [];
+};
+
 async function notifyBVARole(txt, role, cfg, kbd) {
   const users = cfg.authorized_users?.filter(u => u.role === role || u.role === 'admin') || [];
   for (const u of users) {
@@ -2302,39 +2310,66 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (st.step === 'bva_bcnum') {
       st.data.bcNum = txt;
-      st.step = 'bva_articles';
+      st.step = 'bva_article_search';
       states.set(chatId, st);
       saveStates();
       
       return send(chatId, ar 
-        ? `📦 <b>الخطوة 3/5: إدخال المواد (Articles)</b>\n━━━━━━━━━━━━━━\nيرجى كتابة الرمز واسم المادة والكمية بهذا الشكل:\n<code>الرمز - اسم المنتج - الكمية</code>\n\nمثال: <code>4005 - زجاج مصفح - 300</code>\n\n<i>يمكنك إرسال كل مادة في رسالة واحدة، وعند الانتهاء اضغط الزر بالأسفل.</i>`
-        : `📦 <b>Étape 3/5: Saisir les Articles</b>\n━━━━━━━━━━━━━━\nVeuillez écrire l'article sous cette forme:\n<code>CODE - NOM - QUANTITÉ</code>\n\nExemple: <code>4005 - VERRE PLAT - 300</code>\n\n<i>Vous pouvez envoyer plusieurs articles un par un.</i>`,
-        { inline_keyboard: [[{ text: ar ? '🏁 تأكيد قائمة المواد' : '🏁 Confirmer la liste', callback_data: 'bva_art_done' }]] });
+        ? `📦 <b>الخطوة 3/5: اختيار المواد (Articles)</b>\n━━━━━━━━━━━━━━\nيرجى كتابة اسم أو رمز المادة للبحث عنها:\n(مثال: <code>VERRE</code> أو <code>9000101</code>)`
+        : `📦 <b>Étape 3/5: Sélection des Articles</b>\n━━━━━━━━━━━━━━\nVeuillez écrire le nom ou le code de l'article pour le rechercher :`);
     }
 
-    if (st.step === 'bva_articles') {
-      const parts = txt.split('-').map(p => p.trim());
-      if (parts.length < 3) {
+    if (st.step === 'bva_article_search') {
+      const q = txt.trim().toLowerCase();
+      const articles = loadArticles();
+      
+      const exactMatch = articles.find(a => String(a.id).toLowerCase() === q);
+      const matches = exactMatch ? [exactMatch] : articles.filter(a => 
+        String(a.id).toLowerCase().includes(q) || 
+        String(a.name).toLowerCase().includes(q)
+      ).slice(0, 8);
+      
+      if (matches.length === 0) {
         states.set(chatId, st);
         return send(chatId, ar 
-          ? `⚠️ صيغة خاطئة! يرجى إرسالها بهذا الشكل:\n<code>الرمز - اسم المنتج - الكمية</code>\nمثال: <code>102 - زجاج 4مم - 500</code>` 
-          : `⚠️ Format invalide! Veuillez envoyer sous la forme:\n<code>CODE - NOM - QUANTITÉ</code>\nEx: <code>102 - VERRE 4MM - 500</code>`);
+          ? `❌ لم يتم العثور على مواد تطابق: <b>${txt}</b>\n\n🔍 يرجى كتابة اسم أو رمز مادة آخر للبحث:` 
+          : `❌ Aucun article trouvé pour: <b>${txt}</b>\n\n🔍 Réessayez avec un autre nom ou code :`, 
+          { inline_keyboard: [[{ text: ar ? '❌ إلغاء البحث' : '❌ Annuler la recherche', callback_data: 'menu' }]] });
       }
       
-      const code = parts[0];
-      const prod = parts[1];
-      const qty = parts[2];
+      // Show matching results as buttons
+      const kbd = { inline_keyboard: matches.map(a => [{ text: `📦 ${a.id} - ${a.name}`, callback_data: `bva_artsel:${a.id}` }]) };
+      kbd.inline_keyboard.push([{ text: ar ? '❌ إلغاء' : '❌ Annuler', callback_data: 'menu' }]);
+      
+      states.set(chatId, st);
+      return send(chatId, ar 
+        ? `🔍 <b>اختر المادة من النتائج أدناه:</b>` 
+        : `🔍 <b>Sélectionnez un article :</b>`, kbd);
+    }
+
+    if (st.step === 'bva_article_qty') {
+      // Expecting a quantity number
+      const qty = parseFloat(txt.replace(',', '.'));
+      if (isNaN(qty) || qty <= 0) {
+        return send(chatId, ar ? `⚠️ الرجاء إدخال كمية صحيحة (أرقام فقط):` : `⚠️ Veuillez entrer une quantité valide (chiffres uniquement):`);
+      }
       
       if (!st.data.articles) st.data.articles = [];
-      st.data.articles.push({ code, prod, qty });
+      st.data.articles.push({ 
+        code: st.data.currentArticle.id, 
+        prod: st.data.currentArticle.name, 
+        qty: qty 
+      });
+      delete st.data.currentArticle;
+      st.step = 'bva_article_search'; // Go back to search step to add more
       states.set(chatId, st);
       saveStates();
       
       const listMsg = st.data.articles.map((a, i) => `${i+1}. <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
       return send(chatId, ar 
-        ? `✅ تم إضافة المادة بنجاح!\n\n📋 <b>القائمة الحالية للمواد:</b>\n${listMsg}\n\n💡 أرسل مادة أخرى، أو اضغط على الزر بالأسفل للتأكيد والانتقال لطريقة الدفع:` 
-        : `✅ Article ajouté!\n\n📋 <b>Liste actuelle :</b>\n${listMsg}\n\n💡 Envoyez un autre ou appuyez ci-dessous pour valider:`,
-        { inline_keyboard: [[{ text: ar ? '🏁 تأكيد قائمة المواد' : '🏁 Confirmer la liste', callback_data: 'bva_art_done' }]] });
+        ? `✅ تم إضافة المادة بنجاح!\n\n📋 <b>القائمة الحالية للمواد:</b>\n${listMsg}\n\n💡 للبحث عن مادة أخرى اكتب اسمها أو رمزها الآن، أو اضغط الزر بالأسفل للانتهاء:` 
+        : `✅ Article ajouté!\n\n📋 <b>Liste actuelle :</b>\n${listMsg}\n\n💡 Recherchez un autre article en tapant son nom/code, ou appuyez ci-dessous pour valider :`,
+        { inline_keyboard: [[{ text: ar ? '🏁 الانتهاء من إضافة المواد' : '🏁 Terminer l\'ajout', callback_data: 'bva_art_done' }]] });
     }
 
     if (st.step === 'bva_fact_num') {
@@ -3113,6 +3148,34 @@ app.post('/api/clients', (req, res) => {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(CLIENTS_PATH, JSON.stringify(incoming, null, 2));
     log(`[Clients API] ✅ Saved ${incoming.length} clients to clients.json`);
+    res.sendStatus(200);
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+// ── Articles (قائمة المواد) API ──────────────────────────────────────────────
+app.get('/api/articles', (req, res) => {
+  try {
+    if (fs.existsSync(ARTICLES_PATH)) {
+      res.setHeader('Content-Type', 'application/json');
+      res.sendFile(ARTICLES_PATH);
+    } else {
+      res.json([]);
+    }
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+app.post('/api/articles', (req, res) => {
+  try {
+    let data = req.rawBody;
+    if (data[0] === 0x1f && data[1] === 0x8b) data = zlib.gunzipSync(data);
+    let incoming;
+    try { incoming = JSON.parse(data.toString('utf8')); } catch(e) { incoming = null; }
+    if (!incoming || !Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'Invalid articles data: expected an array.' });
+    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(ARTICLES_PATH, JSON.stringify(incoming, null, 2));
+    log(`[Articles API] ✅ Saved ${incoming.length} articles to articles.json`);
     res.sendStatus(200);
   } catch (e) { res.status(500).send(e.message); }
 });

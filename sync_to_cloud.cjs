@@ -94,8 +94,20 @@ async function main() {
         console.log('\n5. ⚠️  clients.json not found locally, skipping clients sync.');
     }
 
-    // 6. Send decrypted database to Google Drive (Persistent Storage)
-    console.log('\n6. Sending decrypted database to Google Drive (Persistent Backup)...');
+    // 6. Send articles list (قائمة المواد)
+    const articlesPath = path.join(__dirname, 'data', 'articles.json');
+    if (fs.existsSync(articlesPath)) {
+        console.log('\n6. Sending articles list to cloud...');
+        const articlesJson = fs.readFileSync(articlesPath, 'utf8');
+        const articles = JSON.parse(articlesJson);
+        console.log(`   Found ${articles.length} articles.`);
+        await postData('/api/articles', articlesJson);
+    } else {
+        console.log('\n6. ⚠️  articles.json not found locally, skipping articles sync.');
+    }
+
+    // 7. Send decrypted database to Google Drive (Persistent Storage)
+    console.log('\n7. Sending decrypted database to Google Drive (Persistent Backup)...');
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     try {
         const res = await fetch(GOOGLE_SCRIPT_URL, {

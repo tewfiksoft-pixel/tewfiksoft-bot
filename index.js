@@ -1989,9 +1989,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveStates();
       
       const kbd = { inline_keyboard: [
-        [{ text: ar ? 'الفرقة A' : 'Équipe A', callback_data: `bva_gd_conf:${bvaId}:A` }],
-        [{ text: ar ? 'الفرقة B' : 'Équipe B', callback_data: `bva_gd_conf:${bvaId}:B` }],
-        [{ text: ar ? 'الفرقة C' : 'Équipe C', callback_data: `bva_gd_conf:${bvaId}:C` }]
+        [{ text: ar ? 'الفرقة A' : 'Équipe A', callback_data: `bva_gd_conf:${bvaId}:A` },
+         { text: ar ? 'الفرقة B' : 'Équipe B', callback_data: `bva_gd_conf:${bvaId}:B` }],
+        [{ text: ar ? 'الفرقة C' : 'Équipe C', callback_data: `bva_gd_conf:${bvaId}:C` },
+         { text: ar ? 'الفرقة D' : 'Équipe D', callback_data: `bva_gd_conf:${bvaId}:D` }]
       ]};
       return send(chatId, ar 
         ? `👮 <b>مركز الحراسة: اختر فرقة الحراسة (Shift) لتأكيد خروج الشاحنة:</b>` 
@@ -2026,23 +2027,12 @@ Pour garantir une fin de relation de travail légale et fluide :
         const pdfPath = path.join(os.tmpdir(), `BVA_${bva.id}.pdf`);
         await generateBonVentePDF(bva, pdfPath);
         
-        // Send PDF back to Guard Post
-        const BOT_TOKEN = cfg.bot_token || process.env.BOT_TOKEN;
-        const fsData = fs.readFileSync(pdfPath);
-        const formData = new FormData();
-        formData.append('chat_id', String(chatId));
-        formData.append('caption', ar ? `📄 إذن خروج شاحنة مكتمل: <b>${bva.clientName}</b>` : `📄 Autorisation de sortie complétée: <b>${bva.clientName}</b>`);
-        formData.append('document', new Blob([fsData]), `BVA_${bva.id.slice(0,8)}.pdf`);
+        // Send ONLY TEXT notification back to Guard Post
+        await send(chatId, ar ? `📄 إذن خروج شاحنة مكتمل: <b>${bva.clientName}</b>\n📧 سيتم إرسال الوثيقة عبر البريد الإلكتروني للمراجعة والطباعة.` : `📄 Autorisation de sortie complétée: <b>${bva.clientName}</b>\n📧 Le document sera envoyé par e-mail.`);
         
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, { method: 'POST', body: formData });
-        
-        // Notify Commercial of completion with PDF
+        // Notify Commercial of completion with TEXT ONLY
         if (bva.commercialId) {
-          const commFormData = new FormData();
-          commFormData.append('chat_id', String(bva.commercialId));
-          commFormData.append('caption', ar ? `✅ <b>اكتمل شحن إذن البيع الخاص بك!</b>\nالزبون: ${bva.clientName}` : `✅ <b>Votre bon de vente a été expédié!</b>\nClient: ${bva.clientName}`);
-          commFormData.append('document', new Blob([fsData]), `BVA_${bva.id.slice(0,8)}.pdf`);
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, { method: 'POST', body: commFormData });
+          await send(bva.commercialId, ar ? `✅ <b>اكتمل شحن إذن البيع الخاص بك!</b>\nالزبون: ${bva.clientName}\n📧 تم إرسال وثيقة الخروج للإدارة عبر البريد.` : `✅ <b>Votre bon de vente a été expédié!</b>\nClient: ${bva.clientName}\n📧 Document envoyé par e-mail.`);
         }
         
         // Email PDF to HR / Admin email
@@ -2404,7 +2394,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       return send(chatId, ar 
         ? `✅ تم إضافة المادة بنجاح!\n\n📋 <b>القائمة الحالية للمواد:</b>\n${listMsg}\n\n💡 للبحث عن مادة أخرى اكتب اسمها أو رمزها الآن، أو اضغط الزر بالأسفل للانتهاء:` 
         : `✅ Article ajouté!\n\n📋 <b>Liste actuelle :</b>\n${listMsg}\n\n💡 Recherchez un autre article en tapant son nom/code, ou appuyez ci-dessous pour valider :`,
-        { inline_keyboard: [[{ text: ar ? '🏁 الانتهاء من إضافة المواد' : '🏁 Terminer l\'ajout', callback_data: 'bva_art_done' }]] });
+        { inline_keyboard: [
+          [{ text: ar ? '➕ إضافة مادة أخرى (ابحث عن المادة)' : '➕ Ajouter un autre article', switch_inline_query_current_chat: '' }],
+          [{ text: ar ? '🏁 الانتهاء من إضافة المواد' : '🏁 Terminer l\'ajout', callback_data: 'bva_art_done' }]
+        ] });
     }
 
     if (st.step === 'bva_fact_num') {

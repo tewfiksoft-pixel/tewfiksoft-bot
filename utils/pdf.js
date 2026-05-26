@@ -681,18 +681,17 @@ export async function generateBonVentePDF(data, outputPath) {
       };
 
       const drawStamp = (x, y, title, name, color) => {
-        // We ensure all stamps are consistent and formal. We'll use a unified color #1a5f7a for the border and header
         const formalColor = '#1a5f7a';
-        doc.roundedRect(x, y, 110, 50, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
-        doc.rect(x + 1, y + 1, 108, 12).fill(formalColor);
-        doc.font(fontBold).fontSize(6.5).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 110, align: 'center' });
+        doc.roundedRect(x, y, 95, 50, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
+        doc.rect(x + 1, y + 1, 93, 12).fill(formalColor);
+        doc.font(fontBold).fontSize(6).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 95, align: 'center' });
         
         if (name) {
-          doc.font(fontNormal).fontSize(6).fillColor('#555').text('Signé électroniquement:', x + 5, y + 16);
-          doc.font(fontBold).fontSize(7.5).fillColor('#000').text(name, x, y + 25, { width: 110, align: 'center' });
-          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#1a5f7a').text('DOCUMENT VALIDÉ', x, y + 38, { width: 110, align: 'center' });
+          doc.font(fontNormal).fontSize(5).fillColor('#333').text('Signé électroniquement:', x, y + 16, { width: 95, align: 'center' });
+          doc.font(fontBold).fontSize(7).fillColor('#000').text(name, x, y + 25, { width: 95, align: 'center' });
+          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#27ae60').text('DOCUMENT VALIDÉ', x, y + 38, { width: 95, align: 'center' });
         } else {
-          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signé', x, y + 25, { width: 110, align: 'center' });
+          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signé', x, y + 25, { width: 95, align: 'center' });
         }
       };
       
@@ -749,7 +748,7 @@ export async function generateBonVentePDF(data, outputPath) {
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
-      doc.font(fontNormal).text(data.clientName || '—', startX + 60, insideY + 8);
+      doc.font(fontNormal).fontSize(6.5).text(data.clientName || '—', startX + 60, insideY + 8, { width: 105, height: 20 });
 
       doc.font(fontBold).text('BC N° :', startX + 5, insideY + 30);
       doc.font(fontNormal).text(data.bcNum || '—', startX + 60, insideY + 30);
@@ -904,7 +903,7 @@ export async function generateBonVentePDF(data, outputPath) {
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
-      doc.font(fontNormal).text(data.clientName || '—', startX + 110, insideY + 8);
+      doc.font(fontNormal).fontSize(6.5).text(data.clientName || '—', startX + 110, insideY + 8, { width: 135, height: 20 });
 
       doc.font(fontBold).text('N° FACTURE PRODUIT :', startX + 5, insideY + 30);
       doc.font(fontNormal).text(data.factureNum || '—', startX + 110, insideY + 30);

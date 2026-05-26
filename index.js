@@ -1699,6 +1699,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `✅ Client sélectionné: <b>${clientName}</b>\n\n✍️ <b>Étape 2/5: Saisir BC N° :</b>`);
     }
 
+    if (d === 'bva_add_more_btn') {
+      return send(chatId, ar ? '✍️ اكتب اسم أو رمز المادة الآن:' : '✍️ Tapez le nom ou le code de l\'article maintenant :');
+    }
+
     if (d === 'bva_art_done') {
       const st = states.get(chatId);
       if (!st || !st.data.articles || st.data.articles.length === 0) {
@@ -2357,7 +2361,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         ? `✅ تم إضافة المادة بنجاح!\n\n📋 <b>القائمة الحالية للمواد:</b>\n${listMsg}\n\n💡 للبحث عن مادة أخرى اكتب اسمها أو رمزها الآن، أو اضغط الزر بالأسفل للانتهاء:` 
         : `✅ Article ajouté!\n\n📋 <b>Liste actuelle :</b>\n${listMsg}\n\n💡 Recherchez un autre article en tapant son nom/code, ou appuyez ci-dessous pour valider :`,
         { inline_keyboard: [
-          [{ text: ar ? '➕ إضافة مادة أخرى (ابحث عن المادة)' : '➕ Ajouter un autre article', switch_inline_query_current_chat: '' }],
+          [{ text: ar ? '➕ إضافة مادة أخرى' : '➕ Ajouter un autre article', callback_data: 'bva_add_more_btn' }],
           [{ text: ar ? '🏁 الانتهاء من إضافة المواد' : '🏁 Terminer l\'ajout', callback_data: 'bva_art_done' }]
         ] });
     }

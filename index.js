@@ -339,23 +339,18 @@ Pour garantir une fin de relation de travail légale et fluide :
       const role = String(userData.role).toLowerCase();
 
       if (role === 'admin') {
-        // Admin Super Dashboard
+        // Admin Super Dashboard - direct access without changing roles
         const kbd = { inline_keyboard: [
-          [{ text: ar ? '📋 كل أذونات البيع (التقارير)' : '📋 Tous les Bons (Rapports)', callback_data: 'bva_list' }],
-          [{ text: ar ? '━━━ 🧪 تجربة واجهات الأدوار ━━━' : '━━━ 🧪 Tester les Rôles ━━━', callback_data: 'none' }],
-          [
-            { text: ar ? '💼 التجاري' : '💼 Commercial', callback_data: 'test_role:service_commercial' },
-            { text: ar ? '💵 المالية' : '💵 Finance', callback_data: 'test_role:finance' }
-          ],
-          [
-            { text: ar ? '📦 المخازن (GDS)' : '📦 GDS', callback_data: 'test_role:gds' },
-            { text: ar ? '👮 الحراسة (Garde)' : '👮 Garde', callback_data: 'test_role:poste_garde' }
-          ],
+          [{ text: ar ? '➕ إنشاء إذن بيع وخروج (التجاري)' : '➕ Créer BVA (Commercial)', callback_data: 'bva_create' }],
+          [{ text: ar ? '💳 معالجة الفواتير المعلقة (المالية)' : '💳 Traiter Factures (Finance)', callback_data: 'bva_list_pending_finance' }],
+          [{ text: ar ? '🚚 معالجة شحنات البضاعة (GDS)' : '🚚 Expédier (GDS)', callback_data: 'bva_list_pending_shipping' }],
+          [{ text: ar ? '🚛 تأكيد خروج الشاحنات (الحراسة)' : '🚛 Sortie Camions (Garde)', callback_data: 'bva_list_pending_guard' }],
+          [{ text: ar ? '📋 التقارير والأرشيف العام' : '📋 Archives des Bons', callback_data: 'bva_list' }],
           [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
         ]};
         return send(chatId, ar
-          ? `💼 <b>لوحة تحكم إدارة المبيعات [Ventes - Admin]</b>\n━━━━━━━━━━━━━━\nبصفتك <b>مديراً للنظام</b>، يمكنك اختبار أي مصلحة ومتابعة عملها بالكامل من هنا:`
-          : `💼 <b>TABLEAU DE BORD DES VENTES [Ventes - Admin]</b>\n━━━━━━━━━━━━━━\nEn tant qu'<b>Administrateur</b>, vous pouvez tester et gérer chaque service ci-dessous :`, kbd);
+          ? `💼 <b>لوحة تحكم الإدارة الشاملة (Admin)</b>\n━━━━━━━━━━━━━━\nبصفتك <b>مديراً للنظام</b>، يمكنك تنفيذ كل مهام المصالح مباشرة وبدون تغيير دورك:`
+          : `💼 <b>TABLEAU DE BORD GLOBAL (Admin)</b>\n━━━━━━━━━━━━━━\nEn tant qu'<b>Administrateur</b>, vous avez accès direct à toutes les opérations :`, kbd);
       }
 
       if (role === 'service_commercial') {

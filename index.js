@@ -2435,8 +2435,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       states.set(chatId, st);
       saveStates();
       return send(chatId, ar 
-        ? `🚪 <b>مصلحة الشحن: إدخال رقم مركز التحميل (N° PC)</b>\nاكتب رقم مركز التحميل أو رصيف البوابة:` 
-        : `🚪 <b>EXPÉDITION: Saisir N° PC</b>\nÉcrivez le numéro de PC / Quai :`);
+        ? `🪪 <b>مصلحة الشحن: إدخال رقم رخصة السياقة (N° Permis de Conduite)</b>\nاكتب رقم رخصة القيادة للسائق:` 
+        : `🪪 <b>EXPÉDITION: Saisir N° Permis de Conduite</b>\nÉcrivez le numéro du permis de conduire du chauffeur :`);
     }
 
     if (st.step === 'bva_ship_pc') {
@@ -2450,8 +2450,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (!bva) return;
       
       const summary = ar 
-        ? `📋 <b>ملخص شحن البضاعة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم BL: <code>${st.data.blNum}</code>\n🚚 الناقل: <b>${st.data.transporter}</b>\n👤 السائق: <b>${st.data.driverName}</b>\n🚛 الشاحنة: <code>${st.data.vehiclePlate}</code>\n🚪 رقم PC: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`
-        : `📋 <b>RÉSUMÉ EXPÉDITION (GDS)</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BL N°: <code>${st.data.blNum}</code>\n🚚 Transp: <b>${st.data.transporter}</b>\n👤 Chauffeur: <b>${st.data.driverName}</b>\n🚛 Camion: <code>${st.data.vehiclePlate}</code>\n🚪 N° PC: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`;
+        ? `📋 <b>ملخص شحن البضاعة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم BL: <code>${st.data.blNum}</code>\n🚚 الناقل: <b>${st.data.transporter}</b>\n👤 السائق: <b>${st.data.driverName}</b>\n🚛 رقم الشاحنة: <code>${st.data.vehiclePlate}</code>\n🪪 رخصة القيادة: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`
+        : `📋 <b>RÉSUMÉ EXPÉDITION (GDS)</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 BL N°: <code>${st.data.blNum}</code>\n🚚 Transp: <b>${st.data.transporter}</b>\n👤 Chauffeur: <b>${st.data.driverName}</b>\n🚛 Matricule Camion: <code>${st.data.vehiclePlate}</code>\n🪪 N° Permis de Conduite: <code>${st.data.pcNum}</code>\n━━━━━━━━━━━━━━`;
         
       const kbd = { inline_keyboard: [
         [{ text: ar ? '✅ تأكيد جاهزية الخروج' : '✅ Confirmer le Chargement', callback_data: `bva_ship_final:${st.bvaId}` }],

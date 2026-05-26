@@ -638,7 +638,9 @@ export async function generateBonVentePDF(data, outputPath) {
         doc.font(fontNormal).fontSize(6.5).text(label, 36, y + 1);
       };
       
-      const payMeth = String(data.paymentMethod || '').toLowerCase();
+      const rawPayMeth = String(data.paymentMethod || '').toLowerCase();
+      // Normalize: remove accents so 'chèque' matches 'cheque', 'espèce' matches 'espece'
+      const payMeth = rawPayMeth.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       talonDrawCheck('VIREMENT', payMeth.includes('vire'), talonYStart + 322);
       talonDrawCheck('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), talonYStart + 332);
       talonDrawCheck('CHEQUE', payMeth.includes('cheq'), talonYStart + 342);

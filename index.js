@@ -56,6 +56,7 @@ const saveLangs = () => {
 loadLangs();
 
 export const states = new Map();
+export const testRoles = new Map();
 
 const STATES_PATH = path.join(DATA_DIR, 'states.json');
 const loadStates = () => {
@@ -179,11 +180,35 @@ export async function handle(u) {
     log(`[ActivityLog-Error] ${e.message}`);
   }
 
-  // ── Admin Test Mode: override role from saved state BEFORE creating roleObj ──
-  const adminTestState = states.get(chatId);
-  if (adminTestState?.step === '__admin_test__' && (String(userData.role).toLowerCase() === 'admin' || userData._originalRole === 'admin')) {
+
+
+  // --- DB Recovery & Test Role Logic ---
+  // Fix DB if left corrupted by previous versions
+  if (userData._originalRole === 'admin') {
+    const dbase = loadDB();
+    if (dbase.users[fromId]) {
+      dbase.users[fromId].role = 'admin';
+      delete dbase.users[fromId]._originalRole;
+      saveDB(dbase);
+    }
+    userData.role = 'admin';
+    delete userData._originalRole;
+  }
+
+  if (txtLow === '/exit_test' || txtLow === 'exit_test') {
+    testRoles.delete(chatId);
+    states.delete(chatId);
+    saveStates();
+    await send(chatId, ar ? '✅ <b>تم الخروج من وضع الاختبار ورجعت كمسؤول (Admin).</b>' : '✅ <b>Mode test terminé. Retour au rôle Admin.</b>');
+    const freshRoleObj = RoleFactory.create(userData);
+    if (freshRoleObj) return freshRoleObj.showMenu(chatId, ar, getStatsMsg);
+    return;
+  }
+
+  // Apply in-memory test role if active
+  if (testRoles.has(chatId) && userData.role === 'admin') {
     userData._originalRole = 'admin';
-    userData.role = adminTestState.testRole;
+    userData.role = testRoles.get(chatId);
   }
 
   const roleObj = RoleFactory.create(userData);
@@ -191,7 +216,7 @@ export async function handle(u) {
 
   if (cbq) {
     if (cbq.id) await answerCallbackQuery(cbq.id);
-    const d = cbq.data;
+    let d = cbq.data;
 
     if (d.startsWith('lang:')) {
       const selectedLang = d.split(':')[1];
@@ -259,6 +284,48 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
 
     if (d === 'menu') return roleObj.showMenu(chatId, ar, getStatsMsg);
+
+    // ── Admin: Test role menus (Commercial / GDS / Finance / Garde) ──────────
+    if (d.startsWith('test_role:')) {
+      const role = String(userData.role).toLowerCase();
+      if (role !== 'admin' && userData._originalRole !== 'admin') return;
+      
+      const targetRole = d.split(':')[1];
+      const roleLabels = {
+        service_commercial: ar ? '💼 المصلحة التجارية' : '💼 Service Commercial',
+        gds: ar ? '📦 مصلحة المخازن والشحن' : '📦 GDS / Expédition',
+        finance: ar ? '💵 مصلحة المالية' : '💵 Service Finance',
+        poste_garde: ar ? '👮 مركز الحراسة والبوابة' : '👮 Poste de Garde'
+      };
+      const label = roleLabels[targetRole] || targetRole;
+
+      // Use in-memory map instead of DB
+      testRoles.set(chatId, targetRole);
+      userData._originalRole = 'admin';
+      userData.role = targetRole;
+
+      await send(chatId, ar
+        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\nأنت تشاهد الآن واجهة هذا الدور.\n\n<i>للخروج من هذا الوضع، اضغط الزر أدناه أو أرسل /exit_test</i>`
+        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\nVous visualisez l'interface de ce rôle.\n\n<i>Appuyez sur le bouton ou envoyez /exit_test pour quitter.</i>`,
+        { inline_keyboard: [[{ text: ar ? '🛑 خروج من وضع الاختبار' : '🛑 Exit Test Mode', callback_data: 'exit_test_mode' }]] }
+      );
+      
+      // Force the callback data to 'ventes_menu' to show the target role's dashboard directly!
+      d = 'ventes_menu';
+    }
+
+    if (d === 'exit_test_mode') {
+      testRoles.delete(chatId);
+      states.delete(chatId);
+      saveStates();
+      
+      userData.role = 'admin';
+      delete userData._originalRole;
+      
+      const freshRoleObj = RoleFactory.create(userData);
+      await send(chatId, ar ? '✅ <b>خرجت من وضع الاختبار ورجعت كمسؤول (Admin).</b>' : '✅ <b>Mode test terminé. Retour au rôle Admin.</b>');
+      return freshRoleObj.showMenu(chatId, ar, getStatsMsg);
+    }
 
     // ── Ventes & Bons (BVA) Unified Department Menus ─────────────────────────
     if (d === 'ventes_menu') {
@@ -328,45 +395,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
     }
 
-    // ── Admin: Test role menus (Commercial / GDS / Finance / Garde) ──────────
-    if (d.startsWith('test_role:')) {
-      const role = String(userData.role).toLowerCase();
-      if (role !== 'admin') return;
-      const targetRole = d.split(':')[1];
-      const roleLabels = {
-        service_commercial: ar ? '💼 المصلحة التجارية' : '💼 Service Commercial',
-        gds: ar ? '📦 مصلحة المخازن والشحن' : '📦 GDS / Expédition',
-        finance: ar ? '💵 مصلحة المالية' : '💵 Service Finance',
-        poste_garde: ar ? '👮 مركز الحراسة والبوابة' : '👮 Poste de Garde'
-      };
-      const label = roleLabels[targetRole] || targetRole;
 
-      // Save the test role in state so all BVA handlers act as that role
-      states.set(chatId, { step: '__admin_test__', testRole: targetRole });
-      saveStates();
-      
-      await send(chatId, ar
-        ? `🧪 <b>وضع الاختبار — ${label}</b>\n━━━━━━━━━━━━━━\nأنت تشاهد الآن واجهة هذا الدور. جميع الأزرار تعمل بشكل طبيعي.\n<i>\u0627ضغط \"Exit Test\" للخروج من وضع الاختبار.</i>`
-        : `🧪 <b>MODE TEST — ${label}</b>\n━━━━━━━━━━━━━━\nVous visualisez l'interface de ce rôle. Tous les boutons fonctionnent normalement.\n<i>Appuyez \"Exit Test\" pour quitter le mode test.</i>`,
-        { inline_keyboard: [[{ text: ar ? '🛑 خروج من وضع الاختبار' : '🛑 Exit Test Mode', callback_data: 'exit_test_mode' }]] }
-      );
-      const fakeUser = { ...userData, role: targetRole };
-      const testRoleObj = RoleFactory.create(fakeUser);
-      if (testRoleObj) return testRoleObj.showMenu(chatId, ar);
-      return;
-    }
-
-    if (d === 'exit_test_mode') {
-      states.delete(chatId);
-      saveStates();
-      if (userData._originalRole === 'admin') {
-        userData.role = 'admin';
-        delete userData._originalRole;
-      }
-      const freshRoleObj = RoleFactory.create(userData);
-      await send(chatId, ar ? '✅ <b>خرجت من وضع الاختبار.</b>' : '✅ <b>Mode test terminé.</b>');
-      return freshRoleObj.showMenu(chatId, ar, getStatsMsg);
-    }
 
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();
@@ -1674,15 +1703,6 @@ Pour garantir une fin de relation de travail légale et fluide :
           [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]
         ]});
       }
-    }
-
-    // ── BVA (Bon de Vente & Autorisation de Sortie) Callback Query Handlers ──
-    if (d === 'ventes_menu') {
-      const kbd = { inline_keyboard: [
-        [{ text: ar ? '✍️ إنشاء إذن بيع وخروج' : '✍️ Créer Bon de Vente (BVA)', callback_data: 'bva_create' }],
-        [{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]
-      ]};
-      return send(chatId, ar ? '💼 <b>قسم المبيعات والطلبيات</b>\nاختر العملية التي تريد القيام بها:' : '💼 <b>Ventes & Bons</b>\nChoisissez une opération :', kbd);
     }
 
     if (d === 'bva_create') {

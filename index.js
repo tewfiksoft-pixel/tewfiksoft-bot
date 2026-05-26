@@ -1904,42 +1904,25 @@ Pour garantir une fin de relation de travail légale et fluide :
       const bva = (db2.bon_vente || []).find(b => b.id === bvaId);
       if (!bva || bva.status !== 'pending_finance') return;
       
-      bva.status = 'completed';
+      // Finance validates → next step is Guard (pending_guard)
+      bva.status = 'pending_guard';
       bva.financeName = userData.name;
       bva.financeId = fromId;
       bva.financeDate = new Date().toLocaleDateString('fr-FR');
       saveDB(db2);
       
-      // Acknowledge to Finance user
-      send(chatId, ar 
-        ? `⏳ <b>جاري توليد وثيقة الخروج (PDF)...</b>`
-        : `⏳ <b>Génération du PDF en cours...</b>`);
-        
-      try {
-        const { generateBonVentePDF } = await import('./utils/pdf.js');
-        const pdfPath = path.join(__dirname, 'temp', `${bva.id}.pdf`);
-        if (!fs.existsSync(path.join(__dirname, 'temp'))) fs.mkdirSync(path.join(__dirname, 'temp'));
-        
-        await generateBonVentePDF(bva, pdfPath);
-        
-        // Send PDF to the Admin as requested
-        const adminMsg = ar 
-          ? `📄 <b>وثيقة خروج وبيع جديدة (مكتملة)</b>\nالزبون: ${bva.clientName}\nمن طرف المصلحة التجارية والمالية.`
-          : `📄 <b>NOUVEAU BON DE VENTE ET SORTIE</b>\nClient: ${bva.clientName}\nValidé par le service Vente et Finance.`;
-          
-        await bot.sendDocument(cfg.adminChatId || cfg.admin_chat_id || process.env.ADMIN_CHAT_ID, pdfPath, { caption: adminMsg });
-        
-        // Also send it to the Finance user who clicked confirm
-        await bot.sendDocument(chatId, pdfPath, { caption: ar ? '✅ إليك الوثيقة جاهزة للطباعة' : '✅ Voici le document prêt à imprimer' });
-        
-        // Clean up
-        setTimeout(() => fs.existsSync(pdfPath) && fs.unlinkSync(pdfPath), 10000);
-      } catch (err) {
-        console.error('PDF Generation Error:', err);
-        send(chatId, ar ? '❌ حدث خطأ أثناء توليد الوثيقة.' : '❌ Erreur de génération PDF.');
-      }
-      
-      return;
+      // Notify Guard (Poste de Garde) role
+      const guardMsg = ar
+        ? `🚛 <b>إشعار لمركز الحراسة (Poste de Garde): شاحنة في انتظار الإذن بالخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n🚚 السائق: <b>${bva.driverName || 'N/A'}</b>\n🚛 الشاحنة: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 الفاتورة: <code>${bva.factureNum}</code>\n💰 المبلغ: <b>${bva.amount} DA</b>\n\nتمت مراجعة الوثيقة من طرف المالية. يرجى تأكيد خروج الشاحنة.`
+        : `🚛 <b>POSTE DE GARDE: CAMION EN ATTENTE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n🚚 Chauffeur: <b>${bva.driverName || 'N/A'}</b>\n🚛 Camion: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 Facture: <code>${bva.factureNum}</code>\n💰 Montant: <b>${bva.amount} DA</b>\n\nDocument validé par la Finance. Veuillez confirmer la sortie du camion.`;
+
+      const guardKbd = { inline_keyboard: [[{ text: ar ? '🚛 تأكيد خروج الشاحنة' : '🚛 Confirmer Sortie Camion', callback_data: `bva_guard_start:${bvaId}` }]] };
+      await notifyBVARole(guardMsg, 'poste_garde', cfg, guardKbd);
+
+      return send(chatId, ar
+        ? `✅ <b>تمت المراجعة المالية بنجاح!</b>\n📤 تم إرسال إشعار لمركز الحراسة لتأكيد خروج الشاحنة وإصدار الوثيقة.`
+        : `✅ <b>Validation financière effectuée!</b>\n📤 Notification transmise au Poste de Garde pour confirmer la sortie et générer le document.`,
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu', callback_data: 'menu' }]] });
     }
 
 
@@ -1951,7 +1934,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (bva.status !== 'pending_shipping') {
         return send(chatId, ar ? `⚠️ تم الشحن مسبقاً.` : `⚠️ Déjà expédié.`);
       }
-      states.set(chatId, { step: 'bva_ship_bl', bvaId });
+      states.set(chatId, { step: 'bva_ship_bl', bvaId, data: {} });
       saveStates();
       return send(chatId, ar 
         ? `🚚 <b>مصلحة الشحن: إدخال رقم إذن التسليم (Bon de Livraison)</b>\nيرجى كتابة رقم إذن التسليم (BL N°):` 

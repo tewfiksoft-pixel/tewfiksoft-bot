@@ -1,2 +1,2 @@
-// Force redeploy - version 8.9.4 - Monolingual UI (2026-05-09)
-console.log('Bot starting - Monolingual edition...');
+// Force redeploy - version v10.2 - (2026-05-26)
+console.log('Bot starting - TewfikSoft HR Bot v10.2...');

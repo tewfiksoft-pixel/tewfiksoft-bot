@@ -598,6 +598,9 @@ export async function generateBonVentePDF(data, outputPath) {
 
       const fontBold = 'Helvetica-Bold';
       const fontNormal = 'Helvetica';
+      const assetsDir = path.join(__dirname, '..', 'assets');
+      const logoLeft = fs.existsSync(path.join(assetsDir, 'ALVER.png')) ? path.join(assetsDir, 'ALVER.png') : path.join(assetsDir, 'logo_left.png');
+
 
       // --- 1. Draw Talon Slip on the Left ---
       // Left box: X: 20 to 110 pt. Width = 90 pt.
@@ -648,10 +651,14 @@ export async function generateBonVentePDF(data, outputPath) {
       // Width = 695 pt (X: 125 to 820). Height = 45 pt (Y: 20 to 65).
       doc.rect(125, 20, 695, 45).strokeColor('#000').lineWidth(1.5).stroke();
       
-      // ALVER Spa Logo text / branding
-      doc.font(fontBold).fontSize(14).fillColor('#1b5e20').text('ALVER', 135, 26, { continued: true });
-      doc.font(fontNormal).fontSize(8).fillColor('#333').text(' Spa');
-      doc.font(fontNormal).fontSize(6.5).fillColor('#666').text('Production Verre Emballage', 135, 43);
+      // ALVER Spa Logo / branding
+      if (fs.existsSync(logoLeft)) {
+        doc.image(logoLeft, 130, 25, { width: 50, height: 35, fit: [50, 35], align: 'center', valign: 'center' });
+      } else {
+        doc.font(fontBold).fontSize(14).fillColor('#1b5e20').text('ALVER', 135, 26, { continued: true });
+        doc.font(fontNormal).fontSize(8).fillColor('#333').text(' Spa');
+        doc.font(fontNormal).fontSize(6.5).fillColor('#666').text('Production Verre Emballage', 135, 43);
+      }
 
       // Title Center
       doc.font(fontBold).fontSize(13).fillColor('#1a5f7a').text('BON DE VENTE PRODUIT FINI', 125, 25, { align: 'center', width: 695 });
@@ -674,14 +681,23 @@ export async function generateBonVentePDF(data, outputPath) {
       };
 
       const drawStamp = (x, y, title, name, color) => {
-        if (!name) return;
-        doc.roundedRect(x, y, 110, 50, 4).lineWidth(1.2).strokeColor(color).stroke();
-        doc.rect(x + 1, y + 1, 108, 12).fill(color);
+        // We ensure all stamps are consistent and formal. We'll use a unified color #1a5f7a for the border and header
+        const formalColor = '#1a5f7a';
+        doc.roundedRect(x, y, 110, 50, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
+        doc.rect(x + 1, y + 1, 108, 12).fill(formalColor);
         doc.font(fontBold).fontSize(6.5).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 110, align: 'center' });
         
-        doc.font(fontNormal).fontSize(6).fillColor('#555').text('Signé électroniquement:', x + 5, y + 16);
-        doc.font(fontBold).fontSize(7.5).fillColor(color).text(name, x, y + 25, { width: 110, align: 'center' });
-        doc.font('Helvetica-Oblique').fontSize(5).fillColor(color).text('DOCUMENT VALIDÉ', x, y + 38, { width: 110, align: 'center' });
+        if (name) {
+          doc.font(fontNormal).fontSize(6).fillColor('#555').text('Signé électroniquement:', x + 5, y + 16);
+          doc.font(fontBold).fontSize(7.5).fillColor('#000').text(name, x, y + 25, { width: 110, align: 'center' });
+          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#1a5f7a').text('DOCUMENT VALIDÉ', x, y + 38, { width: 110, align: 'center' });
+        } else {
+          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signé', x, y + 25, { width: 110, align: 'center' });
+        }
+      };
+      
+      const drawDottedLine = (x, y, width) => {
+        doc.moveTo(x, y).lineTo(x + width, y).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
       };
 
       const drawTable = (x, y, articles) => {
@@ -723,12 +739,15 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 10, insideY + 10);
       doc.font(fontNormal).text(data.clientName || '—', startX + 60, insideY + 10);
+      drawDottedLine(startX + 60, insideY + 19, 100);
 
       doc.font(fontBold).text('BC N° :', startX + 10, insideY + 30);
       doc.font(fontNormal).text(data.bcNum || '—', startX + 60, insideY + 30);
+      drawDottedLine(startX + 60, insideY + 39, 100);
 
       doc.font(fontBold).text('DATE :', startX + 10, insideY + 50);
       doc.font(fontNormal).text(data.commercialDate || dateStr, startX + 60, insideY + 50);
+      drawDottedLine(startX + 60, insideY + 59, 100);
 
       // Vertical separators
       doc.moveTo(startX + 170, insideY).lineTo(startX + 170, y + sectionHeight).strokeColor('#000').lineWidth(1).stroke();
@@ -778,12 +797,15 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° BON DE LIVRAISON :', startX + 10, insideY + 10);
       doc.font(fontNormal).text(data.blNum || '—', startX + 120, insideY + 10);
+      drawDottedLine(startX + 120, insideY + 19, 40);
 
       doc.font(fontBold).text('TRANSPORTEUR :', startX + 10, insideY + 30);
       doc.font(fontNormal).text(data.transporter || '—', startX + 100, insideY + 30);
+      drawDottedLine(startX + 100, insideY + 39, 60);
 
       doc.font(fontBold).text('DATE :', startX + 10, insideY + 50);
       doc.font(fontNormal).text(data.shippingDate || dateStr, startX + 60, insideY + 50);
+      drawDottedLine(startX + 60, insideY + 59, 100);
 
       doc.moveTo(startX + 170, insideY).lineTo(startX + 170, y + sectionHeight).stroke();
 
@@ -796,12 +818,15 @@ export async function generateBonVentePDF(data, outputPath) {
       let logX = startX + 420;
       doc.font(fontBold).fontSize(7.5).text('CHAUFFEUR :', logX, insideY + 10);
       doc.font(fontNormal).text(data.driverName || '—', logX + 70, insideY + 10);
+      drawDottedLine(logX + 70, insideY + 19, 80);
 
       doc.font(fontBold).text('MATRICULE :', logX, insideY + 28);
       doc.font(fontNormal).text(data.vehiclePlate || '—', logX + 70, insideY + 28);
+      drawDottedLine(logX + 70, insideY + 37, 80);
 
       doc.font(fontBold).text('N° PC :', logX, insideY + 46);
       doc.font(fontNormal).text(data.pcNum || '—', logX + 50, insideY + 46);
+      drawDottedLine(logX + 50, insideY + 55, 100);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
 
@@ -818,9 +843,11 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° FACTURE PRODUIT :', startX + 10, insideY + 15);
       doc.font(fontNormal).text(data.factureNum || '—', startX + 120, insideY + 15);
+      drawDottedLine(startX + 120, insideY + 24, 120);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 10, insideY + 40);
       doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 70, insideY + 40);
+      drawDottedLine(startX + 70, insideY + 49, 170);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).stroke();
@@ -848,12 +875,15 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 10, insideY + 10);
       doc.font(fontNormal).text(data.clientName || '—', startX + 60, insideY + 10);
+      drawDottedLine(startX + 60, insideY + 19, 180);
 
       doc.font(fontBold).text('N° FACTURE PRODUIT :', startX + 10, insideY + 28);
       doc.font(fontNormal).text(data.factureNum || '—', startX + 120, insideY + 28);
+      drawDottedLine(startX + 120, insideY + 37, 120);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 10, insideY + 46);
       doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 70, insideY + 46);
+      drawDottedLine(startX + 70, insideY + 55, 170);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).stroke();
@@ -881,12 +911,15 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('N° BON DE LIVRAISON :', startX + 10, insideY + 10);
       doc.font(fontNormal).text(data.blNum || '—', startX + 120, insideY + 10);
+      drawDottedLine(startX + 120, insideY + 19, 90);
 
       doc.font(fontBold).text('CHAUFFEUR :', startX + 10, insideY + 28);
       doc.font(fontNormal).text(data.driverName || '—', startX + 80, insideY + 28);
+      drawDottedLine(startX + 80, insideY + 37, 130);
 
       doc.font(fontBold).text('MATRICULE :', startX + 10, insideY + 46);
       doc.font(fontNormal).text(data.vehiclePlate || '—', startX + 80, insideY + 46);
+      drawDottedLine(startX + 80, insideY + 55, 130);
 
       doc.moveTo(startX + 220, insideY).lineTo(startX + 220, y + sectionHeight).stroke();
 
@@ -894,12 +927,15 @@ export async function generateBonVentePDF(data, outputPath) {
       let gateX = startX + 230;
       doc.font(fontBold).text("HEURE D'ENTRÉE :", gateX, insideY + 10);
       doc.font(fontNormal).text(data.entryTime || '—', gateX + 90, insideY + 10);
+      drawDottedLine(gateX + 90, insideY + 19, 80);
 
       doc.font(fontBold).text("HEURE DE SORTIE :", gateX, insideY + 28);
       doc.font(fontNormal).text(data.exitTime || '—', gateX + 90, insideY + 28);
+      drawDottedLine(gateX + 90, insideY + 37, 80);
 
       doc.font(fontBold).text("EQUIPE :", gateX, insideY + 46);
       doc.font(fontNormal).text(data.guardShift || '—', gateX + 50, insideY + 46);
+      drawDottedLine(gateX + 50, insideY + 55, 120);
 
       doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).stroke();
 

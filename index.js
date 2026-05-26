@@ -90,7 +90,8 @@ const loadArticles = () => {
 };
 
 async function notifyBVARole(txt, role, cfg, kbd) {
-  const users = cfg.authorized_users?.filter(u => u.role === role || u.role === 'admin') || [];
+  // Only notify users with the specific role — Admin accesses all operations directly from their dashboard
+  const users = cfg.authorized_users?.filter(u => u.role === role) || [];
   for (const u of users) {
     if (u.id) {
       await send(Number(u.id), txt, kbd);

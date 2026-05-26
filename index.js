@@ -1724,6 +1724,23 @@ Pour garantir une fin de relation de travail légale et fluide :
         : `💳 <b>Étape 4/5: Mode de paiement :</b>`, kbd);
     }
 
+    // ── Article selection callback ─────────────────────────────────────────
+    if (d.startsWith('bva_artsel:')) {
+      const artId = d.replace('bva_artsel:', '');
+      const st = states.get(chatId);
+      if (!st) return;
+      const articles = loadArticles();
+      const article = articles.find(a => String(a.id) === artId);
+      if (!article) return send(chatId, ar ? '⚠️ المادة غير موجودة!' : '⚠️ Article introuvable!');
+      st.data.currentArticle = article;
+      st.step = 'bva_article_qty';
+      states.set(chatId, st);
+      saveStates();
+      return send(chatId, ar 
+        ? `✅ اخترت: <b>${article.name}</b>${article.unit ? ` (${article.unit})` : ''}\n\n🔢 <b>أدخل الكمية المطلوبة (أرقام فقط):</b>` 
+        : `✅ Article: <b>${article.name}</b>${article.unit ? ` (${article.unit})` : ''}\n\n🔢 <b>Saisissez la quantité :</b>`);
+    }
+
     if (d.startsWith('bva_pm:')) {
       const method = d.split(':')[1];
       const st = states.get(chatId);

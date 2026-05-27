@@ -111,6 +111,7 @@ async function generateAndSendWorkCert(req, cfg, db) {
   if (!emp) throw new Error(`Employee not found: ${req.empId}`);
 
   const isFartak = String(emp.companyId || '').toLowerCase() === 'vt' ||
+                   String(emp.companyId || '').toLowerCase() === 'verre_tech' ||
                    String(emp.companyName || '').toLowerCase().includes('fartak') ||
                    String(emp.companyName || '').toLowerCase().includes('verre tech');
 

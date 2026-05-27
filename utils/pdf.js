@@ -1,4 +1,4 @@
-﻿import PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -644,8 +644,8 @@ export async function generateBonVentePDF(data, outputPath) {
       const codesSummary = (data.articles || []).map(a => `${a.code} (${a.qty})`).join(', ');
       drawTalonField('CODES & QTE :', codesSummary);
       
-      const totalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString();
-      drawTalonField('QTE TOTALE :', totalQty);
+      const talonTotalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString();
+      drawTalonField('QTE TOTALE :', talonTotalQty);
       
       drawTalonField('NÂ° FACTURE :', data.factureNum);
       

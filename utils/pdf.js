@@ -642,9 +642,11 @@ export async function generateBonVentePDF(data, outputPath) {
       drawTalonField('CLIENT :', data.clientName);
       
       // Combined PRODUIT + CODE + QTÉ list (one article per line)
-      const articlesLabel = 'PRODUITS / CODES & QTÉ :';
-      const articlesLines = (data.articles || []).map(a => `${a.code}  ${a.prod}  (${a.qty})`).join('\n');
-      drawTalonField(articlesLabel, articlesLines);
+      const articlesLines = (data.articles || []).map(a => a.prod).join('\n');
+      drawTalonField('PRODUITS :', articlesLines);
+      
+      const codesLines = (data.articles || []).map(a => `${a.code} (${a.qty})`).join('\n');
+      drawTalonField('CODES & QTE :', codesLines);
       
       const talonTotalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString();
       drawTalonField('QTÉ TOTALE :', talonTotalQty);

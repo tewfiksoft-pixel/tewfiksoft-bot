@@ -727,33 +727,46 @@ export async function generateBonVentePDF(data, outputPath) {
         const stampW = 105;
         const stampH = 65;
         
-        // Background and border
+        // Border
         doc.roundedRect(x - 2, y, stampW, stampH, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
         
-        // Top Section
-        doc.font(fontBold).fontSize(5.5).fillColor(formalColor).text('DOCUMENT SIGNÉ ÉLECTRONIQUEMENT', x - 2, y + 3, { width: stampW, align: 'center' });
+        // --- TOP SECTION ---
+        // Blue lock circle (Left)
+        doc.circle(x + 11, y + 15, 8).lineWidth(1.5).strokeColor(formalColor).stroke();
+        // A tiny lock body
+        doc.rect(x + 8.5, y + 14, 5, 4).fillAndStroke(formalColor, formalColor);
+        doc.moveTo(x + 9.5, y + 14).lineTo(x + 9.5, y + 12).bezierCurveTo(x+9.5, y+10, x+12.5, y+10, x+12.5, y+12).lineTo(x+12.5, y+14).lineWidth(1).strokeColor(formalColor).stroke();
         
-        // Law text
-        doc.font(fontNormal).fontSize(3.5).fillColor('#555').text('Conformément à la loi 18-07', x - 2, y + 14, { width: stampW, align: 'center' });
+        // Middle Text
+        doc.font(fontBold).fontSize(5).fillColor(formalColor).text('DOCUMENT SIGNÉ', x + 23, y + 8, { width: 55, align: 'center' });
+        doc.text('ÉLECTRONIQUEMENT', x + 23, y + 14, { width: 55, align: 'center' });
+        doc.font(fontNormal).fontSize(3.5).fillColor('#555').text('Conforme loi 18-07', x + 23, y + 22, { width: 55, align: 'center' });
         
-        // Green Valid Tag
-        doc.roundedRect(x + 30, y + 20, 40, 8, 2).fillAndStroke('#e8f5e9', '#27ae60');
-        doc.font(fontBold).fontSize(4.5).fillColor('#27ae60').text('✔ VALIDÉ', x + 30, y + 22, { width: 40, align: 'center' });
+        // Green check circle (Right)
+        doc.circle(x + 89, y + 15, 8).fill('#27ae60');
+        // Checkmark inside green circle
+        doc.moveTo(x + 86, y + 15).lineTo(x + 88, y + 17.5).lineTo(x + 92.5, y + 11.5).lineWidth(1.5).strokeColor('#fff').stroke();
         
-        // Horizontal Line 1
+        // --- HORIZONTAL LINE ---
         doc.moveTo(x - 2, y + 32).lineTo(x - 2 + stampW, y + 32).lineWidth(0.5).strokeColor('#ccc').stroke();
         
         if (name) {
-            // Signer Info
-            doc.font(fontNormal).fontSize(4.5).fillColor('#333').text(`Signé par: ${title.toUpperCase()}`, x - 2, y + 35, { width: stampW, align: 'center' });
+            // --- BOTTOM SECTION ---
+            // Left Column: Signer
+            doc.font(fontNormal).fontSize(4).fillColor('#333').text(`Signé par: ${title.toUpperCase()}`, x - 2, y + 35, { width: 54 });
+            doc.font(fontBold).fontSize(5.5).fillColor(formalColor).text(name.toUpperCase(), x - 2, y + 43, { width: 54, align: 'left' });
             
-            // Full Name (Centered, large)
-            doc.font(fontBold).fontSize(7.5).fillColor(formalColor).text(name.toUpperCase(), x - 2, y + 43, { width: stampW, align: 'center' });
+            // Vertical Divider
+            doc.moveTo(x + 54, y + 36).lineTo(x + 54, y + 54).lineWidth(0.5).strokeColor('#ccc').stroke();
             
-            // Date Info
-            doc.font(fontBold).fontSize(5).fillColor('#555').text(`Le: ${dateStr}`, x - 2, y + 55, { width: stampW, align: 'center' });
+            // Right Column: Date
+            doc.font(fontNormal).fontSize(4.5).fillColor('#333').text('Date:', x + 60, y + 36);
+            doc.font(fontBold).fontSize(6).fillColor(formalColor).text(dateStr, x + 60, y + 44, { width: 40, align: 'left' });
+            
+            // --- BOTTOM LAW TEXT ---
+            doc.font(fontNormal).fontSize(3.5).fillColor('#888').text('Signature avancée - JORADP n° 26', x - 2, y + 58, { width: stampW, align: 'center' });
         } else {
-            doc.font(fontBold).fontSize(7).fillColor('#e74c3c').text('EN ATTENTE DE SIGNATURE', x - 2, y + 40, { width: stampW, align: 'center' });
+            doc.font(fontBold).fontSize(7).fillColor('#e74c3c').text('EN ATTENTE DE SIGNATURE', x - 2, y + 45, { width: stampW, align: 'center' });
         }
       };
       

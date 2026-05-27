@@ -247,9 +247,12 @@ export async function generateMissionPDF(data, outputPath) {
                        String(data.companyName || '').toLowerCase().includes('fartak') ||
                        String(data.companyName || '').toLowerCase().includes('verre tech');
       
+      const logoFartak = path.join(assetsDir, 'verre tech.png');
+
       if (isFartak) {
-        // Verre Tech: left compartment stays EMPTY (no logo, no text)
-        // Just leave the box blank
+        if (fs.existsSync(logoFartak)) {
+          doc.image(logoFartak, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
+        }
       } else if (fs.existsSync(logoLeft)) {
         // ALVER: show ALVER logo on the left
         doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
@@ -453,13 +456,17 @@ export async function generateWorkCertPDF(data, outputPath) {
                        String(data.companyName || '').toLowerCase().includes('fartak') ||
                        String(data.companyName || '').toLowerCase().includes('verre tech');
 
+      const logoFartak = path.join(assetsDir, 'verre tech.png');
+
       // --- Header Box (Three compartments) ---
       doc.rect(40, 40, 515, 80).strokeColor('#000').lineWidth(1).stroke();
       doc.moveTo(145, 40).lineTo(145, 120).stroke();
       doc.moveTo(425, 40).lineTo(425, 120).stroke();
 
-      // Left Compartment: ALVER logo ONLY if NOT Fartak/Verre Tech
-      if (!isFartak && fs.existsSync(logoLeft)) {
+      // Left Compartment
+      if (isFartak && fs.existsSync(logoFartak)) {
+        doc.image(logoFartak, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
+      } else if (!isFartak && fs.existsSync(logoLeft)) {
         doc.image(logoLeft, 45, 45, { width: 95, height: 70, fit: [95, 70], align: 'center', valign: 'center' });
       }
 

@@ -761,24 +761,17 @@ export async function generateBonVentePDF(data, outputPath) {
            .lineWidth(0.6).strokeColor('#aaa').stroke();
 
         if (name) {
-          // === CENTERED BOTTOM BOX ===
-          // Inner centered box
-          const bx = cx + 6;
-          const bw = stampW - 12;
-          doc.roundedRect(bx, y + 36, bw, 26, 3)
-             .lineWidth(0.8).strokeColor(formalColor).stroke();
-
-          // Role label centered
+          // Role label - directly below separator, no inner box
           doc.font(fontNormal).fontSize(4.2).fillColor('#555')
-             .text(`Signé par: ${title.toUpperCase()}`, bx, y + 39, { width: bw, align: 'center' });
+             .text(`Signé par: ${title.toUpperCase()}`, cx, y + 36, { width: stampW, align: 'center' });
 
-          // Full Name centered and bold
-          doc.font(fontBold).fontSize(6).fillColor(formalColor)
-             .text(name.toUpperCase(), bx, y + 47, { width: bw, align: 'center' });
+          // Full Name bold and centered
+          doc.font(fontBold).fontSize(7).fillColor(formalColor)
+             .text(name.toUpperCase(), cx, y + 44, { width: stampW, align: 'center' });
 
-          // Date below
-          doc.font(fontNormal).fontSize(3.8).fillColor('#888')
-             .text(`Date: ${dateStr}`, bx, y + 56, { width: bw, align: 'center' });
+          // Date line
+          doc.font(fontNormal).fontSize(4).fillColor('#888')
+             .text(`Date: ${dateStr}`, cx, y + 57, { width: stampW, align: 'center' });
         } else {
           doc.font(fontBold).fontSize(7).fillColor('#e74c3c')
              .text('EN ATTENTE DE SIGNATURE', cx, y + 45, { width: stampW, align: 'center' });

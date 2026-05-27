@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import arabicReshaper from 'arabic-reshaper';
 import bidiFactory from 'bidi-js';
 import https from 'https';
+import { loadDB } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const bidi = bidiFactory();
@@ -636,13 +637,26 @@ export async function generateBonVentePDF(data, outputPath) {
       
       // Full BVA ID with year: BVA_XXXX / YYYY
       const bvaYear = data.createdAt ? new Date(data.createdAt).getFullYear() : new Date().getFullYear();
-      const bvaIdFull = data.id ? `${data.id.toUpperCase().slice(0, 8)} / ${bvaYear}` : '—';
+      let seqStr = '001';
+      try {
+        const db2 = loadDB();
+        const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
+        const idx = bvasThisYear.findIndex(b => b.id === data.id);
+        if (idx !== -1) {
+          seqStr = (idx + 1).toString().padStart(3, '0');
+        } else {
+          seqStr = (bvasThisYear.length + 1).toString().padStart(3, '0');
+        }
+      } catch (e) {
+        console.error("Error getting sequence number", e);
+      }
+      const bvaIdFull = `BVA ${seqStr}/${bvaYear}`;
       drawTalonField('N° :', bvaIdFull);
       drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : '—');
       drawTalonField('CLIENT :', data.clientName);
       
       // Combined PRODUIT + CODE + QTÉ list (one article per line)
-      const articlesLines = (data.articles || []).map(a => a.prod).join('\n');
+      const articlesLines = (data.articles || []).map((a, i) => `${(i + 1).toString().padStart(2, '0')}- ${a.prod}`).join('\n');
       drawTalonField('PRODUITS :', articlesLines);
       
       const codesLines = (data.articles || []).map(a => `${a.code} (${a.qty})`).join('\n');
@@ -694,7 +708,7 @@ export async function generateBonVentePDF(data, outputPath) {
 
       // N° / Year Right
       const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
-      doc.font(fontBold).fontSize(9).fillColor('#000').text(`N° :  ${data.id ? data.id.toUpperCase().slice(0, 8) : '—'} / 2026`, 690, 26, { align: 'right', width: 120 });
+      doc.font(fontBold).fontSize(9).fillColor('#000').text(`N° :  ${bvaIdFull.replace('N°', '')}`, 690, 26, { align: 'right', width: 120 });
       doc.font(fontNormal).fontSize(8).fillColor('#666').text(`Date :  ${dateStr}`, 690, 42, { align: 'right', width: 120 });
 
       // --- 4. Draw The 5 Vertically Stacked Sections ---
@@ -731,31 +745,36 @@ export async function generateBonVentePDF(data, outputPath) {
       };
 
       const drawTable = (x, y, articles) => {
+        const rowCount = Math.max(3, Math.min(6, articles.length));
+        const rowHeight = 10;
+        const headerHeight = 11;
+        const totalHeight = headerHeight + (rowCount * rowHeight);
+        
         // Headers
-        doc.rect(x, y, 220, 11).fill('#d9e1f2');
+        doc.rect(x, y, 220, headerHeight).fill('#d9e1f2');
         doc.font(fontBold).fontSize(6.5).fillColor('#000');
         doc.text('CODE', x + 5, y + 3);
         doc.text('PRODUIT', x + 55, y + 3);
         doc.text('QUANTITÉ', x + 175, y + 3);
         
         // Grid
-        doc.rect(x, y, 220, 53).strokeColor('#000').lineWidth(0.8).stroke();
-        doc.moveTo(x + 50, y).lineTo(x + 50, y + 53).strokeColor('#000').stroke();
-        doc.moveTo(x + 170, y).lineTo(x + 170, y + 53).strokeColor('#000').stroke();
+        doc.rect(x, y, 220, totalHeight).strokeColor('#000').lineWidth(0.8).stroke();
+        doc.moveTo(x + 50, y).lineTo(x + 50, y + totalHeight).strokeColor('#000').stroke();
+        doc.moveTo(x + 170, y).lineTo(x + 170, y + totalHeight).strokeColor('#000').stroke();
         
         // Rows
         doc.font(fontNormal).fontSize(6.5);
-        let rowY = y + 11;
-        for (let i = 0; i < 3; i++) {
+        let rowY = y + headerHeight;
+        for (let i = 0; i < rowCount; i++) {
           const art = articles[i];
           if (art) {
-            doc.text(art.code || '—', x + 5, rowY + 3);
-            doc.text(art.prod || '—', x + 55, rowY + 3, { width: 110, height: 9 });
-            doc.font(fontBold).text(art.qty || '—', x + 175, rowY + 3);
+            doc.text(art.code || '—', x + 5, rowY + 2);
+            doc.text(art.prod || '—', x + 55, rowY + 2, { width: 110, height: 9 });
+            doc.font(fontBold).text(art.qty || '—', x + 175, rowY + 2);
             doc.font(fontNormal);
           }
-          rowY += 14;
-          if (i < 2) doc.moveTo(x, rowY).lineTo(x + 220, rowY).strokeColor('#000').stroke();
+          rowY += rowHeight;
+          if (i < rowCount - 1) doc.moveTo(x, rowY).lineTo(x + 220, rowY).strokeColor('#000').lineWidth(0.5).stroke();
         }
       };
 
@@ -1018,7 +1037,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
 
       // --- Footer Security line ---
-      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${(data.id || '').toUpperCase().slice(0, 8)}`, startX, 580, { align: 'center', width: totalWidth });
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${seqStr}/${bvaYear}`, startX, 580, { align: 'center', width: totalWidth });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));

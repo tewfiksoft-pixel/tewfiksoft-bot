@@ -1978,9 +1978,9 @@ Pour garantir une fin de relation de travail légale et fluide :
       bva.guardName = userData.name;
       bva.guardId = fromId;
       bva.guardDate = new Date().toLocaleDateString('fr-FR');
-      // Entrance time defaults to 20 mins ago, exit time is current time
-      bva.entryTime = new Date(new Date().getTime() - 20 * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      bva.exitTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const tzOpts = { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' };
+      bva.entryTime = new Date(new Date().getTime() - 20 * 60 * 1000).toLocaleTimeString('fr-FR', tzOpts);
+      bva.exitTime = new Date().toLocaleTimeString('fr-FR', tzOpts);
       bva.guardShift = shift;
       saveDB(db2);
       

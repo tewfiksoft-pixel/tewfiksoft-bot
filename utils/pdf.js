@@ -724,49 +724,64 @@ export async function generateBonVentePDF(data, outputPath) {
 
       const drawStamp = (x, y, title, name, color) => {
         const formalColor = '#1a5f7a';
-        const stampW = 105;
-        const stampH = 65;
-        
-        // Border
-        doc.roundedRect(x - 2, y, stampW, stampH, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
-        
-        // --- TOP SECTION ---
-        // Blue lock circle (Left)
-        doc.circle(x + 11, y + 15, 8).lineWidth(1.5).strokeColor(formalColor).stroke();
-        // A tiny lock body
-        doc.rect(x + 8.5, y + 14, 5, 4).fillAndStroke(formalColor, formalColor);
-        doc.moveTo(x + 9.5, y + 14).lineTo(x + 9.5, y + 12).bezierCurveTo(x+9.5, y+10, x+12.5, y+10, x+12.5, y+12).lineTo(x+12.5, y+14).lineWidth(1).strokeColor(formalColor).stroke();
-        
-        // Middle Text
-        doc.font(fontBold).fontSize(5).fillColor(formalColor).text('DOCUMENT SIGNÉ', x + 23, y + 8, { width: 55, align: 'center' });
-        doc.text('ÉLECTRONIQUEMENT', x + 23, y + 14, { width: 55, align: 'center' });
-        doc.font(fontNormal).fontSize(3.5).fillColor('#555').text('Conforme loi 18-07', x + 23, y + 22, { width: 55, align: 'center' });
-        
-        // Green check circle (Right)
-        doc.circle(x + 89, y + 15, 8).fill('#27ae60');
-        // Checkmark inside green circle
-        doc.moveTo(x + 86, y + 15).lineTo(x + 88, y + 17.5).lineTo(x + 92.5, y + 11.5).lineWidth(1.5).strokeColor('#fff').stroke();
-        
-        // --- HORIZONTAL LINE ---
-        doc.moveTo(x - 2, y + 32).lineTo(x - 2 + stampW, y + 32).lineWidth(0.5).strokeColor('#ccc').stroke();
-        
+        const stampW = 108;
+        const stampH = 68;
+        const cx = x - 2; // stamp left edge
+
+        // === OUTER BORDER ===
+        doc.roundedRect(cx, y, stampW, stampH, 5)
+           .lineWidth(1.5).strokeColor(formalColor).stroke();
+
+        // === TOP ROW: lock icon | text | green check ===
+        // Lock circle
+        doc.circle(cx + 12, y + 16, 9).lineWidth(1.5).strokeColor(formalColor).stroke();
+        doc.rect(cx + 9, y + 15, 6, 5).fillAndStroke(formalColor, formalColor);
+        doc.moveTo(cx + 10, y + 15)
+           .lineTo(cx + 10, y + 12)
+           .bezierCurveTo(cx+10, y+9.5, cx+14, y+9.5, cx+14, y+12)
+           .lineTo(cx + 14, y + 15)
+           .lineWidth(1).strokeColor(formalColor).stroke();
+
+        // Center text block
+        doc.font(fontBold).fontSize(5.5).fillColor(formalColor)
+           .text('DOCUMENT SIGNÉ', cx + 24, y + 7, { width: 56, align: 'center' });
+        doc.text('ÉLECTRONIQUEMENT', cx + 24, y + 13.5, { width: 56, align: 'center' });
+        doc.font(fontNormal).fontSize(3.8).fillColor('#555')
+           .text('Conformément à la loi 18-07', cx + 24, y + 22, { width: 56, align: 'center' });
+
+        // Green check circle
+        doc.circle(cx + 93, y + 16, 9).fill('#27ae60');
+        doc.moveTo(cx + 89.5, y + 16)
+           .lineTo(cx + 92, y + 19.5)
+           .lineTo(cx + 97.5, y + 11.5)
+           .lineWidth(1.8).strokeColor('#fff').stroke();
+
+        // === SEPARATOR LINE ===
+        doc.moveTo(cx, y + 33).lineTo(cx + stampW, y + 33)
+           .lineWidth(0.6).strokeColor('#aaa').stroke();
+
         if (name) {
-            // --- BOTTOM SECTION ---
-            // Left Column: Signer
-            doc.font(fontNormal).fontSize(4).fillColor('#333').text(`Signé par: ${title.toUpperCase()}`, x - 2, y + 35, { width: 54 });
-            doc.font(fontBold).fontSize(5.5).fillColor(formalColor).text(name.toUpperCase(), x - 2, y + 43, { width: 54, align: 'left' });
-            
-            // Vertical Divider
-            doc.moveTo(x + 54, y + 36).lineTo(x + 54, y + 54).lineWidth(0.5).strokeColor('#ccc').stroke();
-            
-            // Right Column: Date
-            doc.font(fontNormal).fontSize(4.5).fillColor('#333').text('Date:', x + 60, y + 36);
-            doc.font(fontBold).fontSize(6).fillColor(formalColor).text(dateStr, x + 60, y + 44, { width: 40, align: 'left' });
-            
-            // --- BOTTOM LAW TEXT ---
-            doc.font(fontNormal).fontSize(3.5).fillColor('#888').text('Signature avancée - JORADP n° 26', x - 2, y + 58, { width: stampW, align: 'center' });
+          // === CENTERED BOTTOM BOX ===
+          // Inner centered box
+          const bx = cx + 6;
+          const bw = stampW - 12;
+          doc.roundedRect(bx, y + 36, bw, 26, 3)
+             .lineWidth(0.8).strokeColor(formalColor).stroke();
+
+          // Role label centered
+          doc.font(fontNormal).fontSize(4.2).fillColor('#555')
+             .text(`Signé par: ${title.toUpperCase()}`, bx, y + 39, { width: bw, align: 'center' });
+
+          // Full Name centered and bold
+          doc.font(fontBold).fontSize(6).fillColor(formalColor)
+             .text(name.toUpperCase(), bx, y + 47, { width: bw, align: 'center' });
+
+          // Date below
+          doc.font(fontNormal).fontSize(3.8).fillColor('#888')
+             .text(`Date: ${dateStr}`, bx, y + 56, { width: bw, align: 'center' });
         } else {
-            doc.font(fontBold).fontSize(7).fillColor('#e74c3c').text('EN ATTENTE DE SIGNATURE', x - 2, y + 45, { width: stampW, align: 'center' });
+          doc.font(fontBold).fontSize(7).fillColor('#e74c3c')
+             .text('EN ATTENTE DE SIGNATURE', cx, y + 45, { width: stampW, align: 'center' });
         }
       };
       
@@ -1069,8 +1084,8 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
       drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
 
-      // --- Footer Security line ---
-      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${seqStr}/${bvaYear}`, startX, 580, { align: 'center', width: totalWidth });
+      // --- Footer Security line (must be on page 1, before y=595) ---
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${seqStr}/${bvaYear}`, startX, 557, { align: 'center', width: totalWidth });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));

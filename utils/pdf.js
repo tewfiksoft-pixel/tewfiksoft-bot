@@ -724,16 +724,42 @@ export async function generateBonVentePDF(data, outputPath) {
 
       const drawStamp = (x, y, title, name, color) => {
         const formalColor = '#1a5f7a';
-        doc.roundedRect(x, y, 95, 50, 4).lineWidth(1.2).strokeColor(formalColor).stroke();
-        doc.rect(x + 1, y + 1, 93, 12).fill(formalColor);
-        doc.font(fontBold).fontSize(6).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 95, align: 'center' });
+        const stampW = 100;
+        const stampH = 65;
+        
+        // Background and border
+        doc.roundedRect(x - 2, y, stampW, stampH, 4).lineWidth(1).strokeColor(formalColor).stroke();
+        
+        // Top Section
+        doc.font(fontBold).fontSize(5).fillColor(formalColor).text('DOCUMENT SIGNÉ ÉLECTRONIQUEMENT', x, y + 4, { width: stampW - 4, align: 'center' });
+        doc.font(fontNormal).fontSize(3.5).fillColor('#555').text('Conformément à la loi 18-07 relative à la signature électronique', x, y + 11, { width: stampW - 4, align: 'center' });
+        
+        // Green Valid Tag
+        doc.roundedRect(x + 28, y + 18, 40, 8, 2).fillAndStroke('#e8f5e9', '#27ae60');
+        doc.font(fontBold).fontSize(4.5).fillColor('#27ae60').text('✔ VALIDÉ', x + 28, y + 20, { width: 40, align: 'center' });
+        
+        // Horizontal Line 1
+        doc.moveTo(x - 2, y + 29).lineTo(x - 2 + stampW, y + 29).lineWidth(0.5).strokeColor('#ccc').stroke();
         
         if (name) {
-          doc.font(fontNormal).fontSize(5).fillColor('#333').text('Signé électroniquement:', x, y + 16, { width: 95, align: 'center' });
-          doc.font(fontBold).fontSize(7).fillColor('#000').text(name, x, y + 25, { width: 95, align: 'center' });
-          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#27ae60').text('DOCUMENT VALIDÉ', x, y + 38, { width: 95, align: 'center' });
+            // Signer Info
+            doc.font(fontNormal).fontSize(4.2).fillColor('#333').text(`Signé par: ${title.toUpperCase()}`, x, y + 33);
+            doc.font(fontBold).fontSize(6.5).fillColor(formalColor).text(name.toUpperCase(), x, y + 41, { width: 52, align: 'left' });
+            
+            // Vertical Separator
+            doc.moveTo(x + 55, y + 31).lineTo(x + 55, y + 51).lineWidth(0.5).strokeColor('#ccc').stroke();
+            
+            // Date Info
+            doc.font(fontNormal).fontSize(4.5).fillColor('#333').text('Date :', x + 60, y + 33);
+            doc.font(fontBold).fontSize(6).fillColor(formalColor).text(dateStr, x + 60, y + 42);
+            
+            // Horizontal Line 2
+            doc.moveTo(x - 2, y + 53).lineTo(x - 2 + stampW, y + 53).lineWidth(0.5).strokeColor('#ccc').stroke();
+            
+            // Bottom Law Text
+            doc.font(fontNormal).fontSize(4).fillColor('#555').text('Signature avancée - Conforme JORADP n° 26', x, y + 56, { width: stampW - 4, align: 'center' });
         } else {
-          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signé', x, y + 25, { width: 95, align: 'center' });
+            doc.font(fontBold).fontSize(7).fillColor('#e74c3c').text('EN ATTENTE DE SIGNATURE', x - 2, y + 40, { width: stampW, align: 'center' });
         }
       };
       

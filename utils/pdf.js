@@ -634,18 +634,20 @@ export async function generateBonVentePDF(data, outputPath) {
         talonY += 6;
       };
       
-      drawTalonField('N° :', data.id ? data.id.toUpperCase().slice(0, 8) : '—');
+      // Full BVA ID with year: BVA_XXXX / YYYY
+      const bvaYear = data.createdAt ? new Date(data.createdAt).getFullYear() : new Date().getFullYear();
+      const bvaIdFull = data.id ? `${data.id.toUpperCase().slice(0, 8)} / ${bvaYear}` : '—';
+      drawTalonField('N° :', bvaIdFull);
       drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : '—');
       drawTalonField('CLIENT :', data.clientName);
       
-      const articlesSummary = (data.articles || []).map(a => a.prod).join(', ');
-      drawTalonField('PRODUITS :', articlesSummary);
-      
-      const codesSummary = (data.articles || []).map(a => `${a.code} (${a.qty})`).join(', ');
-      drawTalonField('CODES & QTE :', codesSummary);
+      // Combined PRODUIT + CODE + QTÉ list (one article per line)
+      const articlesLabel = 'PRODUITS / CODES & QTÉ :';
+      const articlesLines = (data.articles || []).map(a => `${a.code}  ${a.prod}  (${a.qty})`).join('\n');
+      drawTalonField(articlesLabel, articlesLines);
       
       const talonTotalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString();
-      drawTalonField('QTE TOTALE :', talonTotalQty);
+      drawTalonField('QTÉ TOTALE :', talonTotalQty);
       
       drawTalonField('N° FACTURE :', data.factureNum);
       

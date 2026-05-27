@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit';
+﻿import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -48,7 +48,7 @@ export async function generateExitAuthPDF(data, outputPath) {
       
       // Company name at the top center
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
-      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });
+      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - SystÃ¨me Professionnel', 50, 65, { align: 'center', width: 500 });
       
       doc.moveTo(50, 85).lineTo(545, 85).strokeColor('#1a5f7a').lineWidth(2).stroke();
 
@@ -59,24 +59,24 @@ export async function generateExitAuthPDF(data, outputPath) {
       // --- Meta Info ---
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
-      doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`RÃ©fÃ©rence: ${data.id.toUpperCase()}`, { align: 'right' });
+      doc.text(`GÃ©nÃ©rÃ© le: ${new Date().toLocaleDateString('fr-FR')} Ã  ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
 
       // --- Employee Section ---
       doc.moveDown(1);
       const startY1 = doc.y;
       doc.rect(50, startY1, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÉTAILS DE L'EMPLOYÉ", 60, startY1 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÃ‰TAILS DE L'EMPLOYÃ‰", 60, startY1 + 5);
       
       doc.moveDown(0.8);
       doc.fillColor('#333').fontSize(11).font(fontNormal);
-      doc.text(`Nom et Prénom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
+      doc.text(`Nom et PrÃ©nom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
 
       // --- Details Section ---
       doc.moveDown(1.5);
       const startY2 = doc.y;
       doc.rect(50, startY2, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text('DÉTAILS DE LA SORTIE', 60, startY2 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text('DÃ‰TAILS DE LA SORTIE', 60, startY2 + 5);
       
       doc.moveDown(0.8);
       const exitTypeTxt = data.exitType === 'Service' ? 'Mission de Service' : 'Sortie Personnelle';
@@ -86,7 +86,7 @@ export async function generateExitAuthPDF(data, outputPath) {
 
       doc.fillColor('#333').fontSize(10).font(fontNormal);
       doc.text(`Type de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(exitTypeTxt);
-      doc.font(fontNormal).text(`Heure de Sortie (Réelle): `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(officialExitTime);
+      doc.font(fontNormal).text(`Heure de Sortie (RÃ©elle): `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(officialExitTime);
       doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason);
       doc.font(fontNormal).text(`Date de Demande: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(new Date(data.createdAt).toLocaleString('fr-FR'));
 
@@ -94,7 +94,7 @@ export async function generateExitAuthPDF(data, outputPath) {
       doc.moveDown(4);
       doc.rect(50, doc.y, 495, 1).fill('#eee');
       doc.moveDown(1);
-      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES ÉLECTRONIQUES', { align: 'center' });
+      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES Ã‰LECTRONIQUES', { align: 'center' });
       doc.moveDown(1.5);
 
       const yPos = doc.y;
@@ -110,23 +110,23 @@ export async function generateExitAuthPDF(data, outputPath) {
         doc.fontSize(8).fillColor('#fff').font(fontBold).text(label, x, y + 5, { width: stampWidth, align: 'center' });
         
         // Signatory Name
-        doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
+        doc.fontSize(7).fillColor('#666').font(fontNormal).text('SignÃ© par:', x + 5, y + 22);
         doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
         
         // Security Text (Better spacing)
-        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
+        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÃ‰RIFIÃ‰', x, y + 55, { width: stampWidth, align: 'center' });
         doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
       drawAttractiveStamp(50 + stampWidth + spacing, yPos, "L'ADMINISTRATION", data.adminApprovedBy || 'RH OFFICE', '#27ae60');
-      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÉCURITÉ / GARDE', data.guardConfirmedBy || 'AGENT GARDE', '#2c3e50');
+      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÃ‰CURITÃ‰ / GARDE', data.guardConfirmedBy || 'AGENT GARDE', '#2c3e50');
 
       // --- Footer ---
       const footerY = 760;
       doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor('#eee').lineWidth(0.5).stroke();
-      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve électronique sécurisée générée par le système RH.`, 50, footerY + 10, { align: 'center' });
-      doc.text('© 2026 TewfikSoft - Signature Numérique Certifiée.', { align: 'center' });
+      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve Ã©lectronique sÃ©curisÃ©e gÃ©nÃ©rÃ©e par le systÃ¨me RH.`, 50, footerY + 10, { align: 'center' });
+      doc.text('Â© 2026 TewfikSoft - Signature NumÃ©rique CertifiÃ©e.', { align: 'center' });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));
@@ -150,31 +150,31 @@ export async function generateEntryAuthPDF(data, outputPath) {
       const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
-      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });
+      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - SystÃ¨me Professionnel', 50, 65, { align: 'center', width: 500 });
       
       doc.moveTo(50, 85).lineTo(545, 85).strokeColor('#1a5f7a').lineWidth(2).stroke();
 
       doc.moveDown(1);
-      doc.font(fontBold).fontSize(18).fillColor('#1a5f7a').text("AUTORISATION D'ENTRÉE", { align: 'center' });
+      doc.font(fontBold).fontSize(18).fillColor('#1a5f7a').text("AUTORISATION D'ENTRÃ‰E", { align: 'center' });
 
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
-      doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`RÃ©fÃ©rence: ${data.id.toUpperCase()}`, { align: 'right' });
+      doc.text(`GÃ©nÃ©rÃ© le: ${new Date().toLocaleDateString('fr-FR')} Ã  ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
 
       doc.moveDown(1);
       const startY1 = doc.y;
       doc.rect(50, startY1, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÉTAILS DE L'EMPLOYÉ", 60, startY1 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÃ‰TAILS DE L'EMPLOYÃ‰", 60, startY1 + 5);
       
       doc.moveDown(0.8);
       doc.fillColor('#333').fontSize(11).font(fontNormal);
-      doc.text(`Nom et Prénom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
+      doc.text(`Nom et PrÃ©nom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
 
       doc.moveDown(1.5);
       const startY2 = doc.y;
       doc.rect(50, startY2, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÉTAILS DE L'ENTRÉE", 60, startY2 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÃ‰TAILS DE L'ENTRÃ‰E", 60, startY2 + 5);
       
       doc.moveDown(0.8);
       const officialEntryTime = data.guardConfirmedAt 
@@ -182,14 +182,14 @@ export async function generateEntryAuthPDF(data, outputPath) {
         : data.entryTime;
 
       doc.fillColor('#333').fontSize(10).font(fontNormal);
-      doc.text(`Heure d'Entrée (Réelle): `, 60, doc.y, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialEntryTime);
+      doc.text(`Heure d'EntrÃ©e (RÃ©elle): `, 60, doc.y, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialEntryTime);
       doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason);
       doc.font(fontNormal).text(`Date de Demande: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(new Date(data.createdAt).toLocaleString('fr-FR'));
 
       doc.moveDown(4);
       doc.rect(50, doc.y, 495, 1).fill('#eee');
       doc.moveDown(1);
-      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES ÉLECTRONIQUES', { align: 'center' });
+      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES Ã‰LECTRONIQUES', { align: 'center' });
       doc.moveDown(1.5);
 
       const yPos = doc.y;
@@ -200,20 +200,20 @@ export async function generateEntryAuthPDF(data, outputPath) {
         doc.roundedRect(x, y, stampWidth, 85, 5).lineWidth(1.5).strokeColor(color).stroke();
         doc.rect(x + 1, y + 1, stampWidth - 2, 16).fill(color);
         doc.fontSize(8).fillColor('#fff').font(fontBold).text(label, x, y + 5, { width: stampWidth, align: 'center' });
-        doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
+        doc.fontSize(7).fillColor('#666').font(fontNormal).text('SignÃ© par:', x + 5, y + 22);
         doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
-        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
+        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÃ‰RIFIÃ‰', x, y + 55, { width: stampWidth, align: 'center' });
         doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
       drawAttractiveStamp(50 + stampWidth + spacing, yPos, "L'ADMINISTRATION", data.adminApprovedBy || 'RH OFFICE', '#27ae60');
-      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÉCURITÉ / GARDE', data.guardConfirmedBy || 'AGENT GARDE', '#2c3e50');
+      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÃ‰CURITÃ‰ / GARDE', data.guardConfirmedBy || 'AGENT GARDE', '#2c3e50');
 
       const footerY = 760;
       doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor('#eee').lineWidth(0.5).stroke();
-      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve électronique sécurisée générée par le système RH.`, 50, footerY + 10, { align: 'center' });
-      doc.text('© 2026 TewfikSoft - Signature Numérique Certifiée.', { align: 'center' });
+      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve Ã©lectronique sÃ©curisÃ©e gÃ©nÃ©rÃ©e par le systÃ¨me RH.`, 50, footerY + 10, { align: 'center' });
+      doc.text('Â© 2026 TewfikSoft - Signature NumÃ©rique CertifiÃ©e.', { align: 'center' });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));
@@ -269,10 +269,10 @@ export async function generateMissionPDF(data, outputPath) {
       // Right Compartment: Condor logo always (for both companies)
       if (fs.existsSync(logoRight)) {
         doc.image(logoRight, 430, 45, { width: 105, height: 50, fit: [105, 50], align: 'center', valign: 'center' });
-        doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 100, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(8).fillColor('#000').text('NÂ° ER.216.R0', 430, 100, { width: 115, align: 'center' });
       } else {
         doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
-        doc.font(fontNormal).fontSize(8).fillColor('#000').text('N° ER.216.R0', 430, 85, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(8).fillColor('#000').text('NÂ° ER.216.R0', 430, 85, { width: 115, align: 'center' });
       }
 
       doc.moveDown(5);
@@ -283,38 +283,38 @@ export async function generateMissionPDF(data, outputPath) {
       const drawField = (label, value, yOffset = 0, isBoldValue = false) => {
         const y = doc.y + yOffset;
         doc.font(fontBold).fontSize(11).fillColor('#000').text(label, labelX, y);
-        doc.font(isBoldValue ? fontBold : fontNormal).text(value || '—', valueX, y);
+        doc.font(isBoldValue ? fontBold : fontNormal).text(value || 'â€”', valueX, y);
         doc.moveTo(valueX, y + 12).lineTo(530, y + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
         doc.moveDown(2.2);
       };
 
       const emp = data.emp || {};
       
-      // Réf
-      drawField('Réf :', `......../DRH/${new Date().getFullYear()}`, 10);
+      // RÃ©f
+      drawField('RÃ©f :', `......../DRH/${new Date().getFullYear()}`, 10);
       
-      // Nom & Prénom
+      // Nom & PrÃ©nom
       const nameY = doc.y;
       doc.font(fontBold).text('Nom :', labelX, nameY);
       doc.font(fontBold).text(String(emp.lastName_fr || '').toUpperCase(), valueX, nameY);
-      doc.text('Prénom :', 350, nameY);
+      doc.text('PrÃ©nom :', 350, nameY);
       doc.text(String(emp.firstName_fr || ''), 420, nameY);
       doc.moveTo(valueX, nameY + 12).lineTo(340, nameY + 12).strokeColor('#ccc').lineWidth(0.5).dash(2, { space: 2 }).stroke().undash();
       doc.moveTo(420, nameY + 12).lineTo(530, nameY + 12).stroke();
       doc.moveDown(2.5);
 
       drawField('Fonction :', String(emp.jobTitle_fr || emp.csp || 'Agent'));
-      drawField('Structure :', String(emp.department_fr || emp.direction_fr || 'Direction Générale'));
+      drawField('Structure :', String(emp.department_fr || emp.direction_fr || 'Direction GÃ©nÃ©rale'));
       drawField('Motifs de la Mission :', data.reason);
       const cleanDestinations = data.destinations.map(d => d.includes(' - ') ? d.split(' - ')[1] : d);
       drawField('Destination :', cleanDestinations.join(' - '), 0, true);
-      drawField('Date de départ :', data.startDate);
+      drawField('Date de dÃ©part :', data.startDate);
       drawField('Date de retour :', data.endDate);
 
       // Improved Transport display
       let transportTxt = data.transport;
-      if (transportTxt === 'Service') transportTxt = 'Véhicule de Service';
-      else if (transportTxt === 'Personnel') transportTxt = 'Véhicule Personnel';
+      if (transportTxt === 'Service') transportTxt = 'VÃ©hicule de Service';
+      else if (transportTxt === 'Personnel') transportTxt = 'VÃ©hicule Personnel';
       else if (transportTxt === 'Autre') transportTxt = 'Autre';
 
       drawField('Moyen de Transport :', transportTxt);
@@ -322,13 +322,13 @@ export async function generateMissionPDF(data, outputPath) {
       doc.moveDown(2);
 
       // --- Date/Location ---
-      doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
+      doc.font(fontBold).fontSize(11).text(`Fait Ã  Es-SÃ©nia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
 
       // --- Signatures Section Removed as requested ---
       doc.moveDown(10);
 
       // --- Footer ---
-      doc.font(fontNormal).fontSize(8).fillColor('#999').text('Elle ne peut être diffusée en externe sans l’autorisation écrite du Directeur Général', 40, 790, { align: 'center', width: 515 });
+      doc.font(fontNormal).fontSize(8).fillColor('#999').text('Elle ne peut Ãªtre diffusÃ©e en externe sans lâ€™autorisation Ã©crite du Directeur GÃ©nÃ©ral', 40, 790, { align: 'center', width: 515 });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));
@@ -352,7 +352,7 @@ export async function generateReturnAuthPDF(data, outputPath) {
       const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
-      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });
+      doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - SystÃ¨me Professionnel', 50, 65, { align: 'center', width: 500 });
       
       doc.moveTo(50, 85).lineTo(545, 85).strokeColor('#1a5f7a').lineWidth(2).stroke();
 
@@ -361,27 +361,27 @@ export async function generateReturnAuthPDF(data, outputPath) {
 
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
-      doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`RÃ©fÃ©rence: ${data.id.toUpperCase()}`, { align: 'right' });
+      doc.text(`GÃ©nÃ©rÃ© le: ${new Date().toLocaleDateString('fr-FR')} Ã  ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
 
       doc.moveDown(1);
       const startY1 = doc.y;
       doc.rect(50, startY1, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÉTAILS DE L'EMPLOYÉ", 60, startY1 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text("DÃ‰TAILS DE L'EMPLOYÃ‰", 60, startY1 + 5);
       
       doc.moveDown(0.8);
       doc.fillColor('#333').fontSize(11).font(fontNormal);
-      doc.text(`Nom et Prénom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
+      doc.text(`Nom et PrÃ©nom:`, 60, doc.y, { continued: true }).font(fontBold).text(`  ${data.empName.toUpperCase()}`);
 
       doc.moveDown(1.5);
       const startY2 = doc.y;
       doc.rect(50, startY2, 495, 20).fill('#f8fbfc');
-      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text('DÉTAILS DU RETOUR', 60, startY2 + 5);
+      doc.fillColor('#1a5f7a').fontSize(10).font(fontBold).text('DÃ‰TAILS DU RETOUR', 60, startY2 + 5);
       
       doc.moveDown(0.8);
       const officialReturnTime = data.returnedAt 
         ? new Date(data.returnedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-        : '—';
+        : 'â€”';
 
       let duration = data.actualDuration;
       if (!duration && data.guardConfirmedAt && data.returnedAt) {
@@ -396,13 +396,13 @@ export async function generateReturnAuthPDF(data, outputPath) {
       doc.fillColor('#333').fontSize(10).font(fontNormal);
       doc.text(`Heure de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR'));
       doc.font(fontNormal).text(`Heure de Retour: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialReturnTime);
-      doc.fillColor('#333').font(fontNormal).text(`Durée Totale: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(duration || '—');
-      doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason || '—');
+      doc.fillColor('#333').font(fontNormal).text(`DurÃ©e Totale: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(duration || 'â€”');
+      doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason || 'â€”');
 
       doc.moveDown(4);
       doc.rect(50, doc.y, 495, 1).fill('#eee');
       doc.moveDown(1);
-      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES ÉLECTRONIQUES', { align: 'center' });
+      doc.fontSize(11).font(fontBold).fillColor('#1a5f7a').text('VALIDATIONS ET SIGNATURES Ã‰LECTRONIQUES', { align: 'center' });
       doc.moveDown(1.5);
 
       const yPos = doc.y;
@@ -413,20 +413,20 @@ export async function generateReturnAuthPDF(data, outputPath) {
         doc.roundedRect(x, y, stampWidth, 85, 5).lineWidth(1.5).strokeColor(color).stroke();
         doc.rect(x + 1, y + 1, stampWidth - 2, 16).fill(color);
         doc.fontSize(8).fillColor('#fff').font(fontBold).text(label, x, y + 5, { width: stampWidth, align: 'center' });
-        doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
+        doc.fontSize(7).fillColor('#666').font(fontNormal).text('SignÃ© par:', x + 5, y + 22);
         doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
-        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
+        doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÃ‰RIFIÃ‰', x, y + 55, { width: stampWidth, align: 'center' });
         doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
       drawAttractiveStamp(50 + stampWidth + spacing, yPos, "L'ADMINISTRATION", data.adminApprovedBy || 'RH OFFICE', '#27ae60');
-      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÉCURITÉ / GARDE', data.returnConfirmedBy || 'AGENT GARDE', '#2c3e50');
+      drawAttractiveStamp(50 + (stampWidth + spacing) * 2, yPos, 'SÃ‰CURITÃ‰ / GARDE', data.returnConfirmedBy || 'AGENT GARDE', '#2c3e50');
 
       const footerY = 760;
       doc.moveTo(50, footerY).lineTo(545, footerY).strokeColor('#eee').lineWidth(0.5).stroke();
-      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve électronique sécurisée générée par le système RH.`, 50, footerY + 10, { align: 'center' });
-      doc.text('© 2026 TewfikSoft - Signature Numérique Certifiée.', { align: 'center' });
+      doc.fontSize(8).fillColor('#aaa').font(fontNormal).text(`Ce document est une preuve Ã©lectronique sÃ©curisÃ©e gÃ©nÃ©rÃ©e par le systÃ¨me RH.`, 50, footerY + 10, { align: 'center' });
+      doc.text('Â© 2026 TewfikSoft - Signature NumÃ©rique CertifiÃ©e.', { align: 'center' });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));
@@ -475,9 +475,9 @@ export async function generateWorkCertPDF(data, outputPath) {
       // Center Compartment: Text Block
       doc.fillColor('#000');
       
-      const capitalText = isFartak ? 'SOCIÉTÉ PAR ACTIONS' : 'SOCIÉTÉ PAR ACTIONS AU CAPITAL SOCIAL DE 6.606.000.000 DA';
+      const capitalText = isFartak ? 'SOCIÃ‰TÃ‰ PAR ACTIONS' : 'SOCIÃ‰TÃ‰ PAR ACTIONS AU CAPITAL SOCIAL DE 6.606.000.000 DA';
       const companyTitle = isFartak ? 'VERRE TECH SPA' : 'ALVER SPA';
-      const addressText = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la Révolution, Es-Sénia, Oran';
+      const addressText = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la RÃ©volution, Es-SÃ©nia, Oran';
       
       doc.font(fontBold).fontSize(6).text(capitalText, 150, 48, { width: 270, align: 'center' });
       doc.font(fontBold).fontSize(14).fillColor('#0f7b50').text(companyTitle, 150, 58, { width: 270, align: 'center' });
@@ -490,17 +490,17 @@ export async function generateWorkCertPDF(data, outputPath) {
       doc.font(fontNormal).fontSize(7.5).fillColor('#333').text(addressText, 150, 92, { width: 270, align: 'center' });
       
       if (!isFartak) {
-        doc.font(fontNormal).fontSize(7).fillColor('#333').text('Tél: 041 51 11 11 / 041 51 11 15', 150, 104, { width: 270, align: 'center' });
+        doc.font(fontNormal).fontSize(7).fillColor('#333').text('TÃ©l: 041 51 11 11 / 041 51 11 15', 150, 104, { width: 270, align: 'center' });
         doc.font(fontBold).fontSize(7).fillColor('#0f7b50').text('Web: https://www.alver.dz', 150, 113, { width: 270, align: 'center' });
       }
 
       // Right Compartment: Condor logo always
       if (fs.existsSync(logoRight)) {
         doc.image(logoRight, 430, 45, { width: 105, height: 50, fit: [105, 50], align: 'center', valign: 'center' });
-        doc.font(fontNormal).fontSize(7).fillColor('#000').text('N° ER.216.RO', 430, 100, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(7).fillColor('#000').text('NÂ° ER.216.RO', 430, 100, { width: 115, align: 'center' });
       } else {
         doc.font(fontBold).fontSize(14).fillColor('#2980b9').text('Condor', 430, 60, { width: 115, align: 'center' });
-        doc.font(fontNormal).fontSize(7).fillColor('#000').text('N° ER.216.RO', 430, 85, { width: 115, align: 'center' });
+        doc.font(fontNormal).fontSize(7).fillColor('#000').text('NÂ° ER.216.RO', 430, 85, { width: 115, align: 'center' });
       }
 
       // --- Banner ---
@@ -509,28 +509,28 @@ export async function generateWorkCertPDF(data, outputPath) {
 
       // --- Body ---
       const companyLabel = isFartak ? 'Verre Tech Spa' : 'ALVER Spa';
-      const addressLabel = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la Révolution, Es-Sénia, Oran';
+      const addressLabel = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la RÃ©volution, Es-SÃ©nia, Oran';
       
       doc.fillColor('#000');
-      doc.font(fontOblique).fontSize(11).text(`Nous soussignés, La société ${companyLabel}, sise à : ${addressLabel}.`, 50, 195, { width: 495 });
+      doc.font(fontOblique).fontSize(11).text(`Nous soussignÃ©s, La sociÃ©tÃ© ${companyLabel}, sise Ã  : ${addressLabel}.`, 50, 195, { width: 495 });
 
       const emp = data.emp || {};
       const genderTitle = emp.gender === 'F' ? 'Madame' : 'Monsieur';
       
       const attY = 230;
-      doc.font(fontBold).fontSize(11).fillColor('#000').text('Attestons par la présente que :', 50, attY);
-      const attWidth = doc.widthOfString('Attestons par la présente que :');
+      doc.font(fontBold).fontSize(11).fillColor('#000').text('Attestons par la prÃ©sente que :', 50, attY);
+      const attWidth = doc.widthOfString('Attestons par la prÃ©sente que :');
       doc.fillColor('#e53e3e').text(` ${genderTitle}`, 50 + attWidth + 5, attY);
       const genderWidth = doc.widthOfString(` ${genderTitle}`);
       doc.moveTo(50 + attWidth + 5 + genderWidth + 5, attY + 10).lineTo(530, attY + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
 
       // Custom French Date Formatter Helper
       const formatDateFr = (dateStr) => {
-        if (!dateStr) return '—';
+        if (!dateStr) return 'â€”';
         try {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return dateStr;
-          const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+          const months = ['Janvier', 'FÃ©vrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'AoÃ»t', 'Septembre', 'Octobre', 'Novembre', 'DÃ©cembre'];
           return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
         } catch (e) {
           return dateStr;
@@ -542,26 +542,26 @@ export async function generateWorkCertPDF(data, outputPath) {
       const drawCertField = (label, value, isRed = false) => {
         doc.font(fontBold).fontSize(11).fillColor('#000').text(label, 50, y);
         doc.text(':', 180, y);
-        doc.font(fontBold).fillColor(isRed ? '#e53e3e' : '#000').text(value || '—', 200, y);
+        doc.font(fontBold).fillColor(isRed ? '#e53e3e' : '#000').text(value || 'â€”', 200, y);
         doc.moveTo(200, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
         y += 30;
       };
 
       drawCertField('Nom', String(emp.lastName_fr || '').toUpperCase());
-      drawCertField('Prénom', String(emp.firstName_fr || ''));
-      drawCertField('En sa qualité de', String(emp.jobTitle_fr || ''));
-      drawCertField('Né(e) le', formatDateFr(emp.birthDate));
-      drawCertField('N° Sécurité Sociale', String(emp.socialNumber || '—'));
-      drawCertField('Nature du contrat', String(emp.contractType || '—'));
+      drawCertField('PrÃ©nom', String(emp.firstName_fr || ''));
+      drawCertField('En sa qualitÃ© de', String(emp.jobTitle_fr || ''));
+      drawCertField('NÃ©(e) le', formatDateFr(emp.birthDate));
+      drawCertField('NÂ° SÃ©curitÃ© Sociale', String(emp.socialNumber || 'â€”'));
+      drawCertField('Nature du contrat', String(emp.contractType || 'â€”'));
 
-      // Est employé(e)...
-      doc.font(fontBold).fontSize(11).fillColor('#000').text('Est employé(e) au sein de notre organisme depuis le :', 50, y);
-      const estLabelWidth = doc.widthOfString('Est employé(e) au sein de notre organisme depuis le :');
+      // Est employÃ©(e)...
+      doc.font(fontBold).fontSize(11).fillColor('#000').text('Est employÃ©(e) au sein de notre organisme depuis le :', 50, y);
+      const estLabelWidth = doc.widthOfString('Est employÃ©(e) au sein de notre organisme depuis le :');
       doc.moveTo(50, y + 10).lineTo(50 + estLabelWidth, y + 10).strokeColor('#000').lineWidth(0.8).stroke();
       
       const valX = 50 + estLabelWidth + 5;
-      doc.font(fontBold).text(`${formatDateFr(emp.startDate)} ... à ce jour`, valX, y);
-      const valWidth = doc.widthOfString(`${formatDateFr(emp.startDate)} ... à ce jour`);
+      doc.font(fontBold).text(`${formatDateFr(emp.startDate)} ... Ã  ce jour`, valX, y);
+      const valWidth = doc.widthOfString(`${formatDateFr(emp.startDate)} ... Ã  ce jour`);
       doc.moveTo(valX + valWidth + 5, y + 10).lineTo(530, y + 10).strokeColor('#ccc').lineWidth(0.5).dash(1, { space: 1.5 }).stroke().undash();
       
       y += 30;
@@ -574,7 +574,7 @@ export async function generateWorkCertPDF(data, outputPath) {
 
       // Download and Embed Verification QR Code
       try {
-        const qrText = `ATTESTATION DE TRAVAIL\nSociété: ${companyLabel}\nNom: ${emp.lastName_fr}\nPrénom: ${emp.firstName_fr}\nQualité: ${emp.jobTitle_fr}\nMatricule: ${emp.clockingId}\nContrat: ${emp.contractType}\nMotif: ${data.reason}\nID: ${data.id}`;
+        const qrText = `ATTESTATION DE TRAVAIL\nSociÃ©tÃ©: ${companyLabel}\nNom: ${emp.lastName_fr}\nPrÃ©nom: ${emp.firstName_fr}\nQualitÃ©: ${emp.jobTitle_fr}\nMatricule: ${emp.clockingId}\nContrat: ${emp.contractType}\nMotif: ${data.reason}\nID: ${data.id}`;
         await downloadQRCode(qrText, tempQrPath);
         if (fs.existsSync(tempQrPath)) {
           doc.image(tempQrPath, 50, 670, { width: 85, height: 85 });
@@ -586,7 +586,7 @@ export async function generateWorkCertPDF(data, outputPath) {
       }
 
       // Date Stamp
-      doc.font(fontBold).fontSize(11).fillColor('#000').text(`Fait à Es-Sénia, le : ${formatDateFr(new Date())}`, 330, 730);
+      doc.font(fontBold).fontSize(11).fillColor('#000').text(`Fait Ã  Es-SÃ©nia, le : ${formatDateFr(new Date())}`, 330, 730);
 
       doc.end();
       stream.on('finish', () => {
@@ -625,42 +625,48 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(10).fillColor('#1a5f7a').text('ALVER SPA', 25, 30, { align: 'center', width: 80 });
       doc.font(fontNormal).fontSize(8).fillColor('#666').text('2026', 25, 42, { align: 'center', width: 80 });
       
-      const talonYStart = 60;
-      const drawTalonField = (label, val, y) => {
-        doc.font(fontBold).fontSize(7).fillColor('#000').text(label, 25, y);
-        doc.font(fontNormal).fontSize(7.5).fillColor('#333').text(val || '—', 25, y + 9, { width: 80, height: 18 });
-        doc.moveTo(25, y + 25).lineTo(105, y + 25).strokeColor('#ccc').lineWidth(0.5).stroke();
+      let talonY = 60;
+      const drawTalonField = (label, val) => {
+        doc.font(fontBold).fontSize(7).fillColor('#000').text(label, 25, talonY);
+        doc.font(fontNormal).fontSize(6.5).fillColor('#333').text(val || 'â€”', 25, talonY + 9, { width: 80 });
+        talonY = doc.y + 4;
+        doc.moveTo(25, talonY).lineTo(105, talonY).strokeColor('#ccc').lineWidth(0.5).stroke();
+        talonY += 6;
       };
       
-      drawTalonField('N° :', data.id ? data.id.toUpperCase().slice(0, 8) : '—', talonYStart);
-      drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : '—', talonYStart + 30);
-      drawTalonField('CLIENT :', data.clientName, talonYStart + 60);
+      drawTalonField('NÂ° :', data.id ? data.id.toUpperCase().slice(0, 8) : 'â€”');
+      drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : 'â€”');
+      drawTalonField('CLIENT :', data.clientName);
       
-      // Summarize the products in a small text field
-      const articlesSummary = (data.articles || []).map(a => `${a.prod} (${a.qty})`).join(', ');
-      drawTalonField('PRODUIT :', articlesSummary, talonYStart + 110);
-      drawTalonField('CODE :', (data.articles || []).map(a => a.code).join(', '), talonYStart + 160);
-      drawTalonField('QUANTITE :', (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString(), talonYStart + 210);
-      drawTalonField('N° FACTURE :', data.factureNum, talonYStart + 260);
+      const articlesSummary = (data.articles || []).map(a => a.prod).join(', ');
+      drawTalonField('PRODUITS :', articlesSummary);
       
-      // Mode de paiement checkboxes in talon
-      doc.font(fontBold).fontSize(7).text('MODE DE PAIEMENT :', 25, talonYStart + 310);
-      const talonDrawCheck = (label, isChecked, y) => {
-        doc.rect(25, y, 7, 7).strokeColor('#000').lineWidth(0.8).stroke();
+      const codesSummary = (data.articles || []).map(a => `${a.code} (${a.qty})`).join(', ');
+      drawTalonField('CODES & QTE :', codesSummary);
+      
+      const totalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0).toString();
+      drawTalonField('QTE TOTALE :', totalQty);
+      
+      drawTalonField('NÂ° FACTURE :', data.factureNum);
+      
+      doc.font(fontBold).fontSize(7).text('MODE DE PAIEMENT :', 25, talonY);
+      talonY += 12;
+      const talonDrawCheck = (label, isChecked) => {
+        doc.rect(25, talonY, 7, 7).strokeColor('#000').lineWidth(0.8).stroke();
         if (isChecked) {
-          doc.moveTo(25, y).lineTo(32, y + 7).stroke();
-          doc.moveTo(32, y).lineTo(25, y + 7).stroke();
+          doc.moveTo(25, talonY).lineTo(32, talonY + 7).stroke();
+          doc.moveTo(32, talonY).lineTo(25, talonY + 7).stroke();
         }
-        doc.font(fontNormal).fontSize(6.5).text(label, 36, y + 1);
+        doc.font(fontNormal).fontSize(6.5).text(label, 36, talonY + 1);
+        talonY += 10;
       };
       
       const rawPayMeth = String(data.paymentMethod || '').toLowerCase();
-      // Normalize: remove accents so 'chèque' matches 'cheque', 'espèce' matches 'espece'
       const payMeth = rawPayMeth.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      talonDrawCheck('VIREMENT', payMeth.includes('vire'), talonYStart + 322);
-      talonDrawCheck('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), talonYStart + 332);
-      talonDrawCheck('CHEQUE', payMeth.includes('cheq'), talonYStart + 342);
-      talonDrawCheck('ESPECE', payMeth.includes('esp') || payMeth.includes('cash'), talonYStart + 352);
+      talonDrawCheck('VIREMENT', payMeth.includes('vire'));
+      talonDrawCheck('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'));
+      talonDrawCheck('CHEQUE', payMeth.includes('cheq'));
+      talonDrawCheck('ESPECE', payMeth.includes('esp') || payMeth.includes('cash'));
 
       // --- 2. Draw Torn Dotted Line ---
       doc.moveTo(115, 20).lineTo(115, 575).dash(3, { space: 3 }).strokeColor('#999').lineWidth(1).stroke().undash();
@@ -682,9 +688,9 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(13).fillColor('#1a5f7a').text('BON DE VENTE PRODUIT FINI', 125, 25, { align: 'center', width: 695 });
       doc.font(fontBold).fontSize(10).fillColor('#000').text('AUTORISATION DE SORTIE', 125, 42, { align: 'center', width: 695 });
 
-      // N° / Year Right
+      // NÂ° / Year Right
       const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
-      doc.font(fontBold).fontSize(9).fillColor('#000').text(`N° :  ${data.id ? data.id.toUpperCase().slice(0, 8) : '—'} / 2026`, 690, 26, { align: 'right', width: 120 });
+      doc.font(fontBold).fontSize(9).fillColor('#000').text(`NÂ° :  ${data.id ? data.id.toUpperCase().slice(0, 8) : 'â€”'} / 2026`, 690, 26, { align: 'right', width: 120 });
       doc.font(fontNormal).fontSize(8).fillColor('#666').text(`Date :  ${dateStr}`, 690, 42, { align: 'right', width: 120 });
 
       // --- 4. Draw The 5 Vertically Stacked Sections ---
@@ -705,11 +711,11 @@ export async function generateBonVentePDF(data, outputPath) {
         doc.font(fontBold).fontSize(6).fillColor('#fff').text(title.toUpperCase(), x, y + 4, { width: 95, align: 'center' });
         
         if (name) {
-          doc.font(fontNormal).fontSize(5).fillColor('#333').text('Signé électroniquement:', x, y + 16, { width: 95, align: 'center' });
+          doc.font(fontNormal).fontSize(5).fillColor('#333').text('SignÃ© Ã©lectroniquement:', x, y + 16, { width: 95, align: 'center' });
           doc.font(fontBold).fontSize(7).fillColor('#000').text(name, x, y + 25, { width: 95, align: 'center' });
-          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#27ae60').text('DOCUMENT VALIDÉ', x, y + 38, { width: 95, align: 'center' });
+          doc.font('Helvetica-Oblique').fontSize(5).fillColor('#27ae60').text('DOCUMENT VALIDÃ‰', x, y + 38, { width: 95, align: 'center' });
         } else {
-          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signé', x, y + 25, { width: 95, align: 'center' });
+          doc.font(fontNormal).fontSize(7).fillColor('#ccc').text('Non signÃ©', x, y + 25, { width: 95, align: 'center' });
         }
       };
       
@@ -726,7 +732,7 @@ export async function generateBonVentePDF(data, outputPath) {
         doc.font(fontBold).fontSize(6.5).fillColor('#000');
         doc.text('CODE', x + 5, y + 3);
         doc.text('PRODUIT', x + 55, y + 3);
-        doc.text('QUANTITÉ', x + 175, y + 3);
+        doc.text('QUANTITÃ‰', x + 175, y + 3);
         
         // Grid
         doc.rect(x, y, 220, 53).strokeColor('#000').lineWidth(0.8).stroke();
@@ -739,9 +745,9 @@ export async function generateBonVentePDF(data, outputPath) {
         for (let i = 0; i < 3; i++) {
           const art = articles[i];
           if (art) {
-            doc.text(art.code || '—', x + 5, rowY + 3);
-            doc.text(art.prod || '—', x + 55, rowY + 3, { width: 110, height: 9 });
-            doc.font(fontBold).text(art.qty || '—', x + 175, rowY + 3);
+            doc.text(art.code || 'â€”', x + 5, rowY + 3);
+            doc.text(art.prod || 'â€”', x + 55, rowY + 3, { width: 110, height: 9 });
+            doc.font(fontBold).text(art.qty || 'â€”', x + 175, rowY + 3);
             doc.font(fontNormal);
           }
           rowY += 14;
@@ -749,7 +755,7 @@ export async function generateBonVentePDF(data, outputPath) {
         }
       };
 
-      // ── SECTION 1: SERVICE VENTE ──────────────────────────────────────────
+      // â”€â”€ SECTION 1: SERVICE VENTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       let y = 70;
       doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
       drawSectionHeader(y, 'SERVICE VENTE');
@@ -766,10 +772,10 @@ export async function generateBonVentePDF(data, outputPath) {
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
-      doc.font(fontNormal).fontSize(6.5).text(data.clientName || '—', startX + 60, insideY + 8, { width: 105, height: 20 });
+      doc.font(fontNormal).fontSize(6.5).text(data.clientName || 'â€”', startX + 60, insideY + 8, { width: 105, height: 20 });
 
-      doc.font(fontBold).text('BC N° :', startX + 5, insideY + 30);
-      doc.font(fontNormal).text(data.bcNum || '—', startX + 60, insideY + 30);
+      doc.font(fontBold).text('BC NÂ° :', startX + 5, insideY + 30);
+      doc.font(fontNormal).text(data.bcNum || 'â€”', startX + 60, insideY + 30);
 
       doc.font(fontBold).text('DATE :', startX + 5, insideY + 52);
       doc.font(fontNormal).text(data.commercialDate || dateStr, startX + 60, insideY + 52);
@@ -803,8 +809,8 @@ export async function generateBonVentePDF(data, outputPath) {
 
       drawCheckbox('VIREMENT', payMeth.includes('vire'), payX, insideY + 20);
       drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX, insideY + 36);
-      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX, insideY + 52);
-      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX, insideY + 68);
+      drawCheckbox('CHÃˆQUE', payMeth.includes('cheq'), payX, insideY + 52);
+      drawCheckbox('ESPÃˆCE', payMeth.includes('esp') || payMeth.includes('cash'), payX, insideY + 68);
       
       let transX = startX + 500;
       doc.font(fontBold).fontSize(7).text('TRANSPORT :', transX, insideY + 6);
@@ -819,7 +825,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Le Commercial', data.commercialName, '#2b5797');
 
 
-      // ── SECTION 2: SERVICE EXPEDITION ───────────────────────────────────────
+      // â”€â”€ SECTION 2: SERVICE EXPEDITION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       y += sectionHeight + gap;
       doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
       drawSectionHeader(y, 'SERVICE EXPEDITION');
@@ -831,11 +837,11 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridH(startX, startX + 170, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
-      doc.text('N° BON DE LIVRAISON :', startX + 5, insideY + 8);
-      doc.font(fontNormal).text(data.blNum || '—', startX + 110, insideY + 8);
+      doc.text('NÂ° BON DE LIVRAISON :', startX + 5, insideY + 8);
+      doc.font(fontNormal).text(data.blNum || 'â€”', startX + 110, insideY + 8);
 
       doc.font(fontBold).text('TRANSPORTEUR :', startX + 5, insideY + 30);
-      doc.font(fontNormal).text(data.transporter || '—', startX + 110, insideY + 30);
+      doc.font(fontNormal).text(data.transporter || 'â€”', startX + 110, insideY + 30);
 
       doc.font(fontBold).text('DATE :', startX + 5, insideY + 52);
       doc.font(fontBold).fillColor('#e53e3e').text(data.shippingDate || dateStr, startX + 110, insideY + 52);
@@ -855,21 +861,21 @@ export async function generateBonVentePDF(data, outputPath) {
 
       let logX = startX + 415;
       doc.font(fontBold).fontSize(6.5).text('CHAUFFEUR :', logX, insideY + 8);
-      doc.font(fontNormal).fontSize(7.5).text(data.driverName || '—', logX + 100, insideY + 8);
+      doc.font(fontNormal).fontSize(7.5).text(data.driverName || 'â€”', logX + 100, insideY + 8);
 
       doc.font(fontBold).fontSize(6.5).text('MATRICULE DE CAMION :', logX, insideY + 30);
-      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || '—', logX + 100, insideY + 30);
+      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || 'â€”', logX + 100, insideY + 30);
 
-      doc.font(fontBold).fontSize(6.5).text('N° PERMIS DE CONDUITE :', logX, insideY + 52);
-      doc.font(fontNormal).fontSize(7.5).text(data.pcNum || '—', logX + 100, insideY + 52);
+      doc.font(fontBold).fontSize(6.5).text('NÂ° PERMIS DE CONDUITE :', logX, insideY + 52);
+      doc.font(fontNormal).fontSize(7.5).text(data.pcNum || 'â€”', logX + 100, insideY + 52);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
-      drawStamp(startX + 590, insideY + 16, 'Expédition GDS', data.gdsName, '#e3a21a');
+      drawStamp(startX + 590, insideY + 16, 'ExpÃ©dition GDS', data.gdsName, '#e3a21a');
 
 
-      // ── SECTION 3: SERVICE FACTURATION ──────────────────────────────────────
+      // â”€â”€ SECTION 3: SERVICE FACTURATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       y += sectionHeight + gap;
       doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
       drawSectionHeader(y, 'SERVICE FACTURATION');
@@ -880,11 +886,11 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridH(startX, startX + 250, insideY + 35);
       
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
-      doc.text('N° FACTURE PRODUIT :', startX + 5, insideY + 15);
-      doc.font(fontNormal).text(data.factureNum || '—', startX + 110, insideY + 15);
+      doc.text('NÂ° FACTURE PRODUIT :', startX + 5, insideY + 15);
+      doc.font(fontNormal).text(data.factureNum || 'â€”', startX + 110, insideY + 15);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 5, insideY + 50);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 110, insideY + 50);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : 'â€”', startX + 110, insideY + 50);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -899,8 +905,8 @@ export async function generateBonVentePDF(data, outputPath) {
       
       drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 22);
       drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 48);
-      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
-      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
+      drawCheckbox('CHÃˆQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
+      drawCheckbox('ESPÃˆCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
@@ -908,7 +914,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Facturation', data.financeName, '#00a300');
 
 
-      // ── SECTION 4: SERVICE COMPTABILITE ─────────────────────────────────────
+      // â”€â”€ SECTION 4: SERVICE COMPTABILITE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       y += sectionHeight + gap;
       doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
       drawSectionHeader(y, 'SERVICE COMPTABILITE');
@@ -921,13 +927,13 @@ export async function generateBonVentePDF(data, outputPath) {
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
       doc.text('CLIENT :', startX + 5, insideY + 8);
-      doc.font(fontNormal).fontSize(6.5).text(data.clientName || '—', startX + 110, insideY + 8, { width: 135, height: 20 });
+      doc.font(fontNormal).fontSize(6.5).text(data.clientName || 'â€”', startX + 110, insideY + 8, { width: 135, height: 20 });
 
-      doc.font(fontBold).text('N° FACTURE PRODUIT :', startX + 5, insideY + 30);
-      doc.font(fontNormal).text(data.factureNum || '—', startX + 110, insideY + 30);
+      doc.font(fontBold).text('NÂ° FACTURE PRODUIT :', startX + 5, insideY + 30);
+      doc.font(fontNormal).text(data.factureNum || 'â€”', startX + 110, insideY + 30);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 5, insideY + 52);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : '—', startX + 110, insideY + 52);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${data.amount} DA` : 'â€”', startX + 110, insideY + 52);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -942,16 +948,16 @@ export async function generateBonVentePDF(data, outputPath) {
       
       drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 22);
       drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 48);
-      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
-      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
+      drawCheckbox('CHÃˆQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
+      drawCheckbox('ESPÃˆCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       doc.font(fontBold).fontSize(7).text('VISA ET CACHET :', startX + 590, insideY + 6);
-      drawStamp(startX + 590, insideY + 16, 'Comptabilité', data.financeName, '#00a300');
+      drawStamp(startX + 590, insideY + 16, 'ComptabilitÃ©', data.financeName, '#00a300');
 
 
-      // ── SECTION 5: POSTE DE GARDE ───────────────────────────────────────────
+      // â”€â”€ SECTION 5: POSTE DE GARDE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       y += sectionHeight + gap;
       doc.rect(startX, y, totalWidth, sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
       drawSectionHeader(y, 'POSTE DE GARDE');
@@ -963,14 +969,14 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridH(startX, startX + 220, insideY + 44);
 
       doc.font(fontBold).fontSize(7.5).fillColor('#000');
-      doc.text('N° BON DE LIVRAISON :', startX + 5, insideY + 8);
-      doc.font(fontNormal).text(data.blNum || '—', startX + 110, insideY + 8);
+      doc.text('NÂ° BON DE LIVRAISON :', startX + 5, insideY + 8);
+      doc.font(fontNormal).text(data.blNum || 'â€”', startX + 110, insideY + 8);
 
       doc.font(fontBold).text('CHAUFFEUR :', startX + 5, insideY + 30);
-      doc.font(fontNormal).text(data.driverName || '—', startX + 110, insideY + 30);
+      doc.font(fontNormal).text(data.driverName || 'â€”', startX + 110, insideY + 30);
 
       doc.font(fontBold).fontSize(6.5).text('MATRICULE DE CAMION :', startX + 5, insideY + 52);
-      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || '—', startX + 110, insideY + 52);
+      doc.font(fontNormal).fontSize(7.5).text(data.vehiclePlate || 'â€”', startX + 110, insideY + 52);
 
       doc.moveTo(startX + 220, insideY).lineTo(startX + 220, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
@@ -980,14 +986,14 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridV(startX + 310, insideY, y + sectionHeight);
 
       let gateX = startX + 225;
-      doc.font(fontBold).text("HEURE D'ENTRÉE :", gateX, insideY + 8);
-      doc.font(fontNormal).text(data.entryTime || '—', gateX + 90, insideY + 8);
+      doc.font(fontBold).text("HEURE D'ENTRÃ‰E :", gateX, insideY + 8);
+      doc.font(fontNormal).text(data.entryTime || 'â€”', gateX + 90, insideY + 8);
 
       doc.font(fontBold).text("HEURE DE SORTIE :", gateX, insideY + 30);
-      doc.font(fontNormal).text(data.exitTime || '—', gateX + 90, insideY + 30);
+      doc.font(fontNormal).text(data.exitTime || 'â€”', gateX + 90, insideY + 30);
 
       doc.font(fontBold).text("EQUIPE :", gateX, insideY + 52);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.guardShift || '—', gateX + 90, insideY + 52);
+      doc.font(fontBold).fillColor('#e53e3e').text(data.guardShift || 'â€”', gateX + 90, insideY + 52);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 410, insideY).lineTo(startX + 410, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -995,12 +1001,12 @@ export async function generateBonVentePDF(data, outputPath) {
       // Quantity sum & gate signatures
       let quantX = startX + 420;
       const totalQty = (data.articles || []).reduce((acc, cur) => acc + parseInt(cur.qty || 0), 0);
-      doc.font(fontBold).fontSize(8.5).text('QUANTITÉ TOTALE :', quantX, insideY + 12);
-      doc.font(fontBold).fillColor('#1b5e20').fontSize(10).text(`${totalQty} unités`, quantX + 10, insideY + 25);
+      doc.font(fontBold).fontSize(8.5).text('QUANTITÃ‰ TOTALE :', quantX, insideY + 12);
+      doc.font(fontBold).fillColor('#1b5e20').fontSize(10).text(`${totalQty} unitÃ©s`, quantX + 10, insideY + 25);
       doc.fillColor('#000');
 
       doc.font(fontBold).fontSize(7.5).text('VISA CHAUFFEUR :', quantX, insideY + 42);
-      doc.font('Helvetica-Oblique').fontSize(6).text('Lu et Approuvé', quantX + 10, insideY + 52);
+      doc.font('Helvetica-Oblique').fontSize(6).text('Lu et ApprouvÃ©', quantX + 10, insideY + 52);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).stroke();
 
@@ -1008,7 +1014,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
 
       // --- Footer Security line ---
-      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${(data.id || '').toUpperCase().slice(0, 8)}`, startX, 580, { align: 'center', width: totalWidth });
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document Ã©lectronique sÃ©curisÃ© ALVER Spa - RÃ©f: BVA-${(data.id || '').toUpperCase().slice(0, 8)}`, startX, 580, { align: 'center', width: totalWidth });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));

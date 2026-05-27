@@ -244,6 +244,7 @@ export async function generateMissionPDF(data, outputPath) {
 
       // Left Compartment: Company Branding
       const isFartak = String(data.companyId || '').toLowerCase() === 'vt' || 
+                       String(data.companyId || '').toLowerCase() === 'verre_tech' ||
                        String(data.companyName || '').toLowerCase().includes('fartak') ||
                        String(data.companyName || '').toLowerCase().includes('verre tech');
       
@@ -453,6 +454,7 @@ export async function generateWorkCertPDF(data, outputPath) {
       const logoRight = fs.existsSync(path.join(assetsDir, 'Condor.png')) ? path.join(assetsDir, 'Condor.png') : path.join(assetsDir, 'logo_right.png');
 
       const isFartak = String(data.companyId || '').toLowerCase() === 'vt' || 
+                       String(data.companyId || '').toLowerCase() === 'verre_tech' ||
                        String(data.companyName || '').toLowerCase().includes('fartak') ||
                        String(data.companyName || '').toLowerCase().includes('verre tech');
 
@@ -472,18 +474,25 @@ export async function generateWorkCertPDF(data, outputPath) {
 
       // Center Compartment: Text Block
       doc.fillColor('#000');
-      doc.font(fontBold).fontSize(6).text('SOCIÉTÉ PAR ACTIONS AU CAPITAL SOCIAL DE 6.606.000.000 DA', 150, 48, { width: 270, align: 'center' });
-      doc.font(fontBold).fontSize(14).fillColor('#0f7b50').text('ALVER SPA', 150, 58, { width: 270, align: 'center' });
+      
+      const capitalText = isFartak ? 'SOCIÉTÉ PAR ACTIONS' : 'SOCIÉTÉ PAR ACTIONS AU CAPITAL SOCIAL DE 6.606.000.000 DA';
+      const companyTitle = isFartak ? 'VERRE TECH SPA' : 'ALVER SPA';
+      const addressText = isFartak ? 'Zone Industrielle, Oran' : 'Avenue des Martyrs de la Révolution, Es-Sénia, Oran';
+      
+      doc.font(fontBold).fontSize(6).text(capitalText, 150, 48, { width: 270, align: 'center' });
+      doc.font(fontBold).fontSize(14).fillColor('#0f7b50').text(companyTitle, 150, 58, { width: 270, align: 'center' });
       
       // Draw underline under central title
       doc.font(fontBold).fontSize(9).fillColor('#000').text('Direction des Ressources Humaines', 150, 76, { width: 270, align: 'center' });
       const drhWidth = doc.widthOfString('Direction des Ressources Humaines');
       doc.moveTo(285 - drhWidth / 2, 86).lineTo(285 + drhWidth / 2, 86).strokeColor('#000').lineWidth(0.8).stroke();
       
-      doc.font(fontNormal).fontSize(7.5).fillColor('#333').text('Avenue des Martyrs de la Révolution, Es-Sénia, Oran', 150, 92, { width: 270, align: 'center' });
+      doc.font(fontNormal).fontSize(7.5).fillColor('#333').text(addressText, 150, 92, { width: 270, align: 'center' });
       
-      doc.font(fontNormal).fontSize(7).fillColor('#333').text('Tél: 041 51 11 11 / 041 51 11 15', 150, 104, { width: 270, align: 'center' });
-      doc.font(fontBold).fontSize(7).fillColor('#0f7b50').text('Web: https://www.alver.dz', 150, 113, { width: 270, align: 'center' });
+      if (!isFartak) {
+        doc.font(fontNormal).fontSize(7).fillColor('#333').text('Tél: 041 51 11 11 / 041 51 11 15', 150, 104, { width: 270, align: 'center' });
+        doc.font(fontBold).fontSize(7).fillColor('#0f7b50').text('Web: https://www.alver.dz', 150, 113, { width: 270, align: 'center' });
+      }
 
       // Right Compartment: Condor logo always
       if (fs.existsSync(logoRight)) {

@@ -1979,7 +1979,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       bva.guardId = fromId;
       bva.guardDate = new Date().toLocaleDateString('fr-FR');
       const tzOpts = { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' };
-      bva.entryTime = new Date(new Date().getTime() - 20 * 60 * 1000).toLocaleTimeString('fr-FR', tzOpts);
+      bva.entryTime = new Date(bva.createdAt).toLocaleTimeString('fr-FR', tzOpts);
       bva.exitTime = new Date().toLocaleTimeString('fr-FR', tzOpts);
       bva.guardShift = shift;
       saveDB(db2);

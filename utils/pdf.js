@@ -729,8 +729,7 @@ export async function generateBonVentePDF(data, outputPath) {
         const cx = x - 2; // stamp left edge
 
         // === OUTER BORDER ===
-        doc.roundedRect(cx, y, stampW, stampH, 5)
-           .lineWidth(1.5).strokeColor(formalColor).stroke();
+        // Removed as per request to keep it inside the box without an outer frame
 
         // === TOP ROW: lock icon | text | green check ===
         // Lock circle
@@ -1078,7 +1077,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
 
       // --- Footer Security line (must be on page 1, before y=595) ---
-      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${seqStr}/${bvaYear}`, startX, 557, { align: 'center', width: totalWidth });
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: BVA-${seqStr}/${bvaYear}`, startX, 580, { align: 'center', width: totalWidth });
 
       doc.end();
       stream.on('finish', () => resolve(outputPath));

@@ -69,8 +69,19 @@ export const loadConfig = () => {
 
 export const saveDB = (db) => {
   try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(db));
+    const jsonStr = JSON.stringify(db);
+    fs.writeFileSync(DB_PATH, jsonStr);
     log(`[DB] Saved successfully: ${db.hr_employees?.length || 0} employees.`);
+    
+    // Sync to Google Drive (Persistent Cloud Storage)
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
+    fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: jsonStr,
+        headers: { 'Content-Type': 'application/json' }
+    }).then(res => log(`[DB] Cloud Sync: ${res.status}`))
+      .catch(e => log(`[DB] Cloud Sync Error: ${e.message}`));
+
     return true;
   } catch (e) {
     log(`[DB] Save Error: ${e.message}`);

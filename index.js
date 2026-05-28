@@ -32,6 +32,15 @@ const updateConfig = (cfg) => {
     }
   }
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cleanCfg, null, 2));
+  
+  // Persist authorized users in DB so it uploads to Google Drive
+  try {
+    const db = loadDB();
+    db.authorized_users = cleanCfg.authorized_users;
+    saveDB(db);
+  } catch (e) {
+    console.error("Failed to save authorized_users to DB", e);
+  }
 };
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -3627,6 +3636,21 @@ if (isMain) {
           if (data && data.includes('hr_employees')) {
             fs.writeFileSync(DB_PATH, data);
             log(`Bootstrap OK: DB saved. Size: ${data.length} bytes.`);
+            
+            // Restore config.json authorized_users from Cloud
+            try {
+              const dbParsed = JSON.parse(data);
+              if (dbParsed.authorized_users && dbParsed.authorized_users.length > 0) {
+                let cfg = { authorized_users: [] };
+                if (fs.existsSync(CONFIG_PATH)) cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+                cfg.authorized_users = dbParsed.authorized_users;
+                fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+                log(`Bootstrap OK: Restored ${cfg.authorized_users.length} authorized users to config.json`);
+              }
+            } catch (cfgErr) {
+              log(`Bootstrap Config Restore Error: ${cfgErr.message}`);
+            }
+
           } else {
             log('Bootstrap Warning: Fetched data is invalid or empty.');
           }

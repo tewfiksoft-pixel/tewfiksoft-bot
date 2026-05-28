@@ -607,7 +607,8 @@ export async function generateWorkCertPDF(data, outputPath) {
 }
 
 export async function generateBonVentePDF(data, outputPath) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    const tempQrPath = path.join(path.dirname(outputPath), `qr_${data.id}.png`);
     try {
       const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 20 });
       const stream = fs.createWriteStream(outputPath);
@@ -685,6 +686,20 @@ export async function generateBonVentePDF(data, outputPath) {
       talonDrawCheck('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'));
       talonDrawCheck('CHEQUE', payMeth.includes('cheq'));
       talonDrawCheck('ESPECE', payMeth.includes('esp') || payMeth.includes('cash'));
+
+      // --- QR CODE AT BOTTOM OF TALON ---
+      try {
+        const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+        const articlesTxt = (data.articles || []).map(a => `${a.code}:${a.qty}`).join(',');
+        const qrText = `BVA:${bvaIdFull.replace('BVA ','')}\nDate:${dateStr}\nClient:${data.clientName}\nFacture:${data.factureNum || '-'}\nMontant:${data.amount || '-'} DA\nArticles:${articlesTxt}`;
+        await downloadQRCode(qrText, tempQrPath);
+        if (fs.existsSync(tempQrPath)) {
+          doc.image(tempQrPath, 30, 485, { width: 70, height: 70 });
+        }
+      } catch (qrErr) {
+        doc.rect(30, 485, 70, 70).strokeColor('#ccc').stroke();
+        doc.fontSize(8).fillColor('#333').text('QR CODE', 35, 515);
+      }
 
       // --- 2. Draw Torn Dotted Line ---
       doc.moveTo(115, 20).lineTo(115, 575).dash(3, { space: 3 }).strokeColor('#999').lineWidth(1).stroke().undash();
@@ -1087,9 +1102,16 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: -${seqStr}/${bvaYear}`, startX, 565, { align: 'center', width: totalWidth });
 
       doc.end();
-      stream.on('finish', () => resolve(outputPath));
-      stream.on('error', reject);
+      stream.on('finish', () => {
+        if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
+        resolve(outputPath);
+      });
+      stream.on('error', (err) => {
+        if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
+        reject(err);
+      });
     } catch (e) {
+      if (fs.existsSync(tempQrPath)) fs.unlinkSync(tempQrPath);
       reject(e);
     }
   });

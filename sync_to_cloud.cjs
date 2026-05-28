@@ -106,19 +106,8 @@ async function main() {
         console.log('\n6. ⚠️  articles.json not found locally, skipping articles sync.');
     }
 
-    // 7. Send decrypted database to Google Drive (Persistent Storage)
-    console.log('\n7. Sending decrypted database to Google Drive (Persistent Backup)...');
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
-    try {
-        const res = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: dbJson,
-            headers: { 'Content-Type': 'application/json' }
-        });
-        console.log(`   Google Drive Response: ${res.status}`);
-    } catch (e) {
-        console.error('   Google Drive Sync Failed:', e.message);
-    }
+    // 7. Handled by Cloud Bot now to prevent overwriting cloud-only data
+    console.log('\n7. Merging and Google Drive backup is now handled safely by the Cloud Bot.');
 
     console.log('\n=== SYNC COMPLETE ===');
 }

@@ -3060,8 +3060,20 @@ app.post('/api/config', (req, res) => {
 
 app.post('/api/database', (req, res) => {
   try {
-    fs.writeFileSync(DB_PATH, req.rawBody.toString('utf8'));
-    res.status(200).send('Database updated.');
+    const incomingDb = JSON.parse(req.rawBody.toString('utf8'));
+    const currentDb = loadDB();
+    
+    // Merge: Keep cloud-specific data (bon_vente, authorized_users, etc), overwrite HR data from desktop
+    const mergedDb = {
+      ...currentDb,
+      hr_employees: incomingDb.hr_employees || currentDb.hr_employees || [],
+      hr_leave_balances: incomingDb.hr_leave_balances || currentDb.hr_leave_balances || []
+    };
+    
+    // Save locally and push to Google Drive to persist the merge
+    saveDB(mergedDb);
+    
+    res.status(200).send('Database merged and updated.');
   } catch (e) {
     res.status(500).send(e.message);
   }

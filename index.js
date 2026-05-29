@@ -3164,10 +3164,8 @@ app.post('/api/config', (req, res) => {
     
     // ✅ SMART MERGE: Preserve ALL users from both cloud and incoming (app-side)
     const existingCfg = loadConfig();
-    incoming.authorized_users = mergeAuthorizedUsers(
-      existingCfg.authorized_users || [],
-      incoming.authorized_users || []
-    );
+    // We removed mergeAuthorizedUsers so the app is the absolute source of truth.
+    // incoming.authorized_users is used exactly as provided by the desktop app.
 
     // Preserve other cloud-side settings not present in incoming
     if (!incoming.email_settings && existingCfg.email_settings) {

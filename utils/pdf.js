@@ -922,7 +922,7 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontNormal).text(data.transporter || '—', startX + 110, insideY + 30);
 
       doc.font(fontBold).text('DATE :', startX + 5, insideY + 52);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.shippingDate || dateStr, startX + 110, insideY + 52);
+      doc.font(fontBold).fillColor('#000').text(data.shippingDate || dateStr, startX + 110, insideY + 52);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 170, insideY).lineTo(startX + 170, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -975,7 +975,7 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontNormal).text(data.factureNum || '—', startX + 110, insideY + 15);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 5, insideY + 50);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${formatAmount(data.amount)} DA` : '—', startX + 110, insideY + 50);
+      doc.font(fontBold).fillColor('#000').text(data.amount ? `${formatAmount(data.amount)} DA` : '—', startX + 110, insideY + 50);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -983,7 +983,7 @@ export async function generateBonVentePDF(data, outputPath) {
       // Checkboxes grid
       drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
-      drawGridV(startX + 415, insideY, y + sectionHeight);
+      // Removed drawGridV(startX + 415, insideY, y + sectionHeight);
 
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       
@@ -1017,7 +1017,7 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontNormal).text(data.factureNum || '—', startX + 110, insideY + 30);
 
       doc.font(fontBold).fontSize(8.5).text('MONTANT :', startX + 5, insideY + 52);
-      doc.font(fontBold).fillColor('#e53e3e').text(data.amount ? `${formatAmount(data.amount)} DA` : '—', startX + 110, insideY + 52);
+      doc.font(fontBold).fillColor('#000').text(data.amount ? `${formatAmount(data.amount)} DA` : '—', startX + 110, insideY + 52);
       doc.fillColor('#000');
 
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
@@ -1025,7 +1025,7 @@ export async function generateBonVentePDF(data, outputPath) {
       // Checkboxes grid
       drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
-      drawGridV(startX + 415, insideY, y + sectionHeight);
+      // Removed drawGridV(startX + 415, insideY, y + sectionHeight);
 
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       
@@ -1097,7 +1097,7 @@ export async function generateBonVentePDF(data, outputPath) {
       drawStamp(startX + 590, insideY + 16, 'Poste de Garde', data.guardName, '#2c3e50');
 
       // --- Footer Security line (must be on page 1, before y=595) ---
-      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#888').text(`Document électronique sécurisé ALVER Spa - Réf: -${seqStr}/${bvaYear}`, startX, 565, { align: 'center', width: totalWidth });
+      doc.font('Helvetica-Oblique').fontSize(6).fillColor('#000').text(`Document électronique sécurisé ALVER Spa - Réf: -${seqStr}/${bvaYear}`, startX, 565, { align: 'center', width: totalWidth });
 
       doc.end();
       stream.on('finish', () => {

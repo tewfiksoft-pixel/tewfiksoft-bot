@@ -3076,6 +3076,7 @@ app.post('/api/database', (req, res) => {
     
     // Save locally and push to Google Drive to persist the merge
     saveDB(mergedDb);
+    db = mergedDb; // Refresh the global db object so the bot sees the deleted employees immediately
     
     res.status(200).send('Database merged and updated.');
   } catch (e) {

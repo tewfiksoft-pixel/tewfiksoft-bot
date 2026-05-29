@@ -876,7 +876,8 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'om_start') {
       const role = String(userData.role).toLowerCase();
-      if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart' && role !== 'gestionnaire_rh') {
+      const allowedRoles = ['admin', 'manager', 'chef_de_quart', 'gestionnaire_rh', 'service_commercial', 'gds', 'finance'];
+      if (!allowedRoles.includes(role)) {
          return send(chatId, ar ? '❌ <b>عذراً، هذه الميزة مخصصة للإدارة فقط.</b>' : '❌ <b>Accès réservé à l\'administration.</b>');
       }
       states.set(chatId, { step: 'om_search', data: { managerId: fromId, managerName: userData.name, destinations: [] } });

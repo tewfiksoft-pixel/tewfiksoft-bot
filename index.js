@@ -995,8 +995,10 @@ Pour garantir une fin de relation de travail légale et fluide :
         startDate: st.data.startDate,
         endDate: st.data.endDate,
         transport: st.data.transport,
-        status: 'pending_gm',
-        createdAt: new Date().toISOString()
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        adminApprovedBy: 'Auto',
+        adminApprovedAt: new Date().toISOString()
       };
       
       if (!db.bot_requests) db.bot_requests = [];
@@ -1004,17 +1006,23 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveDB(db);
 
       const msg = ar 
-        ? `📝 <b>طلب "أمر بمهمة" جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📍 الوجهات: ${st.data.destinations.join(' - ')}\n📅 الفترة: من ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n👤 الطالب: ${st.data.managerName}`
-        : `📝 <b>DEMANDE D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(' - ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Par: ${st.data.managerName}`;
+        ? `📝 <b>إشعار بصدور "أمر بمهمة"</b>\n━━━━━━━━━━━━━━\n👤 الموظف: <b>${empName}</b>\n📍 الوجهات: ${st.data.destinations.join(' - ')}\n📅 الفترة: من ${st.data.startDate} إلى ${st.data.endDate}\n✍️ السبب: ${st.data.reason}\n👤 المُصدِر: ${st.data.managerName}`
+        : `📝 <b>NOTIFICATION D'ORDRE DE MISSION</b>\n━━━━━━━━━━━━━━\n👤 Employé: <b>${empName}</b>\n📍 Destinations: ${st.data.destinations.join(' - ')}\n📅 Période: du ${st.data.startDate} au ${st.data.endDate}\n✍️ Motifs: ${st.data.reason}\n👤 Émis par: ${st.data.managerName}`;
       
-      const kbd = { inline_keyboard: [
-        [{ text: ar ? '✅ موافقة الإدارة' : '✅ Approuver par Admin', callback_data: `om_adm_app:${reqId}` }, { text: ar ? '❌ رفض' : '❌ Rejeter', callback_data: `om_adm_rej:${reqId}` }]
-      ]};
-
-      // Notify Staff (Admins get buttons, others get text)
-      await notifyStaff(msg, cfg, (id, t, userKbd) => send(id, t, userKbd), kbd);
+      // Notify Staff (Admins get just text, no validation buttons)
+      await notifyStaff(msg, cfg, send);
       states.delete(chatId);
-      return send(chatId, ar ? `✅ تم إرسال طلب المهمة للإدارة للموافقة.` : `✅ Demande envoyée à l'administration.`);
+
+      // Generate and Send PDF directly
+      try {
+        await generateAndSendMissionAuth(request, cfg);
+        log(`[OM] PDF generated and sent for ${empName}`);
+      } catch (e) { 
+        log(`[OM-Error] PDF failed: ${e.message}`);
+        send(chatId, `❌ Error sending email: ${e.message}`);
+      }
+
+      return send(chatId, ar ? `✅ تم إصدار أمر المهمة بنجاح وإرسال الإشعار والملف للبريد.` : `✅ Ordre de mission émis, notifié et envoyé.`);
     }
 
     if (d.startsWith('om_adm_app:')) {

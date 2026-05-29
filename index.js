@@ -434,11 +434,13 @@ Pour garantir une fin de relation de travail légale et fluide :
         }
       };
 
-      const sortedUsers = [...(cfg.authorized_users || [])].sort((a, b) => {
-        const timeA = db2.user_activity?.[a.id] ? new Date(db2.user_activity[a.id]).getTime() : 0;
-        const timeB = db2.user_activity?.[b.id] ? new Date(db2.user_activity[b.id]).getTime() : 0;
-        return timeB - timeA;
-      });
+      const sortedUsers = [...(cfg.authorized_users || [])]
+        .filter(u => u.id && u.id !== 'ID_HERE')
+        .sort((a, b) => {
+          const timeA = db2.user_activity?.[a.id] ? new Date(db2.user_activity[a.id]).getTime() : 0;
+          const timeB = db2.user_activity?.[b.id] ? new Date(db2.user_activity[b.id]).getTime() : 0;
+          return timeB - timeA;
+        });
 
       let msg = ar 
         ? `👥 <b>المستخدمين المتواجدين حالياً في البوت:</b>\n━━━━━━━━━━━━━━\n`

@@ -757,9 +757,9 @@ export async function generateBonVentePDF(data, outputPath) {
            .lineWidth(1).strokeColor(formalColor).stroke();
 
         // Center text block
-        doc.font(fontBold).fontSize(5.5).fillColor(formalColor)
-           .text('DOCUMENT SIGNÉ', cx + 24, y + 7, { width: 56, align: 'center' });
-        doc.text('ÉLECTRONIQUEMENT', cx + 24, y + 13.5, { width: 56, align: 'center' });
+        doc.font(fontBold).fontSize(5).fillColor(formalColor)
+           .text('DOCUMENT SIGNÉ', cx + 20, y + 7, { width: 64, align: 'center' });
+        doc.text('ÉLECTRONIQUEMENT', cx + 20, y + 13.5, { width: 64, align: 'center' });
         doc.font(fontNormal).fontSize(3.8).fillColor('#555')
            .text('Conformément à la loi 18-07', cx + 24, y + 22, { width: 56, align: 'center' });
 
@@ -985,13 +985,12 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridH(startX + 250, startX + 580, insideY + 40);
       drawGridV(startX + 415, insideY, y + sectionHeight);
 
-      payX = startX + 260;
-      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 6);
+      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       
-      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 22);
-      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 48);
-      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
-      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), startX + 340, insideY + 22);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), startX + 340, insideY + 48);
+      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), startX + 460, insideY + 22);
+      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), startX + 460, insideY + 48);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
@@ -1028,13 +1027,12 @@ export async function generateBonVentePDF(data, outputPath) {
       drawGridH(startX + 250, startX + 580, insideY + 40);
       drawGridV(startX + 415, insideY, y + sectionHeight);
 
-      payX = startX + 260;
-      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', payX, insideY + 6);
+      doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       
-      drawCheckbox('VIREMENT', payMeth.includes('vire'), payX + 10, insideY + 22);
-      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), payX + 10, insideY + 48);
-      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), payX + 175, insideY + 22);
-      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), payX + 175, insideY + 48);
+      drawCheckbox('VIREMENT', payMeth.includes('vire'), startX + 340, insideY + 22);
+      drawCheckbox('VERSEMENT', payMeth.includes('vers') || payMeth.includes('depo'), startX + 340, insideY + 48);
+      drawCheckbox('CHÈQUE', payMeth.includes('cheq'), startX + 460, insideY + 22);
+      drawCheckbox('ESPÈCE', payMeth.includes('esp') || payMeth.includes('cash'), startX + 460, insideY + 48);
 
       doc.moveTo(startX + 580, insideY).lineTo(startX + 580, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 

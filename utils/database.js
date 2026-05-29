@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.join(__dirname, '..');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const CONFIG_PATH = path.join(ROOT_DIR, 'config.json');
+const EXTERNAL_ADMINS_PATH = path.join(DATA_DIR, 'external_admins.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 
 const DB_SALT     = 'tewfiksoft_hr_salt_2026';
@@ -53,6 +54,25 @@ export const loadConfig = () => {
   try { 
     if (fs.existsSync(CONFIG_PATH)) {
       cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); 
+    }
+  } catch (e) {}
+
+  // Merge static external admins
+  try {
+    if (fs.existsSync(EXTERNAL_ADMINS_PATH)) {
+      const extAdmins = JSON.parse(fs.readFileSync(EXTERNAL_ADMINS_PATH, 'utf8'));
+      if (Array.isArray(extAdmins)) {
+        if (!cfg.authorized_users) cfg.authorized_users = [];
+        const cfgIds = new Set(cfg.authorized_users.map(u => String(u.id)));
+        for (const admin of extAdmins) {
+          if (!cfgIds.has(String(admin.id))) {
+            cfg.authorized_users.push(admin);
+          } else {
+            const idx = cfg.authorized_users.findIndex(u => String(u.id) === String(admin.id));
+            cfg.authorized_users[idx] = admin;
+          }
+        }
+      }
     }
   } catch (e) {}
 

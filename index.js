@@ -3050,14 +3050,7 @@ app.use((req, res, next) => {
   req.on('end', () => { req.rawBody = Buffer.concat(chunks); next(); });
 });
 
-app.post('/api/config', (req, res) => {
-  try {
-    fs.writeFileSync(CONFIG_PATH, req.rawBody.toString('utf8'));
-    res.status(200).send('Config updated.');
-  } catch (e) {
-    res.status(500).send(e.message);
-  }
-});
+
 
 app.post('/api/database', (req, res) => {
   try {

@@ -36,5 +36,49 @@
     "allowed_employees": [],
     "clockingId": "",
     "phone": null
+  },
+  {
+    "id": "ID_HERE",
+    "name": "RESPONSABLE GDS",
+    "role": "gds",
+    "scope": "all",
+    "allowed_departments": [],
+    "allowed_company": "all",
+    "allowed_employees": [],
+    "clockingId": "",
+    "phone": null
+  },
+  {
+    "id": "ID_HERE",
+    "name": "RESPONSABLE FINANCE",
+    "role": "finance",
+    "scope": "all",
+    "allowed_departments": [],
+    "allowed_company": "all",
+    "allowed_employees": [],
+    "clockingId": "",
+    "phone": null
+  },
+  {
+    "id": "ID_HERE",
+    "name": "SERVICE COMMERCIAL",
+    "role": "service_commercial",
+    "scope": "all",
+    "allowed_departments": [],
+    "allowed_company": "all",
+    "allowed_employees": [],
+    "clockingId": "",
+    "phone": null
+  },
+  {
+    "id": "ID_HERE",
+    "name": "CHEF DE QUART",
+    "role": "chef_de_quart",
+    "scope": "all",
+    "allowed_departments": [],
+    "allowed_company": "all",
+    "allowed_employees": [],
+    "clockingId": "",
+    "phone": null
   }
 ]

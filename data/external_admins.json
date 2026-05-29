@@ -29,7 +29,33 @@
   {
     "id": "965443735",
     "name": "TEWFIK",
+    "role": "service_commercial",
+    "scope": "custom_employees",
+    "allowed_departments": [],
+    "allowed_company": "all",
+    "allowed_employees": [
+      "70041"
+    ],
+    "clockingId": "",
+    "phone": null
+  },
+  {
+    "id": "8626592284",
+    "name": "NOUAR TEWFIK",
     "role": "admin",
+    "scope": "custom_employees",
+    "allowed_departments": null,
+    "allowed_company": null,
+    "allowed_employees": [
+      "70041"
+    ],
+    "clockingId": "70041",
+    "phone": null
+  },
+  {
+    "id": "8586937549",
+    "name": "NIHEL",
+    "role": "gestionnaire_rh",
     "scope": "all",
     "allowed_departments": [],
     "allowed_company": "all",
@@ -52,17 +78,6 @@
     "id": "ID_HERE",
     "name": "RESPONSABLE FINANCE",
     "role": "finance",
-    "scope": "all",
-    "allowed_departments": [],
-    "allowed_company": "all",
-    "allowed_employees": [],
-    "clockingId": "",
-    "phone": null
-  },
-  {
-    "id": "ID_HERE",
-    "name": "SERVICE COMMERCIAL",
-    "role": "service_commercial",
     "scope": "all",
     "allowed_departments": [],
     "allowed_company": "all",

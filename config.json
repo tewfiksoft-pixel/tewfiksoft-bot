@@ -29,14 +29,40 @@
       "phone": null
     },
     {
-      "id": "965443735",
-      "name": "TEWFIK",
+      "id": "8626592284",
+      "name": "NOUAR TEWFIK",
       "role": "admin",
+      "scope": "custom_employees",
+      "allowed_departments": null,
+      "allowed_company": null,
+      "allowed_employees": [
+        "70041"
+      ],
+      "clockingId": "70041",
+      "phone": null
+    },
+    {
+      "id": "8586937549",
+      "name": "NIHEL",
+      "role": "gestionnaire_rh",
       "scope": "all",
       "allowed_departments": [],
       "allowed_company": "all",
       "allowed_employees": [],
       "clockingId": "",
+      "phone": null
+    },
+    {
+      "id": "965443735",
+      "name": "TEWFIK NOUAR",
+      "role": "service_commercial",
+      "scope": "custom_employees",
+      "allowed_departments": [],
+      "allowed_company": "all",
+      "allowed_employees": [
+        "70041"
+      ],
+      "clockingId": "70041",
       "phone": null
     }
   ],
@@ -48,19 +74,19 @@
   "proxy_pass": null,
   "proxy_protocol": null,
   "display_settings": {
-    "show_phone": true,
-    "show_department": true,
-    "show_hiring_date": true,
-    "show_photo": true,
-    "show_social_number": false,
     "show_contract_type": true,
+    "show_hiring_date": true,
+    "show_job_title": true,
+    "show_phone": true,
+    "show_photo": true,
     "show_probation_end": true,
     "show_contract_end": true,
-    "show_job_title": true
+    "show_department": true,
+    "show_social_number": false
   },
   "allowed_documents": {
-    "leave_title": true,
+    "salary_slip": true,
     "work_contract": true,
-    "salary_slip": true
+    "leave_title": true
   }
 }

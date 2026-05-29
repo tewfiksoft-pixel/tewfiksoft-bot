@@ -57,24 +57,7 @@ export const loadConfig = () => {
     }
   } catch (e) {}
 
-  // Merge static external admins
-  try {
-    if (fs.existsSync(EXTERNAL_ADMINS_PATH)) {
-      const extAdmins = JSON.parse(fs.readFileSync(EXTERNAL_ADMINS_PATH, 'utf8'));
-      if (Array.isArray(extAdmins)) {
-        if (!cfg.authorized_users) cfg.authorized_users = [];
-        const cfgIds = new Set(cfg.authorized_users.map(u => String(u.id)));
-        for (const admin of extAdmins) {
-          if (!cfgIds.has(String(admin.id))) {
-            cfg.authorized_users.push(admin);
-          } else {
-            const idx = cfg.authorized_users.findIndex(u => String(u.id) === String(admin.id));
-            cfg.authorized_users[idx] = admin;
-          }
-        }
-      }
-    }
-  } catch (e) {}
+  // Reverted: Rely strictly on telegram_config.json pushed from the desktop app
 
   // 🛡️ CRITICAL FALLBACK: Ensure email settings are NEVER missing (Render Persistent Safety)
   if (!cfg.email_settings || !cfg.email_settings.hr_notification_email) {

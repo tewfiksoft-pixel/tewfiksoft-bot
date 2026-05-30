@@ -3762,15 +3762,19 @@ if (isMain) {
     
       bootstrapFromCloud();
     
-      // ─── 🌐 WEBHOOK MODE ───
-      const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://tewfiksoft-hr-bot.onrender.com';
-      const webhookUrl = `${RENDER_URL}/api/telegram-webhook`;
-      
-      tg('setWebhook', { url: webhookUrl })
-        .then(res => log(`Webhook set to: ${webhookUrl} | Success: ${res.ok}`))
-        .catch(e => log(`Webhook Set Error: ${e.message}`));
-      
-      // Polling is DISABLED when webhook is active
-      // poll(); 
+      // ─── 🌐 WEBHOOK / POLLING MODE ───
+      if (process.env.RENDER_EXTERNAL_URL) {
+        // Running on Render cloud → use Webhook
+        const webhookUrl = `${process.env.RENDER_EXTERNAL_URL}/api/telegram-webhook`;
+        tg('setWebhook', { url: webhookUrl })
+          .then(res => log(`Webhook set to: ${webhookUrl} | Success: ${res.ok}`))
+          .catch(e => log(`Webhook Set Error: ${e.message}`));
+        log('[Mode] WEBHOOK (Render Cloud)');
+      } else {
+        // Running locally → delete any existing webhook and use Polling
+        tg('deleteWebhook').catch(() => {});
+        log('[Mode] POLLING (Local)');
+        poll();
+      }
   });
 }

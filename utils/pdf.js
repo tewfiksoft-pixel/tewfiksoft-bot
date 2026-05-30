@@ -10,6 +10,21 @@ import { loadDB } from './database.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const bidi = bidiFactory();
 
+function getResolvedCompanyName(data) {
+  if (data.companyName && data.companyName !== 'ALVER / TEWFIKSOFT') return data.companyName;
+  const db = loadDB();
+  const emp = (db.hr_employees || []).find(e => String(e.id) === String(data.empId || data.employeeId || data.clockingId));
+  if (emp) {
+    const isF = String(emp.companyId || '').toLowerCase() === 'vt' ||
+                String(emp.companyId || '').toLowerCase() === 'verre_tech' ||
+                String(emp.companyName || '').toLowerCase().includes('fartak') ||
+                String(emp.companyName || '').toLowerCase().includes('verre tech');
+    return isF ? 'Verre Tech Spa' : 'ALVER Spa';
+  }
+  return 'ALVER / TEWFIKSOFT';
+}
+
+
 async function downloadQRCode(text, tempQrPath) {
   return new Promise((resolve, reject) => {
     const encodedText = encodeURIComponent(text);
@@ -45,16 +60,16 @@ export async function generateExitAuthPDF(data, outputPath) {
       const logoPath = path.join(__dirname, '..', '..', 'src-tauri', 'icons', 'icon.png');
 
       // --- Header / Dynamic Company Logo (Text) ---
-      const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const companyName = getResolvedCompanyName(data);
       const isFartakCompany = companyName.toLowerCase().includes('verre tech');
       const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
       const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
       
       if (fs.existsSync(condorLogo)) {
-        doc.image(condorLogo, 460, 25, { width: 80 });
+        doc.image(condorLogo, 470, 25, { width: 55 });
       }
       if (fs.existsSync(mainLogo)) {
-        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+        doc.image(mainLogo, 50, 25, { width: 45 });
       }
       
       // Company name at the top center
@@ -158,16 +173,16 @@ export async function generateEntryAuthPDF(data, outputPath) {
       const fontBold = 'Helvetica-Bold';
       const fontNormal = 'Helvetica';
 
-      const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const companyName = getResolvedCompanyName(data);
       const isFartakCompany = companyName.toLowerCase().includes('verre tech');
       const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
       const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
       
       if (fs.existsSync(condorLogo)) {
-        doc.image(condorLogo, 460, 25, { width: 80 });
+        doc.image(condorLogo, 470, 25, { width: 55 });
       }
       if (fs.existsSync(mainLogo)) {
-        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+        doc.image(mainLogo, 50, 25, { width: 45 });
       }
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
@@ -370,16 +385,16 @@ export async function generateReturnAuthPDF(data, outputPath) {
       const fontBold = 'Helvetica-Bold';
       const fontNormal = 'Helvetica';
 
-      const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const companyName = getResolvedCompanyName(data);
       const isFartakCompany = companyName.toLowerCase().includes('verre tech');
       const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
       const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
       
       if (fs.existsSync(condorLogo)) {
-        doc.image(condorLogo, 460, 25, { width: 80 });
+        doc.image(condorLogo, 470, 25, { width: 55 });
       }
       if (fs.existsSync(mainLogo)) {
-        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+        doc.image(mainLogo, 50, 25, { width: 45 });
       }
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });

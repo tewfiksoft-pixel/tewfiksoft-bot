@@ -46,6 +46,16 @@ export async function generateExitAuthPDF(data, outputPath) {
 
       // --- Header / Dynamic Company Logo (Text) ---
       const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const isFartakCompany = companyName.toLowerCase().includes('verre tech');
+      const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
+      const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
+      
+      if (fs.existsSync(condorLogo)) {
+        doc.image(condorLogo, 460, 25, { width: 80 });
+      }
+      if (fs.existsSync(mainLogo)) {
+        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+      }
       
       // Company name at the top center
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
@@ -149,6 +159,16 @@ export async function generateEntryAuthPDF(data, outputPath) {
       const fontNormal = 'Helvetica';
 
       const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const isFartakCompany = companyName.toLowerCase().includes('verre tech');
+      const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
+      const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
+      
+      if (fs.existsSync(condorLogo)) {
+        doc.image(condorLogo, 460, 25, { width: 80 });
+      }
+      if (fs.existsSync(mainLogo)) {
+        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+      }
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
       doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });
@@ -351,6 +371,16 @@ export async function generateReturnAuthPDF(data, outputPath) {
       const fontNormal = 'Helvetica';
 
       const companyName = data.companyName || 'ALVER / TEWFIKSOFT';
+      const isFartakCompany = companyName.toLowerCase().includes('verre tech');
+      const condorLogo = path.join(__dirname, '..', 'assets', 'Condor.png');
+      const mainLogo = path.join(__dirname, '..', 'assets', isFartakCompany ? 'verre tech.png' : 'ALVER.png');
+      
+      if (fs.existsSync(condorLogo)) {
+        doc.image(condorLogo, 460, 25, { width: 80 });
+      }
+      if (fs.existsSync(mainLogo)) {
+        doc.image(mainLogo, 50, 25, { width: isFartakCompany ? 70 : 80 });
+      }
       
       doc.font(fontBold).fontSize(20).fillColor('#1a5f7a').text(companyName.toUpperCase(), 50, 40, { align: 'center', width: 500 });
       doc.font(fontNormal).fontSize(10).fillColor('#666').text('Gestion des Ressources Humaines - Système Professionnel', 50, 65, { align: 'center', width: 500 });

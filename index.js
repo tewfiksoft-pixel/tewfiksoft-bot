@@ -163,8 +163,20 @@ function isEmployeeAllowed(userData, emp) {
   if (role === 'admin') return true;
   if (role === 'general_manager') return false;
   
-  // All other roles see all workers that exist in the app
-  return true;
+  if (String(userData.scope).toLowerCase() === 'all') return true;
+  if (String(userData.scope).toLowerCase() === 'self' && String(userData.clockingId) === String(emp.clockingId)) return true;
+
+  const allowedEmps = (userData.allowed_employees || []).map(id => String(id));
+  if (allowedEmps.includes(String(emp.clockingId))) return true;
+
+  if (String(userData.scope).toLowerCase() === 'department') {
+    const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
+    return depts.some(d => String(emp.department_fr || '').toLowerCase().includes(d) || String(emp.direction_fr || '').toLowerCase().includes(d));
+  } else if (String(userData.scope).toLowerCase() === 'company') {
+    return String(emp.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
+  }
+  
+  return false;
 }
 
 export async function handle(u) {

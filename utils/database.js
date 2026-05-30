@@ -6,7 +6,15 @@ import crypto from 'crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.join(__dirname, '..');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
-const CONFIG_PATH = path.join(ROOT_DIR, 'config.json');
+const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
+
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(CONFIG_PATH) && fs.existsSync(path.join(ROOT_DIR, 'config.json'))) {
+    fs.copyFileSync(path.join(ROOT_DIR, 'config.json'), CONFIG_PATH);
+}
+
 const EXTERNAL_ADMINS_PATH = path.join(DATA_DIR, 'external_admins.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 

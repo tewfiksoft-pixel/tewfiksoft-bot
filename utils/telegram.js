@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 import { log } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.join(__dirname, '..', 'config.json');
+const DATA_DIR = path.join(__dirname, '..', 'data');
+const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 const getBotToken = () => {
   try {

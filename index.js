@@ -16,8 +16,8 @@ import { DOC_TYPES, DOSSIER_REASONS, WILAYAS } from './utils/constants.js';
 import RoleFactory from './roles/RoleFactory.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.join(__dirname, 'config.json');
 const DATA_DIR = path.join(__dirname, 'data');
+const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const DB_PATH = path.join(DATA_DIR, 'database.json');
 
 const updateConfig = (cfg) => {

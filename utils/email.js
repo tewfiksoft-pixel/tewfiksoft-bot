@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function sendEmail(targetRecipients, subject, textContent, attachments = []) {
   try {
-    const configPath = path.join(__dirname, '..', 'config.json');
+    const configPath = path.join(__dirname, '..', 'data', 'config.json');
     if (!fs.existsSync(configPath)) {
         log(`[Email-Error] config.json not found at ${configPath}`);
         return false;

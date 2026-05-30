@@ -1910,9 +1910,9 @@ Pour garantir une fin de relation de travail légale et fluide :
         createdAt: new Date().toISOString()
       };
       
-      if (!db2.bon_vente) db2.bon_vente = [];
-      db2.bon_vente.push(newBva);
-      saveDB(db2);
+      if (!dbNow.bon_vente) dbNow.bon_vente = [];
+      dbNow.bon_vente.push(newBva);
+      saveDB(dbNow);
       states.delete(chatId);
       saveStates();
       

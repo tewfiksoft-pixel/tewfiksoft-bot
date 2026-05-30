@@ -2110,9 +2110,12 @@ Pour garantir une fin de relation de travail légale et fluide :
           ? s.hr_notification_email.split(',').map(e => e.trim()).filter(Boolean)
           : [];
         if (emails.length > 0) {
-          const subject = `Bon de Vente & Sortie - ${bva.clientName} - BL ${bva.blNum}`;
-          const body = `Bonjour,\n\nVeuillez trouver ci-joint le Bon de Vente et Autorisation de Sortie au format paysage complété pour le client ${bva.clientName}.\n\n- Bon N°: ${bva.id.toUpperCase().slice(0,8)}\n- BL N°: ${bva.blNum}\n- Facture N°: ${bva.factureNum}\n- Montant: ${bva.amount} DA\n- Saisie par: ${bva.commercialName}\n- Date de sortie: ${bva.guardDate} à ${bva.exitTime} (Equipe: ${bva.guardShift})\n\nCordialement,\nALVER Spa Automation Bot`;
-          await sendEmail(emails, subject, body, [{ filename: `BVA_${bva.id.slice(0,8)}.pdf`, path: pdfPath }]);
+          const bvaYear = bva.createdAt ? new Date(bva.createdAt).getFullYear() : new Date().getFullYear();
+          const seqStr = bva.seqNumber ? bva.seqNumber.toString().padStart(3, '0') : bva.id.toUpperCase().slice(0,8);
+          const bvaLabel = `BVA ${seqStr}/${bvaYear}`;
+          const subject = `Bon de Vente & Sortie - ${bva.clientName} - ${bvaLabel}`;
+          const body = `Bonjour,\n\nVeuillez trouver ci-joint le Bon de Vente et Autorisation de Sortie au format paysage complété pour le client ${bva.clientName}.\n\n- Bon N°: ${bvaLabel}\n- BL N°: ${bva.blNum}\n- Facture N°: ${bva.factureNum}\n- Montant: ${bva.amount} DA\n- Saisie par: ${bva.commercialName}\n- Date de sortie: ${bva.guardDate} à ${bva.exitTime} (Equipe: ${bva.guardShift})\n\nCordialement,\nALVER Spa Automation Bot`;
+          await sendEmail(emails, subject, body, [{ filename: `BVA_${seqStr}_${bvaYear}.pdf`, path: pdfPath }]);
         }
         
         // Clean up temp

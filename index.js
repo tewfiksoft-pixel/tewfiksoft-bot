@@ -2857,6 +2857,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       log(`[OM-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
+        if (e.status === 'stopped' || e.status === 'Sortie' || e.status === 'Inactif') return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -2905,6 +2906,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       log(`[Entry-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
+        if (e.status === 'stopped' || e.status === 'Sortie' || e.status === 'Inactif') return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -2955,6 +2957,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       log(`[Exit-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
+        if (e.status === 'stopped' || e.status === 'Sortie' || e.status === 'Inactif') return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -3017,6 +3020,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       const searchResults = (db.hr_employees || []).filter(e => {
         if (e.status === 'deleted') return false;
         if (!isEmployeeAllowed(userData, e)) return false;
+        if (e.status === 'stopped' || e.status === 'Sortie' || e.status === 'Inactif') return false;
         
         // Query match
         const cid = String(e.clockingId || '').toLowerCase().trim();

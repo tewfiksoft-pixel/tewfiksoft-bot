@@ -35,12 +35,17 @@ const decryptDb = (ciphertext64) => {
     } catch (e) { return null; }
 };
 
+let _dbCache = null;
+let _dbMtime = 0;
+
 export const loadDB = () => {
   try { 
     if (!fs.existsSync(DB_PATH)) {
         log(`[DB] File not found: ${DB_PATH}`);
         return { hr_employees: [], hr_leave_balances: [] };
     }
+    const mtime = fs.statSync(DB_PATH).mtimeMs;
+    if (_dbCache && mtime === _dbMtime) return _dbCache;
     const raw = fs.readFileSync(DB_PATH, 'utf8');
     log(`[DB] Read file: ${raw.length} bytes`);
     const plain = decryptDb(raw);
@@ -49,7 +54,9 @@ export const loadDB = () => {
         return JSON.parse(raw); // will likely fail if encrypted
     }
     log(`[DB] Decrypted successfully: ${plain.substring(0, 30)}...`);
-    return JSON.parse(plain); 
+    _dbCache = JSON.parse(plain);
+    _dbMtime = mtime;
+    return _dbCache; 
   }
   catch (e) { 
     log(`[DB] Load Error: ${e.message}`);
@@ -82,6 +89,9 @@ export const saveDB = (db) => {
   try {
     const jsonStr = JSON.stringify(db);
     fs.writeFileSync(DB_PATH, jsonStr);
+    // Invalidate cache after write
+    _dbCache = db;
+    _dbMtime = fs.statSync(DB_PATH).mtimeMs;
     log(`[DB] Saved successfully: ${db.hr_employees?.length || 0} employees.`);
     
     // Sync to Google Drive (Persistent Cloud Storage)

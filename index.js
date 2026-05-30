@@ -388,7 +388,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'search') { 
       const role = String(userData.role).toLowerCase();
-      if (role === 'admin' || role === 'manager' || role === 'chef_de_quart') {
+      if (role === 'admin' || (role === 'manager' || role === 'service_commercial') || role === 'chef_de_quart') {
         states.set(chatId, { step: 'search' }); 
         return send(chatId, ar ? '🔍 أرسل <b>رقم الموظف</b> أو <b>اسمه</b> :' : '🔍 Entrez <b>ID</b> ou <b>Nom</b> :');
       }
@@ -568,7 +568,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         const bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === String(emp.id));
         return roleObj.showEmployeeCard(chatId, emp, ar, bals);
       }
-      if (role === 'admin' || role === 'manager' || role === 'chef_de_quart' || role === 'gestionnaire_rh') {
+      if (role === 'admin' || (role === 'manager' || role === 'service_commercial') || role === 'chef_de_quart' || role === 'gestionnaire_rh') {
         return send(chatId, ar ? 'ℹ️ <b>أنت مسجل كمسؤول.</b>\nليس لديك "رقم موظف" شخصي مرتبط بحسابك.\n\nاستخدم زر <b>البحث</b> للوصول لبيانات العمال.' : 'ℹ️ <b>Vous êtes Administrateur.</b>\nVous n\'avez pas de "Matricule" personnel lié.\n\nUtilisez le bouton <b>Recherche</b> pour accéder aux dossiers.');
       }
       return send(chatId, ar ? '❌ لم يتم العثور على ملفك الشخصي. يرجى مراجعة الإدارة.' : '❌ Profil introuvable. Veuillez contacter l\'administration.');
@@ -785,7 +785,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
 
       // ── All other documents: notify staff directly ──
-      const isManager = role === 'manager' || role === 'chef_de_quart';
+      const isManager = (role === 'manager' || role === 'service_commercial') || role === 'chef_de_quart';
       await notifyStaff(`📄 <b>طلب وثيقة جديد</b>\n━━━━━━━━━━━━━━\n👤 الموظف: ${empName}\n📄 الوثيقة: <b>${docName}</b>\n✍️ السبب: ${rsnName}\n👤 من طرف: ${userData.name}`, cfg, send);
       
       return send(chatId, isManager
@@ -2570,7 +2570,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     const emp = db.hr_employees?.find(e => String(e.id) === st.empId);
     const empName = emp ? `${emp.lastName_fr} ${emp.firstName_fr} (${emp.clockingId})` : st.empId;
     const role = String(userData.role).toLowerCase();
-    const isManager = role === 'manager' || role === 'chef_de_quart';
+    const isManager = (role === 'manager' || role === 'service_commercial') || role === 'chef_de_quart';
 
     if (st.step === 'add_emp_tid') {
       if (!/^\d+$/.test(txt)) {

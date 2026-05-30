@@ -436,7 +436,7 @@ export async function generateReturnAuthPDF(data, outputPath) {
       
       doc.moveDown(0.8);
       const officialReturnTime = data.returnedAt 
-        ? new Date(data.returnedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        ? new Date(data.returnedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' })
         : '—';
 
       let duration = data.actualDuration;
@@ -449,8 +449,12 @@ export async function generateReturnAuthPDF(data, outputPath) {
         duration = `${diffHrs}h ${diffMins}m`;
       }
 
+      const exitTimeStr = data.guardConfirmedAt
+        ? new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' })
+        : '—';
+
       doc.fillColor('#333').fontSize(10).font(fontNormal);
-      doc.text(`Heure de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR'));
+      doc.text(`Heure de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(exitTimeStr);
       doc.font(fontNormal).text(`Heure de Retour: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialReturnTime);
       doc.fillColor('#333').font(fontNormal).text(`Durée Totale: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(duration || '—');
       doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason || '—');

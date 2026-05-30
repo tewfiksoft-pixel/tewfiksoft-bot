@@ -1874,9 +1874,11 @@ Pour garantir une fin de relation de travail légale et fluide :
       const db2 = loadDB();
       const bvaYear = new Date().getFullYear();
       let nextSeq = 1;
+      log(`[BVA-Seq] hr_settings exists: ${!!db2.hr_settings} | bvaNextNumber: ${db2.hr_settings?.bvaNextNumber}`);
       if (db2.hr_settings && db2.hr_settings.bvaNextNumber) {
         nextSeq = parseInt(db2.hr_settings.bvaNextNumber);
         db2.hr_settings.bvaNextNumber = nextSeq + 1; // Increment for the next one
+        log(`[BVA-Seq] ✅ Using bvaNextNumber: ${nextSeq}, next will be: ${nextSeq + 1}`);
       } else {
         const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
         const maxSeq = bvasThisYear.reduce((max, b) => {
@@ -1884,6 +1886,7 @@ Pour garantir une fin de relation de travail légale et fluide :
           return max;
         }, bvasThisYear.length);
         nextSeq = maxSeq + 1;
+        log(`[BVA-Seq] ⚠️ bvaNextNumber NOT found, fallback seq: ${nextSeq}`);
       }
 
       const bvaId = 'bva_' + Math.random().toString(36).substring(2, 9);
@@ -3702,7 +3705,7 @@ const isMain = process.argv[1] && (process.argv[1].endsWith('index.js') || proce
 
 if (isMain) {
   app.listen(port, () => {
-    log(`=== TewfikSoft HR Bot v10.2 [SMTP-DEBUG] on port ${port} ===`);
+    log(`=== TewfikSoft HR Bot v10.4 [BVA-SEQ-DEBUG] on port ${port} ===`);
     // ... rest of the bootstrap ...
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcj4K0p4FLgGGchC9oe4q95fLnHipbaUXN6hcQsCMDyR7ITH1ozIEF9Dk3SkEujt0njw/exec';
     const bootstrapFromCloud = async () => {

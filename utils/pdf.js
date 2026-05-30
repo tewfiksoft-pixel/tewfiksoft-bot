@@ -639,17 +639,21 @@ export async function generateBonVentePDF(data, outputPath) {
       // Full BVA ID with year: BVA_XXXX / YYYY
       const bvaYear = data.createdAt ? new Date(data.createdAt).getFullYear() : new Date().getFullYear();
       let seqStr = '001';
-      try {
-        const db2 = loadDB();
-        const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
-        const idx = bvasThisYear.findIndex(b => b.id === data.id);
-        if (idx !== -1) {
-          seqStr = (idx + 1).toString().padStart(3, '0');
-        } else {
-          seqStr = (bvasThisYear.length + 1).toString().padStart(3, '0');
+      if (data.seqNumber) {
+        seqStr = data.seqNumber.toString().padStart(3, '0');
+      } else {
+        try {
+          const db2 = loadDB();
+          const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
+          const idx = bvasThisYear.findIndex(b => b.id === data.id);
+          if (idx !== -1) {
+            seqStr = (idx + 1).toString().padStart(3, '0');
+          } else {
+            seqStr = (bvasThisYear.length + 1).toString().padStart(3, '0');
+          }
+        } catch (e) {
+          console.error("Error getting sequence number", e);
         }
-      } catch (e) {
-        console.error("Error getting sequence number", e);
       }
       const bvaIdFull = `BVA ${seqStr}/${bvaYear}`;
       drawTalonField('N° :', bvaIdFull);

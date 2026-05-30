@@ -338,6 +338,7 @@ Pour garantir une fin de relation de travail légale et fluide :
           [{ text: ar ? '🚚 معالجة شحنات البضاعة (GDS)' : '🚚 Expédier (GDS)', callback_data: 'bva_list_pending_shipping' }],
           [{ text: ar ? '🚛 تأكيد خروج الشاحنات (الحراسة)' : '🚛 Sortie Camions (Garde)', callback_data: 'bva_list_pending_guard' }],
           [{ text: ar ? '📋 التقارير والأرشيف العام' : '📋 Archives des Bons', callback_data: 'bva_list' }],
+          [{ text: ar ? '⚙️ إعداد رقم البداية (BVA N°)' : '⚙️ Régler N° de Départ (BVA)', callback_data: 'bva_set_start_num' }],
           [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
         ]};
         return send(chatId, ar
@@ -349,6 +350,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         const kbd = { inline_keyboard: [
           [{ text: ar ? '➕ إنشاء إذن بيع وخروج جديد' : '➕ Créer Bon de Vente & Sortie', callback_data: 'bva_create' }],
           [{ text: ar ? '📋 قائمة أذوناتي الأخيرة' : '📋 Mes Bons Récents', callback_data: 'bva_list' }],
+          [{ text: ar ? '⚙️ إعداد رقم البداية (BVA N°)' : '⚙️ Régler N° de Départ (BVA)', callback_data: 'bva_set_start_num' }],
           [{ text: ar ? '🔙 العودة للقائمة الرئيسية' : '🔙 Retour Menu Principal', callback_data: 'menu' }]
         ]};
         return send(chatId, ar
@@ -1731,6 +1733,14 @@ Pour garantir une fin de relation de travail légale et fluide :
       }
     }
 
+    if (d === 'bva_set_start_num') {
+      states.set(chatId, { step: 'bva_set_start_num_wait' });
+      saveStates();
+      return send(chatId, ar 
+        ? `⚙️ <b>إعداد رقم البداية لإذن البيع (BVA)</b>\n━━━━━━━━━━━━━━\nالرجاء كتابة الرقم الذي تريد أن تبدأ به الفواتير القادمة (مثلاً: <code>152</code> ليكون الإذن القادم 152/2026):`
+        : `⚙️ <b>Réglage du numéro de départ (BVA)</b>\n━━━━━━━━━━━━━━\nVeuillez écrire le numéro de départ pour le prochain bon (Ex: <code>152</code> pour BVA 152/2026) :`);
+    }
+
     if (d === 'bva_create') {
       states.set(chatId, { step: 'bva_client', data: { commercialName: userData.name, commercialId: fromId, articles: [] } });
       saveStates();
@@ -1861,9 +1871,25 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.processing = true;
       states.set(chatId, st);
       
+      const db2 = loadDB();
+      const bvaYear = new Date().getFullYear();
+      let nextSeq = 1;
+      if (db2.hr_settings && db2.hr_settings.bvaNextNumber) {
+        nextSeq = parseInt(db2.hr_settings.bvaNextNumber);
+        db2.hr_settings.bvaNextNumber = nextSeq + 1; // Increment for the next one
+      } else {
+        const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
+        const maxSeq = bvasThisYear.reduce((max, b) => {
+          if (b.seqNumber) return Math.max(max, parseInt(b.seqNumber));
+          return max;
+        }, bvasThisYear.length);
+        nextSeq = maxSeq + 1;
+      }
+
       const bvaId = 'bva_' + Math.random().toString(36).substring(2, 9);
       const newBva = {
         id: bvaId,
+        seqNumber: nextSeq,
         clientId: st.data.clientId,
         clientName: st.data.clientName,
         bcNum: st.data.bcNum,
@@ -1879,7 +1905,6 @@ Pour garantir une fin de relation de travail légale et fluide :
         createdAt: new Date().toISOString()
       };
       
-      const db2 = loadDB();
       if (!db2.bon_vente) db2.bon_vente = [];
       db2.bon_vente.push(newBva);
       saveDB(db2);
@@ -2304,6 +2329,23 @@ Pour garantir une fin de relation de travail légale et fluide :
   }
 
   if (st && txt && !txt.startsWith('/')) {
+    if (st.step === 'bva_set_start_num_wait') {
+      const num = parseInt(txt, 10);
+      if (isNaN(num) || num <= 0) {
+        return send(chatId, ar ? '⚠️ الرجاء إدخال رقم صحيح أكبر من 0:' : '⚠️ Veuillez entrer un nombre valide supérieur à 0 :');
+      }
+      const db2 = loadDB();
+      if (!db2.hr_settings) db2.hr_settings = {};
+      db2.hr_settings.bvaNextNumber = num;
+      saveDB(db2);
+      states.delete(chatId);
+      saveStates();
+      return send(chatId, ar 
+        ? `✅ <b>تم الحفظ!</b>\nسيتم إصدار إذن البيع القادم بالرقم: <code>BVA ${num}/${new Date().getFullYear()}</code>`
+        : `✅ <b>Enregistré !</b>\nLe prochain bon sera émis avec le numéro : <code>BVA ${num}/${new Date().getFullYear()}</code>`,
+        { inline_keyboard: [[{ text: ar ? '🏠 القائمة الرئيسية' : '🏠 Menu Principal', callback_data: 'menu' }]] });
+    }
+
     // ── BVA (Bon de Vente & Autorisation de Sortie) State Machine Steps ──
     if (st.step === 'bva_client') {
       const q = txt.trim().toLowerCase();

@@ -163,11 +163,8 @@ function isEmployeeAllowed(userData, emp) {
   if (role === 'admin') return true;
   if (role === 'general_manager') return false;
   
-  // All other roles ONLY see explicitly added employees
-  const allowedEmps = (userData.allowed_employees || []).map(id => String(id));
-  if (allowedEmps.includes(String(emp.clockingId))) return true;
-
-  return false;
+  // All other roles see all workers that exist in the app
+  return true;
 }
 
 export async function handle(u) {

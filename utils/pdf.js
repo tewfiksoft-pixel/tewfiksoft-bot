@@ -95,7 +95,7 @@ export async function generateExitAuthPDF(data, outputPath) {
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
       doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' })} à ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, { align: 'right' });
 
       // --- Employee Section ---
       doc.moveDown(1);
@@ -151,7 +151,7 @@ export async function generateExitAuthPDF(data, outputPath) {
         
         // Security Text (Better spacing)
         doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
-        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
+        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
@@ -206,7 +206,7 @@ export async function generateEntryAuthPDF(data, outputPath) {
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
       doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' })} à ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, { align: 'right' });
 
       doc.moveDown(1);
       const startY1 = doc.y;
@@ -230,7 +230,7 @@ export async function generateEntryAuthPDF(data, outputPath) {
       doc.fillColor('#333').fontSize(10).font(fontNormal);
       doc.text(`Heure d'Entrée (Réelle): `, 60, doc.y, { continued: true }).font(fontBold).fillColor('#27ae60').text(officialEntryTime);
       doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason);
-      doc.font(fontNormal).text(`Date de Demande: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(new Date(data.createdAt).toLocaleString('fr-FR'));
+      doc.font(fontNormal).text(`Date de Demande: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(new Date(data.createdAt).toLocaleString('fr-FR', { timeZone: 'Africa/Algiers' }));
 
       doc.moveDown(4);
       doc.rect(50, doc.y, 495, 1).fill('#eee');
@@ -249,7 +249,7 @@ export async function generateEntryAuthPDF(data, outputPath) {
         doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
         doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
         doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
-        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
+        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
@@ -368,7 +368,7 @@ export async function generateMissionPDF(data, outputPath) {
       doc.moveDown(2);
 
       // --- Date/Location ---
-      doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR')}`, 330, doc.y);
+      doc.font(fontBold).fontSize(11).text(`Fait à Es-Sénia ...Le : ${new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' })}`, 330, doc.y);
 
       // --- Signatures Section Removed as requested ---
       doc.moveDown(10);
@@ -418,7 +418,7 @@ export async function generateReturnAuthPDF(data, outputPath) {
       doc.moveDown(1);
       doc.font(fontNormal).fontSize(9).fillColor('#333');
       doc.text(`Référence: ${data.id.toUpperCase()}`, { align: 'right' });
-      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, { align: 'right' });
+      doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' })} à ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, { align: 'right' });
 
       doc.moveDown(1);
       const startY1 = doc.y;
@@ -476,7 +476,7 @@ export async function generateReturnAuthPDF(data, outputPath) {
         doc.fontSize(7).fillColor('#666').font(fontNormal).text('Signé par:', x + 5, y + 22);
         doc.fontSize(8.5).fillColor(color).font(fontBold).text(name, x + 5, y + 32, { width: stampWidth - 10, align: 'center' });
         doc.fontSize(7).fillColor(color).font('Helvetica-Oblique').text('DOCUMENT VÉRIFIÉ', x, y + 55, { width: stampWidth, align: 'center' });
-        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR')}`, x, y + 68, { width: stampWidth, align: 'center' });
+        doc.fontSize(6).fillColor('#999').font(fontNormal).text(`ID: ${data.id.slice(0,8)} | ${new Date().toLocaleTimeString('fr-FR', { timeZone: 'Africa/Algiers' })}`, x, y + 68, { width: stampWidth, align: 'center' });
       };
 
       drawAttractiveStamp(50, yPos, 'LE MANAGER', data.managerName, '#1a5f7a');
@@ -716,7 +716,7 @@ export async function generateBonVentePDF(data, outputPath) {
       }
       const bvaIdFull = `BVA ${seqStr}/${bvaYear}`;
       drawTalonField('N° :', bvaIdFull);
-      drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : '—');
+      drawTalonField('DATE :', data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' }) : '—');
       drawTalonField('CLIENT :', data.clientName);
       
       // Combined PRODUIT + CODE + QTÉ list (one article per line)
@@ -752,7 +752,7 @@ export async function generateBonVentePDF(data, outputPath) {
 
       // --- QR CODE AT BOTTOM OF TALON ---
       try {
-        const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+        const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' }) : new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' });
         const articlesTxt = (data.articles || []).map(a => `${a.code}:${a.qty}`).join(',');
         const qrText = `BVA:${bvaIdFull.replace('BVA ','')}\nDate:${dateStr}\nClient:${data.clientName}\nFacture:${data.factureNum || '-'}\nMontant:${data.amount || '-'} DA\nArticles:${articlesTxt}`;
         await downloadQRCode(qrText, tempQrPath);
@@ -785,7 +785,7 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.font(fontBold).fontSize(10).fillColor('#000').text('AUTORISATION DE SORTIE', 125, 42, { align: 'center', width: 695 });
 
       // N° / Year Right
-      const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+      const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' }) : new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Algiers' });
       doc.font(fontBold).fontSize(9).fillColor('#000').text(`N° :  ${bvaIdFull.replace('N°', '')}`, 690, 26, { align: 'right', width: 120 });
       doc.font(fontNormal).fontSize(8).fillColor('#666').text(`Date :  ${dateStr}`, 690, 42, { align: 'right', width: 120 });
 

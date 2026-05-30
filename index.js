@@ -157,9 +157,24 @@ async function generateAndSendWorkCert(req, cfg, db) {
   try { fs.unlinkSync(pdfPath); } catch (_) {}
 }
 
+function isEmployeeAllowed(userData, emp) {
+  const role = String(userData.role || '').toLowerCase();
+  if (role === 'admin') return true;
+  
+  const allowedEmps = (userData.allowed_employees || []).map(id => String(id));
+  if (allowedEmps.includes(String(emp.clockingId))) return true;
+
+  if (userData.scope === 'department') {
+    const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
+    return depts.some(d => String(emp.department_fr || '').toLowerCase().includes(d) || String(emp.direction_fr || '').toLowerCase().includes(d));
+  } else if (userData.scope === 'company') {
+    return String(emp.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
+  }
+  
+  return false;
+}
+
 export async function handle(u) {
-  log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
-  const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = Number(msg.chat.id), fromId = String(from.id), cfg = loadConfig(), db = loadDB();
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();
@@ -490,7 +505,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
       // ── Determine scope based on role ──
       const isManagement = ['general_manager','gestionnaire_rh','manager','chef_de_quart'].includes(botRole);
-      const scope = botRole === 'employee' ? 'custom_employees' : (isManagement ? 'all' : 'custom_employees');
+      const scope = 'custom_employees';
 
       const cfg = loadConfig();
       if (!cfg.authorized_users) cfg.authorized_users = [];
@@ -565,6 +580,9 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('full:')) {
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
       if (!emp) return;
+      if (!isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بعرض هذا الملف.' : '❌ Accès non autorisé à ce dossier.');
+      }
       const statusLabel = emp.status === 'active' ? (ar ? 'نشط 🟢' : 'Actif 🟢') : (ar ? 'متوقف 🔴' : 'Arrêté 🔴');
       
       const isAdm = roleObj.isAdmin();
@@ -585,6 +603,9 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('leave:')) {
       const empId = d.split(':')[1];
       const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      if (emp && !isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بعرض هذا الملف.' : '❌ Accès non autorisé à ce dossier.');
+      }
       let bals = (db.hr_leave_balances || []).filter(b => String(b.employeeId) === empId);
       
       let msg = ar ? '🏖️ <b>رصيد العطل السنوي:</b>\n━━━━━━━━━━━━━━\n' : '🏖️ <b>SOLDE CONGÉS:</b>\n━━━━━━━━━━━━━━\n';
@@ -615,6 +636,9 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (d.startsWith('docs:')) {
       const emp = db.hr_employees?.find(e => String(e.id) === d.split(':')[1]);
       if (!emp) return;
+      if (!isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بعرض هذا الملف.' : '❌ Accès non autorisé à ce dossier.');
+      }
       const isAdm = roleObj.isAdmin();
       const mask = (val) => isAdm ? (T(val) || '—') : '<code>********</code>';
 
@@ -625,6 +649,10 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('abs:') && !d.startsWith('abs_type:')) {
       const empId = d.split(':')[1];
+      const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      if (emp && !isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بهذا الإجراء.' : '❌ Action non autorisée pour ce dossier.');
+      }
       const kbd = { inline_keyboard: [
         [{ text: ar ? '✅ غياب مبرر' : '✅ Absence Justifiée', callback_data: 'abs_type:justified:' + empId }],
         [{ text: ar ? '❌ غياب غير مبرر' : '❌ Absence Non Justifiée', callback_data: 'abs_type:unjustified:' + empId }],
@@ -645,6 +673,10 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('survey:') && !d.startsWith('survey_r:')) {
       const empId = d.split(':')[1];
+      const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      if (emp && !isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بهذا الإجراء.' : '❌ Action non autorisée pour ce dossier.');
+      }
       const kbd = { inline_keyboard: [
         [{ text: ar ? '❌ غياب غير مبرر' : '❌ Absence Non Justifiée', callback_data: 'survey_r:abs_nj:' + empId }],
         [{ text: ar ? '⚔️ مشاجرة' : '⚔️ Bagarre / Altercation', callback_data: 'survey_r:fight:' + empId }],
@@ -670,6 +702,10 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d.startsWith('reqmenu:')) {
       const empId = d.split(':')[1];
+      const emp = db.hr_employees?.find(e => String(e.id) === empId);
+      if (emp && !isEmployeeAllowed(userData, emp)) {
+         return send(chatId, ar ? '❌ غير مصرح لك بهذا الإجراء.' : '❌ Action non autorisée pour ce dossier.');
+      }
       const rows = [
         [{ text: ar ? '💰 كشف الرواتب' : '💰 Relevé des Émoluments', callback_data: 'rdoc:releve_emol:' + empId }],
         [{ text: ar ? '📋 شهادة العمل' : '📋 Attestation de Travail', callback_data: 'rdoc:att_travail:' + empId }],
@@ -2771,6 +2807,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'om_search') {
       const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
+        if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -2816,6 +2853,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'entry_search') {
       const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
+        if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -2861,6 +2899,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     if (st.step === 'exit_search') {
       const q = txtLow.trim();
       const results = (db.hr_employees || []).filter(e => {
+        if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
@@ -2919,20 +2958,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       const qLow = q.toLowerCase();
       const searchResults = (db.hr_employees || []).filter(e => {
         if (e.status === 'deleted') return false;
-        // Scope check
-        const empScope = userData.scope || 'all';
-        let allowed = false;
-        if (role === 'admin' || empScope === 'all') {
-          allowed = true;
-        } else if (empScope === 'department') {
-          const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
-          allowed = depts.some(d => String(e.department_fr || '').toLowerCase().includes(d) || String(e.direction_fr || '').toLowerCase().includes(d));
-        } else if (empScope === 'custom_employees') {
-          allowed = (userData.allowed_employees || []).map(id => String(id)).includes(String(e.clockingId));
-        } else if (empScope === 'company') {
-          allowed = String(e.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
-        }
-        if (!allowed) return false;
+        if (!isEmployeeAllowed(userData, e)) return false;
+        
         // Query match
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();

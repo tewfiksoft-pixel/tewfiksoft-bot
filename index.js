@@ -159,18 +159,14 @@ async function generateAndSendWorkCert(req, cfg, db) {
 
 function isEmployeeAllowed(userData, emp) {
   const role = String(userData.role || '').toLowerCase();
-  if (role === 'admin') return true;
   
+  if (role === 'admin') return true;
+  if (role === 'general_manager') return false;
+  
+  // All other roles ONLY see explicitly added employees
   const allowedEmps = (userData.allowed_employees || []).map(id => String(id));
   if (allowedEmps.includes(String(emp.clockingId))) return true;
 
-  if (userData.scope === 'department') {
-    const depts = (userData.allowed_departments || []).map(d => String(d).toLowerCase().trim());
-    return depts.some(d => String(emp.department_fr || '').toLowerCase().includes(d) || String(emp.direction_fr || '').toLowerCase().includes(d));
-  } else if (userData.scope === 'company') {
-    return String(emp.companyId).toLowerCase() === String(userData.allowed_company).toLowerCase();
-  }
-  
   return false;
 }
 

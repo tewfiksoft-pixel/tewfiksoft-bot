@@ -24,11 +24,8 @@ const updateConfig = (cfg) => {
   const cleanCfg = JSON.parse(JSON.stringify(cfg));
   if (cleanCfg.authorized_users) {
     for (const u of cleanCfg.authorized_users) {
-      if (u._originalRole) {
-        u.role = u._originalRole;
-        delete u._originalRole;
-      }
-      delete u._testRole;
+      
+      
     }
   }
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cleanCfg, null, 2));
@@ -221,18 +218,7 @@ export async function handle(u) {
 
 
 
-  // --- DB Recovery & Test Role Logic ---
-  // Fix DB if left corrupted by previous versions
-  if (userData._originalRole === 'admin') {
-    const dbase = loadDB();
-    if (dbase.users[fromId]) {
-      dbase.users[fromId].role = 'admin';
-      delete dbase.users[fromId]._originalRole;
-      saveDB(dbase);
-    }
-    userData.role = 'admin';
-    delete userData._originalRole;
-  }
+  
 
   if (txtLow === '/exit_test' || txtLow === 'exit_test') {
     testRoles.delete(chatId);

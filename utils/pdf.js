@@ -115,15 +115,16 @@ export async function generateExitAuthPDF(data, outputPath) {
       
       doc.moveDown(0.8);
       const exitTypeTxt = data.exitType === 'Service' ? 'Mission de Service' : 'Sortie Personnelle';
-      const officialExitTime = data.guardConfirmedAt 
-        ? new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-        : data.exitTime;
+      // ✅ Always use the guard's actual confirmed gate time — NOT the manager's requested time
+      const guardExitTime = data.guardConfirmedAt
+        ? new Date(data.guardConfirmedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Algiers' })
+        : '—';
 
       doc.fillColor('#333').fontSize(10).font(fontNormal);
       doc.text(`Type de Sortie: `, 60, doc.y, { continued: true }).font(fontBold).text(exitTypeTxt);
-      doc.font(fontNormal).text(`Heure de Sortie (Réelle): `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(officialExitTime);
+      doc.font(fontNormal).text(`Heure de Sortie au Portail: `, 60, doc.y + 5, { continued: true }).font(fontBold).fillColor('#d9534f').text(guardExitTime);
       doc.fillColor('#333').font(fontNormal).text(`Motif / Raison: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.reason);
-      doc.font(fontNormal).text(`Date de Demande: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(new Date(data.createdAt).toLocaleString('fr-FR'));
+      doc.font(fontNormal).text(`Heure Demande Manager: `, 60, doc.y + 5, { continued: true }).font(fontBold).text(data.exitTime || '—');
 
       // --- Signatures Section ---
       doc.moveDown(4);

@@ -11,17 +11,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const bidi = bidiFactory();
 
 function getResolvedCompanyName(data) {
-  if (data.companyName && data.companyName !== 'ALVER / TEWFIKSOFT') return data.companyName;
   const db = loadDB();
-  const emp = (db.hr_employees || []).find(e => String(e.id) === String(data.empId || data.employeeId || data.clockingId));
+  const employees = db.hr_employees || [];
+  
+  // Search by UUID id, clockingId, or empId (any format)
+  const searchId = String(data.empId || data.employeeId || data.clockingId || '').trim();
+  const emp = employees.find(e =>
+    String(e.id).trim() === searchId ||
+    String(e.clockingId).trim() === searchId
+  );
+  
   if (emp) {
-    const isF = String(emp.companyId || '').toLowerCase() === 'vt' ||
-                String(emp.companyId || '').toLowerCase() === 'verre_tech' ||
-                String(emp.companyName || '').toLowerCase().includes('fartak') ||
-                String(emp.companyName || '').toLowerCase().includes('verre tech');
-    return isF ? 'Verre Tech Spa' : 'ALVER Spa';
+    const companyId = String(emp.companyId || '').toLowerCase();
+    const isVerreTech = companyId === 'vt' || companyId === 'verre_tech' ||
+                        String(emp.companyName || '').toLowerCase().includes('verre tech');
+    return isVerreTech ? 'Verre Tech Spa' : 'ALVER Spa';
   }
-  return 'ALVER / TEWFIKSOFT';
+  
+  // Fallback: check companyName passed in data
+  if (data.companyName && data.companyName !== 'ALVER / TEWFIKSOFT') return data.companyName;
+  return 'ALVER Spa';
 }
 
 

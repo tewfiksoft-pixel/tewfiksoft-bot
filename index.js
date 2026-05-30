@@ -397,7 +397,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (d === 'add_emp') {
       const role = String(userData.role).toLowerCase();
-      if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart') {
+      if (role !== 'admin' && (role !== 'manager' && role !== 'service_commercial') && role !== 'chef_de_quart') {
         return send(chatId, ar ? '❌ <b>هذه الميزة مخصصة للإدارة.</b>' : '❌ <b>Accès restreint à l\'administration.</b>');
       }
       states.set(chatId, { step: 'add_emp_tid' });
@@ -2214,7 +2214,7 @@ Pour garantir une fin de relation de travail légale et fluide :
 
   if (txtLow === '/test_email') {
     const role = String(userData.role).toLowerCase();
-    if (role !== 'admin' && role !== 'manager' && role !== 'chef_de_quart') return;
+    if (role !== 'admin' && (role !== 'manager' && role !== 'service_commercial') && role !== 'chef_de_quart') return;
     
     await send(chatId, '📧 <b>جاري إرسال بريد تجريبي (Port 465)...</b>');
     try {

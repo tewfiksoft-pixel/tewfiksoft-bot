@@ -2854,6 +2854,7 @@ Pour garantir une fin de relation de travail légale et fluide :
     // --- 📝 Ordre de Mission Steps ---
     if (st.step === 'om_search') {
       const q = txtLow.trim();
+      log(`[OM-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
@@ -2865,6 +2866,7 @@ Pour garantir une fin de relation de travail légale et fluide :
         }
         return cid.includes(qLow) || lnf.includes(qLow) || fnf.includes(qLow);
       }).slice(0, 5);
+      log(`[OM-Search] Results found: ${results.length}`);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
       const kbd = { inline_keyboard: results.map(e => [{ text: `👤 ${e.lastName_fr} ${e.firstName_fr}`, callback_data: `om_sel:${e.id}` }]) };

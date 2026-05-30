@@ -2902,15 +2902,19 @@ Pour garantir une fin de relation de travail légale et fluide :
     }
     if (st.step === 'entry_search') {
       const q = txtLow.trim();
+      log(`[Entry-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
-        const isNum = /^\d+$/.test(q);
-        if (isNum) return cid === q || parseInt(cid) === parseInt(q);
-        return lnf.includes(q) || fnf.includes(q);
+        
+        if (/^\d+$/.test(q) && q.length <= 3) {
+           return cid === q || parseInt(cid) === parseInt(q);
+        }
+        return cid.includes(q) || lnf.includes(q) || fnf.includes(q);
       }).slice(0, 5);
+      log(`[Entry-Search] Results found: ${results.length}`);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
       
@@ -2948,15 +2952,19 @@ Pour garantir une fin de relation de travail légale et fluide :
 
     if (st.step === 'exit_search') {
       const q = txtLow.trim();
+      log(`[Exit-Search] Query: "${q}" | Role: ${userData.role} | hr_employees count: ${(db.hr_employees || []).length}`);
       const results = (db.hr_employees || []).filter(e => {
         if (!isEmployeeAllowed(userData, e)) return false;
         const cid = String(e.clockingId || '').toLowerCase().trim();
         const lnf = String(e.lastName_fr || '').toLowerCase();
         const fnf = String(e.firstName_fr || '').toLowerCase();
-        const isNum = /^\d+$/.test(q);
-        if (isNum) return cid === q || parseInt(cid) === parseInt(q);
-        return lnf.includes(q) || fnf.includes(q);
+        
+        if (/^\d+$/.test(q) && q.length <= 3) {
+           return cid === q || parseInt(cid) === parseInt(q);
+        }
+        return cid.includes(q) || lnf.includes(q) || fnf.includes(q);
       }).slice(0, 5);
+      log(`[Exit-Search] Results found: ${results.length}`);
 
       if (results.length === 0) return send(chatId, ar ? `❌ لا يوجد موظف بهذا الاسم/الرقم. حاول مجدداً:` : `❌ Aucun employé trouvé. Réessayez :`);
       

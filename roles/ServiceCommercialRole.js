@@ -6,6 +6,8 @@ export default class ServiceCommercialRole extends BaseRole {
     const kbd = { inline_keyboard: [
       [{ text: ar ? '🚪 إدارة التصاريح والمهمات' : '🚪 Gestion des Accès & Missions', callback_data: 'auth_menu' }],
       [{ text: ar ? '💼 المبيعات والطلبيات' : '💼 Ventes & Bons', callback_data: 'ventes_menu' }],
+      [{ text: ar ? '⚙️ أدوات الإدارة' : '⚙️ Outils de Gestion', callback_data: 'mgmt_tools' }],
+      [{ text: ar ? '🔍 البحث السريع' : '🔍 Recherche Rapide', callback_data: 'search' }],
       [{ text: ar ? '👤 ملفي الشخصي' : '👤 Mon Profil', callback_data: 'my_profile' }],
       [{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]
     ]};

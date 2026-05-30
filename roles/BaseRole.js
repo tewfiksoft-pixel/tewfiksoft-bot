@@ -30,8 +30,8 @@ export default class BaseRole {
     kbd.inline_keyboard.push([{ text: ar ? '🌐 تغيير اللغة' : '🌐 Changer la Langue', callback_data: 'choose_lang' }]);
 
     return send(chatId, ar
-      ? `💎 <b>أهلاً بك [v10.1 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
-      : `💎 <b>BIENVENUE [v10.1 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
+      ? `💎 <b>أهلاً بك [v10.2 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 المستخدم: <b>${this.user.name}</b>\n🛡️ الرتبة: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`
+      : `💎 <b>BIENVENUE [v10.2 ☁️ Cloud]</b>\n━━━━━━━━━━━━━━\n👤 Utilisateur: <b>${this.user.name}</b>\n🛡️ Rôle: <code>${String(this.user.role).toUpperCase()}</code>\n━━━━━━━━━━━━━━`, kbd);
   }
 
   async showEmployeeCard(chatId, emp, ar, bals = []) {

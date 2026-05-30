@@ -22,7 +22,7 @@ export default class RoleFactory {
       case 'employee': return new EmployeeRole(user);
       case 'gestionnaire_rh': return new GestionnaireRhRole(user);
       case 'poste_garde': return new PosteGardeRole(user);
-      case 'service_commercial': return new ServiceCommercialRole(user);
+      case 'service_commercial': return new ManagerRole(user);
       case 'finance': return new FinanceRole(user);
       case 'gds': return new GDSRole(user);
       default: return new BaseRole(user);

@@ -985,7 +985,6 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Checkboxes grid
-      drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
       doc.moveTo(startX + 415, insideY).lineTo(startX + 415, y + sectionHeight).strokeColor('#000').lineWidth(0.8).stroke();
 
@@ -1027,7 +1026,6 @@ export async function generateBonVentePDF(data, outputPath) {
       doc.moveTo(startX + 250, insideY).lineTo(startX + 250, y + sectionHeight).strokeColor('#000').lineWidth(1.2).stroke();
 
       // Checkboxes grid
-      drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
       doc.moveTo(startX + 415, insideY).lineTo(startX + 415, y + sectionHeight).strokeColor('#000').lineWidth(0.8).stroke();
 

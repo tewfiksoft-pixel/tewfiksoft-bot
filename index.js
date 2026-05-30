@@ -98,19 +98,6 @@ const loadArticles = () => {
   return [];
 };
 
-// ── BVA Counter (separate file to prevent race conditions) ──
-const BVA_COUNTER_PATH = path.join(DATA_DIR, 'bva_counter.json');
-function loadBvaCounter() {
-  try {
-    if (fs.existsSync(BVA_COUNTER_PATH)) return JSON.parse(fs.readFileSync(BVA_COUNTER_PATH, 'utf8'));
-  } catch (e) {}
-  return null;
-}
-function saveBvaCounter(num) {
-  fs.writeFileSync(BVA_COUNTER_PATH, JSON.stringify({ bvaNextNumber: num }));
-  log(`[BVA-Counter] Saved: ${num}`);
-}
-
 async function notifyBVARole(txt, role, cfg, kbd) {
   // Notify users with the specific role as well as admins so they can process it directly
   const users = cfg.authorized_users?.filter(u => u.role === role || u.role === 'admin' || u.role === 'general_manager') || [];
@@ -1884,25 +1871,24 @@ Pour garantir une fin de relation de travail légale et fluide :
       st.processing = true;
       states.set(chatId, st);
       
-      const db2 = loadDB();
+      let dbNow = loadDB();
       const bvaYear = new Date().getFullYear();
       let nextSeq = 1;
       
-      // Read from dedicated counter file (race-condition safe)
-      const counter = loadBvaCounter();
-      log(`[BVA-Seq] Counter file: ${JSON.stringify(counter)}`);
-      if (counter && counter.bvaNextNumber) {
-        nextSeq = parseInt(counter.bvaNextNumber);
-        saveBvaCounter(nextSeq + 1); // Atomic increment
+      log(`[BVA-Seq] hr_settings exists: ${!!dbNow.hr_settings} | bvaNextNumber: ${dbNow.hr_settings?.bvaNextNumber}`);
+      if (dbNow.hr_settings && dbNow.hr_settings.bvaNextNumber) {
+        nextSeq = parseInt(dbNow.hr_settings.bvaNextNumber);
+        dbNow.hr_settings.bvaNextNumber = nextSeq + 1; // Atomic increment
+        saveDB(dbNow);
         log(`[BVA-Seq] ✅ Using bvaNextNumber: ${nextSeq}, next will be: ${nextSeq + 1}`);
       } else {
-        const bvasThisYear = (db2.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
+        const bvasThisYear = (dbNow.bon_vente || []).filter(b => new Date(b.createdAt || Date.now()).getFullYear() === bvaYear);
         const maxSeq = bvasThisYear.reduce((max, b) => {
           if (b.seqNumber) return Math.max(max, parseInt(b.seqNumber));
           return max;
         }, bvasThisYear.length);
         nextSeq = maxSeq + 1;
-        log(`[BVA-Seq] ⚠️ Counter file NOT found, fallback seq: ${nextSeq}`);
+        log(`[BVA-Seq] ⚠️ bvaNextNumber NOT found, fallback seq: ${nextSeq}`);
       }
 
       const bvaId = 'bva_' + Math.random().toString(36).substring(2, 9);
@@ -2356,8 +2342,12 @@ Pour garantir une fin de relation de travail légale et fluide :
       if (isNaN(num) || num <= 0) {
         return send(chatId, ar ? '⚠️ الرجاء إدخال رقم صحيح أكبر من 0:' : '⚠️ Veuillez entrer un nombre valide supérieur à 0 :');
       }
-      // Save to dedicated counter file (race-condition safe)
-      saveBvaCounter(num);
+      
+      let dbNow = loadDB();
+      if (!dbNow.hr_settings) dbNow.hr_settings = {};
+      dbNow.hr_settings.bvaNextNumber = num;
+      saveDB(dbNow);
+      
       log(`[BVA-Counter] User ${fromId} set start number to: ${num}`);
       states.delete(chatId);
       saveStates();

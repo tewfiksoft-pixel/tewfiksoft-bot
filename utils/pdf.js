@@ -987,6 +987,7 @@ export async function generateBonVentePDF(data, outputPath) {
       // Checkboxes grid
       drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
+      doc.moveTo(startX + 415, insideY + 16).lineTo(startX + 415, y + sectionHeight).strokeColor('#000').lineWidth(0.8).stroke();
 
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       
@@ -1028,6 +1029,7 @@ export async function generateBonVentePDF(data, outputPath) {
       // Checkboxes grid
       drawGridH(startX + 250, startX + 580, insideY + 16);
       drawGridH(startX + 250, startX + 580, insideY + 40);
+      doc.moveTo(startX + 415, insideY + 16).lineTo(startX + 415, y + sectionHeight).strokeColor('#000').lineWidth(0.8).stroke();
 
       doc.font(fontBold).fontSize(7.5).text('MODE DE PAIEMENT :', startX + 250, insideY + 6, { width: 330, align: 'center' });
       

@@ -175,6 +175,8 @@ function isEmployeeAllowed(userData, emp) {
 }
 
 export async function handle(u) {
+  log(`[Update] Received: ${JSON.stringify(u).substring(0, 200)}...`);
+  const cbq = u.callback_query, msg = u.message || cbq?.message, from = u.message?.from || cbq?.from;
   if (!msg || !from) return;
   const chatId = Number(msg.chat.id), fromId = String(from.id), cfg = loadConfig(), db = loadDB();
   const txt = (msg.text || '').trim(), txtLow = txt.toLowerCase();

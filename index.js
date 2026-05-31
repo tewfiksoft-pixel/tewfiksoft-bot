@@ -146,7 +146,7 @@ async function generateAndSendWorkCert(req, cfg, db) {
 
   if (recipients.length > 0) {
     const subject = `Attestation de Travail - ${emp.lastName_fr} ${emp.firstName_fr} - ${new Date().toLocaleDateString('fr-FR')}`;
-    const body = `Bonjour,\n\nVeuillez trouver ci-joint l'Attestation de Travail pour ${emp.lastName_fr} ${emp.firstName_fr} (Matricule: ${emp.clockingId}).\n\nMotif: ${req.reason}\nApprouvé par: ${req.approvedBy}\nDate: ${new Date().toLocaleDateString('fr-FR')}\n\nCordialement,\nTewfikSoft HR Bot`;
+    const body = `Bonjour,\n\n📦 <b>Articles à charger :</b>\n\n\nVeuillez trouver ci-joint l'Attestation de Travail pour ${emp.lastName_fr} ${emp.firstName_fr} (Matricule: ${emp.clockingId}).\n\nMotif: ${req.reason}\nApprouvé par: ${req.approvedBy}\nDate: ${new Date().toLocaleDateString('fr-FR')}\n\nCordialement,\nTewfikSoft HR Bot`;
     await sendEmail(recipients, subject, body, [{ filename: 'Attestation_de_Travail.pdf', path: pdfPath }]);
   }
 
@@ -1909,8 +1909,8 @@ Pour garantir une fin de relation de travail légale et fluide :
       
       // Notify GDS Role (Expedition)
       const notifyMsg = ar
-        ? `🔔 <b>إشعار للمستودع (GDS): إذن بيع جديد بانتظار التحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\nيرجى إدخال رقم إذن التسليم (BL) ومعلومات الشاحنة والسائق.`
-        : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\nVeuillez saisir le N° BL et les détails du chauffeur.`;
+        ? `🔔 <b>إشعار للمستودع (GDS): إذن بيع جديد بانتظار التحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\n📦 <b>المواد المشحونة:</b>\n${itemsListForGDS}\n\nيرجى إدخال رقم إذن التسليم (BL) ومعلومات الشاحنة والسائق.`
+        : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\n📦 <b>Articles à charger :</b>\n${itemsListForGDS}\n\nVeuillez saisir le N° BL et les détails du chauffeur.`;
         
       const kbd = { inline_keyboard: [[{ text: ar ? '🚚 تحميل وتأكيد الشحنة' : '🚚 Charger l\'Expédition', callback_data: `bva_ship_start:${bvaId}` }]] };
       await notifyBVARole(notifyMsg, 'gds', cfg, kbd);

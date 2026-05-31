@@ -1957,9 +1957,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveDB(db2);
       
       // Notify Guard (Poste de Garde) role
+      const itemsListForGuard = bva.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
       const guardMsg = ar
-        ? `🚛 <b>إشعار لمركز الحراسة (Poste de Garde): شاحنة في انتظار الإذن بالخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n🚚 السائق: <b>${bva.driverName || 'N/A'}</b>\n🚛 الشاحنة: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 الفاتورة: <code>${bva.factureNum}</code>\n💰 المبلغ: <b>${bva.amount} DA</b>\n\nتمت مراجعة الوثيقة من طرف المالية. يرجى تأكيد خروج الشاحنة.`
-        : `🚛 <b>POSTE DE GARDE: CAMION EN ATTENTE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n🚚 Chauffeur: <b>${bva.driverName || 'N/A'}</b>\n🚛 Camion: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 Facture: <code>${bva.factureNum}</code>\n💰 Montant: <b>${bva.amount} DA</b>\n\nDocument validé par la Finance. Veuillez confirmer la sortie du camion.`;
+        ? `🚛 <b>إشعار لمركز الحراسة (Poste de Garde): شاحنة في انتظار الإذن بالخروج</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n🚚 السائق: <b>${bva.driverName || 'N/A'}</b>\n🚛 الشاحنة: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 الفاتورة: <code>${bva.factureNum}</code>\n\n📦 <b>المواد المشحونة:</b>\n${itemsListForGuard}\n\nتمت مراجعة الوثيقة من طرف المالية. يرجى تأكيد خروج الشاحنة.`
+        : `🚛 <b>POSTE DE GARDE: CAMION EN ATTENTE DE SORTIE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n🚚 Chauffeur: <b>${bva.driverName || 'N/A'}</b>\n🚛 Camion: <code>${bva.vehiclePlate || 'N/A'}</code>\n💳 Facture: <code>${bva.factureNum}</code>\n\n📦 <b>Articles :</b>\n${itemsListForGuard}\n\nDocument validé par la Finance. Veuillez confirmer la sortie du camion.`;
 
       const guardKbd = { inline_keyboard: [[{ text: ar ? '🚛 تأكيد خروج الشاحنة' : '🚛 Confirmer Sortie Camion', callback_data: `bva_guard_start:${bvaId}` }]] };
       await notifyBVARole(guardMsg, 'poste_garde', cfg, guardKbd);
@@ -2008,9 +2009,10 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveStates();
       
       // Notify Finance Role
+      const itemsListForFinance = bva.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
       const notifyMsg = ar
-        ? `🔔 <b>إشعار للمالية (Comptabilité): شحنة جاهزة للتأكيد والفوترة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم الفاتورة: <code>${bva.factureNum || 'N/A'}</code>\n💰 المبلغ: <b>${bva.amount || 'N/A'} DA</b>\n\nيرجى المراجعة وتأكيد الدفع النهائي لإصدار الوثيقة.`
-        : `🔔 <b>FINANCE: EXPÉDITION PRÊTE À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum || 'N/A'}</code>\n💰 Montant: <b>${bva.amount || 'N/A'} DA</b>\n\nVeuillez valider le paiement final pour générer le document.`;
+        ? `🔔 <b>إشعار للمالية (Comptabilité): شحنة جاهزة للتأكيد والفوترة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم الفاتورة: <code>${bva.factureNum || 'N/A'}</code>\n💰 المبلغ: <b>${bva.amount || 'N/A'} DA</b>\n\n📦 <b>المواد المشحونة:</b>\n${itemsListForFinance}\n\nيرجى المراجعة وتأكيد الدفع النهائي لإصدار الوثيقة.`
+        : `🔔 <b>FINANCE: EXPÉDITION PRÊTE À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum || 'N/A'}</code>\n💰 Montant: <b>${bva.amount || 'N/A'} DA</b>\n\n📦 <b>Articles :</b>\n${itemsListForFinance}\n\nVeuillez valider le paiement final pour générer le document.`;
         
       const kbd = { inline_keyboard: [[{ text: ar ? '💳 مراجعة وتأكيد الوثيقة' : '💳 Valider et Générer le Document', callback_data: `bva_fin_start:${bvaId}` }]] };
       await notifyBVARole(notifyMsg, 'finance', cfg, kbd);

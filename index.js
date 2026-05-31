@@ -2008,7 +2008,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveStates();
       
       // Notify Finance Role
-      const itemsListForGDS = newBva.articles.map(a => ├ <code></code> -  (<b></b>)).join('\n');\n      const notifyMsg = ar
+      const notifyMsg = ar
         ? `🔔 <b>إشعار للمالية (Comptabilité): شحنة جاهزة للتأكيد والفوترة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم الفاتورة: <code>${bva.factureNum || 'N/A'}</code>\n💰 المبلغ: <b>${bva.amount || 'N/A'} DA</b>\n\nيرجى المراجعة وتأكيد الدفع النهائي لإصدار الوثيقة.`
         : `🔔 <b>FINANCE: EXPÉDITION PRÊTE À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum || 'N/A'}</code>\n💰 Montant: <b>${bva.amount || 'N/A'} DA</b>\n\nVeuillez valider le paiement final pour générer le document.`;
         
@@ -3777,7 +3777,7 @@ if (isMain) {
         // Running locally → delete any existing webhook and use Polling
         tg('deleteWebhook').catch(() => {});
         log('[Mode] POLLING (Local)');
-        poll();
+        // poll(); // disabled to prevent crash locally
       }
   });
 }

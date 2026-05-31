@@ -1908,6 +1908,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveStates();
       
       // Notify GDS Role (Expedition)
+      const itemsListForGDS = newBva.articles.map(a => `├ <code>${a.code}</code> - ${a.prod} (<b>${a.qty}</b>)`).join('\n');
       const notifyMsg = ar
         ? `🔔 <b>إشعار للمستودع (GDS): إذن بيع جديد بانتظار التحميل</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${newBva.clientName}</b>\n📄 طلبية رقم: <code>${newBva.bcNum}</code>\n👤 من طرف: ${newBva.commercialName}\n\n📦 <b>المواد المشحونة:</b>\n${itemsListForGDS}\n\nيرجى إدخال رقم إذن التسليم (BL) ومعلومات الشاحنة والسائق.`
         : `🔔 <b>GDS: NOUVELLE EXPÉDITION PRÊTE</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${newBva.clientName}</b>\n📄 BC N°: <code>${newBva.bcNum}</code>\n👤 Par: ${newBva.commercialName}\n\n📦 <b>Articles à charger :</b>\n${itemsListForGDS}\n\nVeuillez saisir le N° BL et les détails du chauffeur.`;
@@ -2007,7 +2008,7 @@ Pour garantir une fin de relation de travail légale et fluide :
       saveStates();
       
       // Notify Finance Role
-      const notifyMsg = ar
+      const itemsListForGDS = newBva.articles.map(a => ├ <code></code> -  (<b></b>)).join('\n');\n      const notifyMsg = ar
         ? `🔔 <b>إشعار للمالية (Comptabilité): شحنة جاهزة للتأكيد والفوترة</b>\n━━━━━━━━━━━━━━\n👤 الزبون: <b>${bva.clientName}</b>\n📄 رقم الفاتورة: <code>${bva.factureNum || 'N/A'}</code>\n💰 المبلغ: <b>${bva.amount || 'N/A'} DA</b>\n\nيرجى المراجعة وتأكيد الدفع النهائي لإصدار الوثيقة.`
         : `🔔 <b>FINANCE: EXPÉDITION PRÊTE À VALIDER</b>\n━━━━━━━━━━━━━━\n👤 Client: <b>${bva.clientName}</b>\n📄 Facture N°: <code>${bva.factureNum || 'N/A'}</code>\n💰 Montant: <b>${bva.amount || 'N/A'} DA</b>\n\nVeuillez valider le paiement final pour générer le document.`;
         

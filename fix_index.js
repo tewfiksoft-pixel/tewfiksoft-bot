@@ -1,0 +1,1 @@
+const fs = require('fs'); let c = fs.readFileSync('index.js', 'utf8'); c = c.replace('const itemsListForGDS = newBva.articles.map(a => + <code></code> -  (<b></b>)).join(\'\\n\');\\n      const notifyMsg = ar', 'const notifyMsg = ar'); fs.writeFileSync('index.js', c);
